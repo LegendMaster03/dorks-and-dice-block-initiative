@@ -60,9 +60,8 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("+ Another", content, StringComparison.Ordinal);
         Assert.Contains("Rules Core", content, StringComparison.Ordinal);
         Assert.Contains("Roll all enemy members", content, StringComparison.Ordinal);
-        Assert.Contains("Roll members", content, StringComparison.Ordinal);
-        Assert.Contains("One d20", content, StringComparison.Ordinal);
-        Assert.Contains("Roll once", content, StringComparison.Ordinal);
+        Assert.Contains("Roll average", content, StringComparison.Ordinal);
+        Assert.Contains("Single roll", content, StringComparison.Ordinal);
         Assert.Contains("average initiative", content, StringComparison.Ordinal);
         Assert.Contains("there are no manual tactical groups in this mode", content, StringComparison.Ordinal);
         Assert.Contains("Tactical groups are DM-authored roster units", content, StringComparison.Ordinal);
