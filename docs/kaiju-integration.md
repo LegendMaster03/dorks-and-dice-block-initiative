@@ -8,13 +8,11 @@ Official release page:
 
 https://www.patreon.com/posts/ryokos-kaiju-to-141132181
 
-The repository should link to the creator-hosted public release rather than treating a copied PDF as project-owned content.
+The repository links to the creator-hosted public release rather than redistributing the PDF.
 
 ## Kaiju is a block type
 
 A Kaiju is not represented merely by assigning a special alliance or by attaching extra metadata to an ordinary enemy block.
-
-Block Initiative needs two separate concepts:
 
 ```text
 Alliance / side
@@ -30,28 +28,40 @@ Turn block type
 
 A Kaiju can therefore belong to the `enemies` alliance while occupying a `kaiju` turn block. It must not collapse into an adjacent standard enemy block solely because the combatants share an alliance.
 
-This keeps the initiative topology accurate while giving Kaiju turns a dedicated place to expose and operate Kaiju Fighting state.
+## Damage model
 
-## Kaiju block responsibilities
+Standard enemies can use ordinary current/max HP tracking in the encounter dashboard.
 
-The Kaiju block is where Kaiju-specific encounter state and prompts belong. The free rules include concepts the tracker will eventually need to represent, including:
+Kaiju deliberately do **not** use that ordinary HP tracker. The public Kaiju Fighting rules instead require separate tracking for:
 
-- Chaos Threshold;
-- behaviour changes and Rampage triggers;
-- Vulnerable Areas and whether each area is currently targetable or exploited;
-- Death Throes;
-- Finishing Blow tracking;
-- creatures mounted on or scaling the Kaiju;
-- GM adjudication for unusual or calamitous effects.
+- the Kaiju's **Chaos Threshold**;
+- each **Vulnerable Area**, with its own HP pool;
+- whether each Vulnerable Area is currently targetable;
+- whether each Vulnerable Area is exploited;
+- the current Behaviour or table-facing phase;
+- **Rampage** state;
+- **Death Throes**;
+- the stat block's **Finishing Blow** value and damage dealt during the current turn;
+- the post-defeat **Death Rattle** reminder.
 
-These mechanics should be tracked and surfaced by the tool, but the DM remains authoritative and must be able to override state when table rulings require it.
+Damage to the Kaiju outside a Vulnerable Area reduces the Chaos Threshold. Reaching 0 normally activates Rampage. A Vulnerable Area is normally exploited when its HP reaches 0, although the DM can override this for exceptional rulings such as calamitous damage or creature-specific rules. When all Vulnerable Areas are exploited, the Kaiju enters Death Throes. A Finishing Blow succeeds only during Death Throes and only when the configured Finishing Blow damage is reached in a single turn.
+
+The tracker preserves raw values separately from derived state. DM overrides can force Rampage, Death Throes, exploitation, or defeat state without rewriting the underlying Chaos Threshold or Vulnerable Area HP values.
+
+## Behaviour versus phase
+
+The Kaiju Fighting rules describe **Behaviours** that can activate from different triggers and are not universally an ordered phase ladder. The UI therefore uses **Behaviour / phase** as a free table-facing field rather than assuming every Kaiju follows phase 1, phase 2, phase 3.
 
 ## Initiative relationship
 
-Kaiju blocks still participate in the same cyclic initiative order as other blocks. The base initiative engine determines their position from initiative facts. Block construction then preserves the distinction between standard and Kaiju blocks even when adjacent combatants are allied.
+Kaiju blocks still participate in the same cyclic initiative order as other blocks. The base initiative engine determines their position from initiative facts. Block construction preserves the distinction between standard and Kaiju blocks even when adjacent combatants are allied.
 
-The detailed Kaiju block state machine should be implemented separately from ordinary standard-block turn state. That prevents Kaiju mechanics from complicating normal encounters and prevents ordinary enemy-block assumptions from constraining Kaiju encounters.
+Kaiju combat-state derivation is implemented separately from ordinary initiative traversal so Kaiju rules do not complicate normal encounters.
+
+## Persistence
+
+Health and Kaiju combat values are currently encounter-session state in the browser. They survive block advancement during the active page session but are not yet persisted across refreshes. Persistence remains a separate design decision so this feature does not accidentally create a second source of truth for player character sheets or lock the project into a database model prematurely.
 
 ## UX direction
 
-Normal encounter setup should remain simple. Kaiju controls should appear only when a combatant/block is explicitly marked as Kaiju. The default setup path should not ask every DM to fill in Chaos Threshold, Vulnerable Areas, or behaviour data for ordinary creatures.
+Normal encounter setup remains simple. Standard enemy HP appears only for non-player standard combatants. Kaiju controls appear only when a combatant is explicitly marked as Kaiju. During encounter running, ordinary enemy HP and Kaiju state remain visible even when another block is active so the DM can record damage whenever it occurs.
