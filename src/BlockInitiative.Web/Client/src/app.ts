@@ -39,7 +39,9 @@ style.textContent = `
 .block-initiative-app input, .block-initiative-app select { width: 100%; min-width: 0; padding: .45rem .55rem; }
 .block-initiative-app details { margin-top: .6rem; }
 .block-initiative-app details > summary { cursor: pointer; user-select: none; }
-.block-initiative-app .bi-advanced-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .65rem; margin-top: .65rem; }
+.block-initiative-app .bi-advanced-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .65rem; margin-top: .65rem; }
+.block-initiative-app .bi-metadata { margin-top: .65rem; padding-top: .65rem; border-top: 1px solid var(--bi-border); }
+.block-initiative-app .bi-metadata-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .65rem; margin-top: .5rem; }
 .block-initiative-app .bi-other-panel { margin-top: 1rem; border-top: 1px solid var(--bi-border); padding-top: .8rem; }
 .block-initiative-app .bi-other-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; }
 .block-initiative-app .bi-primary-action { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .8rem; align-items: center; border-top: 1px solid var(--bi-border); margin-top: 1rem; padding-top: 1rem; }
@@ -71,7 +73,8 @@ style.textContent = `
     .block-initiative-app .bi-side-grid { grid-template-columns: 1fr; }
     .block-initiative-app .bi-entry-main,
     .block-initiative-app .bi-entry-main.bi-entry-main-custom { grid-template-columns: 1fr 1fr; }
-    .block-initiative-app .bi-advanced-grid { grid-template-columns: 1fr; }
+    .block-initiative-app .bi-advanced-grid,
+    .block-initiative-app .bi-metadata-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 520px) {
     .block-initiative-app .bi-entry-main,
@@ -254,23 +257,28 @@ function addCombatant(seed: Partial<InitiativeCombatantInput> = {}, focus = true
             <summary>Advanced options</summary>
             <div class="bi-advanced-grid">
                 <div class="bi-field">
-                    <label>Block type</label>
+                    <label>Special block type</label>
                     <select data-field="block-type">
-                        <option value="standard">Standard</option>
-                        <option value="kaiju">Kaiju</option>
+                        <option value="standard">Standard block</option>
+                        <option value="kaiju">Kaiju block</option>
                     </select>
-                </div>
-                <div class="bi-field">
-                    <label>Initiative modifier</label>
-                    <input data-field="modifier" type="number" step="any" inputmode="decimal" placeholder="Optional">
                 </div>
                 <div class="bi-field">
                     <label>Acts with controller</label>
                     <select data-field="controller"><option value="">No controller</option></select>
                 </div>
-                <div class="bi-field">
-                    <label>Tactical enemy group</label>
-                    <input data-field="tactical-group" type="text" autocomplete="off" placeholder="Optional group name">
+            </div>
+            <div class="bi-metadata">
+                <div class="bi-muted">Optional record fields — these do not change the current block calculation.</div>
+                <div class="bi-metadata-grid">
+                    <div class="bi-field">
+                        <label>Initiative modifier</label>
+                        <input data-field="modifier" type="number" step="any" inputmode="decimal" placeholder="Optional">
+                    </div>
+                    <div class="bi-field">
+                        <label>Tactical group label</label>
+                        <input data-field="tactical-group" type="text" autocomplete="off" placeholder="Optional group name">
+                    </div>
                 </div>
             </div>
         </details>
@@ -295,6 +303,9 @@ function addCombatant(seed: Partial<InitiativeCombatantInput> = {}, focus = true
         input.addEventListener("input", () => {
             if (input.dataset.field === "name") {
                 refreshControllerOptions();
+            }
+            if (input.dataset.field === "custom-alliance") {
+                updateEntryMeta(card);
             }
             setupChanged();
         });
