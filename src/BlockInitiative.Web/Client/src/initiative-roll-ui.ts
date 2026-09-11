@@ -61,7 +61,10 @@ function configure(root: HTMLElement): void {
             addIndividualEnemy(enemySide, addGroup, originalAddGroup);
         }, true);
 
-        method.addEventListener("change", () => queueMicrotask(() => refresh(enemySide, method)));
+        method.addEventListener("change", () => queueMicrotask(() => {
+            refresh(enemySide, method);
+            refreshAdditionalSideGroups(root, method);
+        }));
         root.addEventListener("input", event => {
             const target = event.target;
             if (!(target instanceof HTMLInputElement)) return;
@@ -74,6 +77,7 @@ function configure(root: HTMLElement): void {
     }
 
     refresh(enemySide, method);
+    refreshAdditionalSideGroups(root, method);
 }
 
 function simplifyMethodSelection(method: HTMLSelectElement): void {
@@ -84,6 +88,11 @@ function simplifyMethodSelection(method: HTMLSelectElement): void {
     const individual = method.querySelector<HTMLOptionElement>("option[value='individual']");
     if (individual && individual.textContent !== "Individual placement") individual.textContent = "Individual placement";
     if (method.value !== "individual") method.value = "average";
+
+    const label = method.closest<HTMLElement>(".bi-field")?.querySelector("label");
+    if (label && label.textContent !== "Non-player initiative method") {
+        label.textContent = "Non-player initiative method";
+    }
 }
 
 function installStyles(documentRef: Document): void {
@@ -117,8 +126,8 @@ function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
     const help = enemySide.querySelector<HTMLElement>("[data-role='enemy-method-help']");
     if (help) {
         const helpText = grouped
-            ? "Tactical groups use one calculated group initiative. Roll average rolls every member separately with its own modifier; Single roll uses one d20 plus the highest initiative modifier in the group."
-            : "Each enemy rolls separately and is placed individually. Turn blocks are derived afterward from initiative order; there are no manual tactical groups in this mode.";
+            ? "Grouped non-player blocks use one calculated initiative. Roll average rolls every member separately with its own modifier; Single roll uses one d20 plus the highest initiative modifier in the group."
+            : "Each non-player creature rolls separately and is placed individually. Turn blocks are derived afterward from side and initiative order.";
         setTextIfChanged(help, helpText);
     }
 
@@ -136,6 +145,18 @@ function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
         group.classList.toggle("bi-individual-flat-group", !grouped);
         updateGroupRollingUi(group, grouped);
         refreshGroupSummary(group, method.value);
+    }
+}
+
+function refreshAdditionalSideGroups(root: HTMLElement, method: HTMLSelectElement): void {
+    const grouped = method.value !== "individual";
+    for (const group of root.querySelectorAll<HTMLElement>(".bi-other-side-block")) {
+        const kaiju = group.dataset.sideBlockType === "kaiju";
+        enhanceGroup(group);
+        group.classList.remove("bi-individual-flat-group");
+        updateGroupRollingUi(group, grouped && !kaiju);
+        refreshGroupSummary(group, kaiju ? "individual" : method.value);
+        for (const card of group.querySelectorAll<HTMLElement>(".bi-entry[data-id]")) enhanceCombatant(card);
     }
 }
 
@@ -192,7 +213,7 @@ function enhanceGroup(group: HTMLElement): void {
     singleRoll.type = "button";
     singleRoll.className = "btn btn-sm btn-outline-primary";
     singleRoll.textContent = "Single roll";
-    singleRoll.title = "Roll one d20 for the tactical group and add the highest initiative modifier in the group.";
+    singleRoll.title = "Roll one d20 for the group and add the highest initiative modifier in the group.";
     singleRoll.dataset.action = "roll-shared-group";
     singleRoll.onclick = () => applyOneRollToGroup(group, rollD20());
 
@@ -279,7 +300,8 @@ function refreshGroupSummary(group: HTMLElement, mode: string): void {
     if (!summary) return;
     const members = Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"));
     const count = members.length;
-    const noun = count === 1 ? "enemy" : "enemies";
+    const generic = group.classList.contains("bi-other-side-block");
+    const noun = generic ? (count === 1 ? "creature" : "creatures") : (count === 1 ? "enemy" : "enemies");
     const result = group.querySelector<HTMLElement>("[data-role='group-initiative-result']");
 
     if (mode === "individual") {
