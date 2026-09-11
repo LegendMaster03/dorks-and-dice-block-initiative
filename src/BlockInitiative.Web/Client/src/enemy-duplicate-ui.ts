@@ -72,7 +72,7 @@ function enhance(root: HTMLElement): void {
         }
 
         actions.hidden = !grouped;
-        renderDuplicateButtons(group, duplicateActions);
+        if (grouped) renderDuplicateButtons(group, duplicateActions);
 
         for (const card of group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]")) {
             const templateActions = card.querySelector<HTMLElement>("[data-role='template-actions']");
