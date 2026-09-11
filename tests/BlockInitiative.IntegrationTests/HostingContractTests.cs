@@ -65,20 +65,22 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("there are no manual tactical groups in this mode", content, StringComparison.Ordinal);
         Assert.Contains("Tactical groups are DM-authored roster units", content, StringComparison.Ordinal);
         Assert.Contains("not rolled", content, StringComparison.Ordinal);
-        Assert.Contains("initiative.readOnly = mode === \"shared\"", content, StringComparison.Ordinal);
+        Assert.Contains("Calculated from the tactical group's d20 roll", content, StringComparison.Ordinal);
         Assert.Contains("Initiative modifier", content, StringComparison.Ordinal);
         Assert.Contains("internal-combatant-fields", content, StringComparison.Ordinal);
-        Assert.Contains("bi-hp-fraction", content, StringComparison.Ordinal);
-        Assert.Contains("Hit points and HP adjustment", content, StringComparison.Ordinal);
-        Assert.Contains("Subtract the adjustment from current HP", content, StringComparison.Ordinal);
-        Assert.Contains("Add the adjustment to current HP", content, StringComparison.Ordinal);
+        Assert.Contains("bi-hp-editor", content, StringComparison.Ordinal);
+        Assert.Contains("bi-hp-popover", content, StringComparison.Ordinal);
+        Assert.Contains("Edit or adjust hit points", content, StringComparison.Ordinal);
+        Assert.Contains("Modify by", content, StringComparison.Ordinal);
+        Assert.Contains("Subtract the modifier from current HP", content, StringComparison.Ordinal);
+        Assert.Contains("Add the modifier to current HP", content, StringComparison.Ordinal);
         Assert.Contains("ownerDocument.head", content, StringComparison.Ordinal);
         Assert.Contains(":scope > style[data-role]", content, StringComparison.Ordinal);
         Assert.Contains("bi-dense-tracker", content, StringComparison.Ordinal);
         Assert.Contains("bi-roster-header", content, StringComparison.Ordinal);
         Assert.Contains("<span>HP</span>", content, StringComparison.Ordinal);
         Assert.Contains("bi-enemy-roster-header", content, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns:minmax(16rem,34rem) 5rem 13rem 16.5rem auto", content, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:minmax(16rem,34rem) 5rem 13rem 6rem auto", content, StringComparison.Ordinal);
         Assert.Contains("grid-column:4;grid-row:1", content, StringComparison.Ordinal);
     }
 
