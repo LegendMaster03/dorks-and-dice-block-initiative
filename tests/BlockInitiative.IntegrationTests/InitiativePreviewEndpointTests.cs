@@ -17,18 +17,7 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
     [Fact]
     public async Task PreviewReturnsDerivedBlocksAndPendingCyclicMerge()
     {
-        var request = new
-        {
-            combatants = new[]
-            {
-                Combatant("pa", "Player A", "players", 22m),
-                Combatant("pb", "Player B", "players", 19m),
-                Combatant("ex", "Enemy X", "enemies", 17m),
-                Combatant("ey", "Enemy Y", "enemies", 13m),
-                Combatant("pc", "Player C", "players", 10m),
-                Combatant("pd", "Player D", "players", 7m)
-            }
-        };
+        var request = WorkedExampleRequest();
 
         using var response = await _client.PostAsJsonAsync("/api/initiative/preview", request);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -105,8 +94,7 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
 
         using var response = await _client.PostAsJsonAsync("/api/initiative/preview", request);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        var root = document.RootElement;
-        var blocks = root.GetProperty("blocks").EnumerateArray().ToArray();
+        var blocks = document.RootElement.GetProperty("blocks").EnumerateArray().ToArray();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(3, blocks.Length);
@@ -114,6 +102,93 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
         Assert.Equal("kaiju", blocks[1].GetProperty("blockType").GetString());
         Assert.Equal("standard", blocks[2].GetProperty("blockType").GetString());
     }
+
+    [Fact]
+    public async Task TurnStateAdvancesThroughNormalRound()
+    {
+        var request = new
+        {
+            combatants = new[]
+            {
+                Combatant("p", "Player", "players", 20m),
+                Combatant("e", "Enemy", "enemies", 15m)
+            },
+            advanceCount = 2
+        };
+
+        using var response = await _client.PostAsJsonAsync("/api/initiative/state", request);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, root.GetProperty("round").GetInt32());
+        Assert.Equal("block-1", root.GetProperty("activeBlockId").GetString());
+        Assert.True(root.GetProperty("lastAdvance").GetProperty("roundAdvanced").GetBoolean());
+        Assert.False(root.GetProperty("cyclicMergeCompleted").GetBoolean());
+    }
+
+    [Fact]
+    public async Task TurnStateCompletesRoundOneCyclicMergeAndSkipsLowerBlock()
+    {
+        var request = new
+        {
+            combatants = WorkedExampleCombatants(),
+            advanceCount = 2
+        };
+
+        using var response = await _client.PostAsJsonAsync("/api/initiative/state", request);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = document.RootElement;
+        var blocks = root.GetProperty("blocks").EnumerateArray().ToArray();
+        var mergedMembers = blocks[0].GetProperty("memberIds").EnumerateArray()
+            .Select(item => item.GetString()).ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, root.GetProperty("round").GetInt32());
+        Assert.Equal("block-1", root.GetProperty("activeBlockId").GetString());
+        Assert.Equal(2, blocks.Length);
+        Assert.True(blocks[0].GetProperty("isMerged").GetBoolean());
+        Assert.Equal(new[] { "pa", "pb", "pc", "pd" }, mergedMembers);
+        Assert.True(root.GetProperty("cyclicMergeCompleted").GetBoolean());
+        Assert.True(root.GetProperty("lowerCyclicBlockSkippedRoundOne").GetBoolean());
+        Assert.True(root.GetProperty("lastAdvance").GetProperty("cyclicMergeCompleted").GetBoolean());
+        Assert.Equal("block-3", root.GetProperty("lastAdvance").GetProperty("skippedBlockId").GetString());
+    }
+
+    [Fact]
+    public async Task TurnStateRejectsUnresolvedOpposingTie()
+    {
+        var request = new
+        {
+            combatants = new[]
+            {
+                Combatant("p", "Player", "players", 15m),
+                Combatant("e", "Enemy", "enemies", 15m)
+            },
+            advanceCount = 0
+        };
+
+        using var response = await _client.PostAsJsonAsync("/api/initiative/state", request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("unresolved adjudication", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static object WorkedExampleRequest() => new
+    {
+        combatants = WorkedExampleCombatants()
+    };
+
+    private static object[] WorkedExampleCombatants() =>
+    [
+        Combatant("pa", "Player A", "players", 22m),
+        Combatant("pb", "Player B", "players", 19m),
+        Combatant("ex", "Enemy X", "enemies", 17m),
+        Combatant("ey", "Enemy Y", "enemies", 13m),
+        Combatant("pc", "Player C", "players", 10m),
+        Combatant("pd", "Player D", "players", 7m)
+    ];
 
     private static object Combatant(
         string id,
