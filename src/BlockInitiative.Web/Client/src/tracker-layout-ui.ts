@@ -133,11 +133,13 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app.bi-dense-tracker .bi-group-head .bi-badges{display:flex;align-items:center;justify-content:flex-start;gap:.35rem;flex-wrap:wrap}
 .block-initiative-app.bi-dense-tracker .bi-group-head .btn{padding:.24rem .48rem;white-space:nowrap}
 .block-initiative-app.bi-dense-tracker .bi-shared-roll-control{display:flex!important;align-items:center;gap:.35rem;min-width:0!important;max-width:none!important}
+.block-initiative-app.bi-dense-tracker .bi-shared-roll-control[hidden]{display:none!important}
 .block-initiative-app.bi-dense-tracker .bi-shared-roll-control label{margin:0;white-space:nowrap}
 .block-initiative-app.bi-dense-tracker .bi-shared-roll-control input{width:4.5rem!important;max-width:4.5rem!important;padding:.3rem .4rem}
 .block-initiative-app.bi-dense-tracker .bi-shared-result{min-width:6.5rem}
 .block-initiative-app.bi-dense-tracker .bi-group-body>[data-action='add-member']{justify-self:start;width:auto!important;padding:.22rem .5rem}
 .block-initiative-app.bi-dense-tracker .bi-enemy-create-buttons .btn{padding:.25rem .5rem}
+.block-initiative-app.bi-dense-tracker .bi-enemy-add-actions{margin-top:.15rem}
 
 @media(max-width:880px){
   .block-initiative-app.bi-dense-tracker .bi-enemy-roster-header{display:none}
