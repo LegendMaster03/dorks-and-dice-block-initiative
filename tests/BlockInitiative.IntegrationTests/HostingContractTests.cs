@@ -59,7 +59,7 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("+ Tactical group", content, StringComparison.Ordinal);
         Assert.Contains("+ Another", content, StringComparison.Ordinal);
         Assert.Contains("Rules Core", content, StringComparison.Ordinal);
-        Assert.Contains("Roll all enemy members", content, StringComparison.Ordinal);
+        Assert.Contains("Roll all averages", content, StringComparison.Ordinal);
         Assert.Contains("Roll average", content, StringComparison.Ordinal);
         Assert.Contains("Single roll", content, StringComparison.Ordinal);
         Assert.Contains("average initiative", content, StringComparison.Ordinal);
