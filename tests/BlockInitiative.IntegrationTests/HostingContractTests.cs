@@ -49,6 +49,8 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Build initiative blocks", content, StringComparison.Ordinal);
         Assert.Contains("+ Kaiju", content, StringComparison.Ordinal);
         Assert.Contains("Apply DM tie order", content, StringComparison.Ordinal);
+        Assert.Contains("Start encounter", content, StringComparison.Ordinal);
+        Assert.Contains("Next block", content, StringComparison.Ordinal);
     }
 
     [Fact]
