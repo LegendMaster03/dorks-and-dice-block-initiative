@@ -88,6 +88,9 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Edit or adjust vulnerable area HP", content, StringComparison.Ordinal);
         Assert.Contains("bi-kaiju-area-header", content, StringComparison.Ordinal);
         Assert.Contains("<span>Targetable</span>", content, StringComparison.Ordinal);
+        Assert.Contains("bi-duplicate-actions", content, StringComparison.Ordinal);
+        Assert.Contains("Add another", content, StringComparison.Ordinal);
+        Assert.Contains("manualDuplicateIndex", content, StringComparison.Ordinal);
     }
 
     [Fact]
