@@ -27,7 +27,8 @@ public static class InitiativePreviewEndpoints
                     combatant.InitiativeTotal,
                     combatant.InitiativeModifier,
                     combatant.ControllerId,
-                    combatant.TacticalGroupId))
+                    combatant.TacticalGroupId,
+                    ParseBlockType(combatant.BlockType)))
                 .ToArray();
 
             var layout = InitiativeEngine.Build(combatants, request.ManualOrderOverride);
@@ -41,10 +42,12 @@ public static class InitiativePreviewEndpoints
                     placement.EffectiveInitiative,
                     placement.Combatant.InitiativeModifier,
                     placement.Combatant.ControllerId,
-                    placement.Combatant.TacticalGroupId)).ToArray(),
+                    placement.Combatant.TacticalGroupId,
+                    FormatBlockType(placement.Combatant.BlockType))).ToArray(),
                 layout.Blocks.Select(block => new InitiativeBlockPreview(
                     block.Id,
                     block.AllianceId,
+                    FormatBlockType(block.BlockType),
                     block.MemberIds,
                     block.MemberOrder,
                     block.SourceBlockIds,
@@ -54,7 +57,8 @@ public static class InitiativePreviewEndpoints
                     : new CyclicMergePreview(
                         layout.CyclicMerge.TopBlockId,
                         layout.CyclicMerge.BottomBlockId,
-                        layout.CyclicMerge.AllianceId),
+                        layout.CyclicMerge.AllianceId,
+                        FormatBlockType(layout.CyclicMerge.BlockType)),
                 layout.Issues.Select(issue => new InitiativeIssuePreview(
                     issue.Code.ToString(),
                     issue.Message,
@@ -67,6 +71,32 @@ public static class InitiativePreviewEndpoints
             return Results.BadRequest(new { error = exception.Message });
         }
     }
+
+    private static TurnBlockType ParseBlockType(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || string.Equals(value, "standard", StringComparison.OrdinalIgnoreCase))
+        {
+            return TurnBlockType.Standard;
+        }
+
+        if (string.Equals(value, "kaiju", StringComparison.OrdinalIgnoreCase))
+        {
+            return TurnBlockType.Kaiju;
+        }
+
+        throw new ArgumentException(
+            $"Unknown turn block type '{value}'. Expected 'standard' or 'kaiju'.",
+            nameof(value));
+    }
+
+    private static string FormatBlockType(TurnBlockType blockType)
+        => blockType switch
+        {
+            TurnBlockType.Standard => "standard",
+            TurnBlockType.Kaiju => "kaiju",
+            _ => throw new ArgumentOutOfRangeException(nameof(blockType), blockType, null)
+        };
 }
 
 public sealed record InitiativePreviewRequest(
@@ -80,7 +110,8 @@ public sealed record InitiativeCombatantRequest(
     decimal InitiativeTotal,
     decimal? InitiativeModifier = null,
     string? ControllerId = null,
-    string? TacticalGroupId = null);
+    string? TacticalGroupId = null,
+    string? BlockType = null);
 
 public sealed record InitiativePreviewResponse(
     IReadOnlyList<InitiativeCombatantPreview> OrderedCombatants,
@@ -98,11 +129,13 @@ public sealed record InitiativeCombatantPreview(
     decimal EffectiveInitiative,
     decimal? InitiativeModifier,
     string? ControllerId,
-    string? TacticalGroupId);
+    string? TacticalGroupId,
+    string BlockType);
 
 public sealed record InitiativeBlockPreview(
     string Id,
     string AllianceId,
+    string BlockType,
     IReadOnlyList<string> MemberIds,
     IReadOnlyList<string> MemberOrder,
     IReadOnlyList<string> SourceBlockIds,
@@ -111,7 +144,8 @@ public sealed record InitiativeBlockPreview(
 public sealed record CyclicMergePreview(
     string TopBlockId,
     string BottomBlockId,
-    string AllianceId);
+    string AllianceId,
+    string BlockType);
 
 public sealed record InitiativeIssuePreview(
     string Code,
