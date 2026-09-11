@@ -2,6 +2,7 @@ import { initializeCombatStateUi } from "./combat-state-ui";
 import { initializeCombatantFieldUi } from "./combatant-field-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
+import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
 
 export type TurnBlockType = "standard" | "kaiju";
 export type TacticalGroupInitiativeMode = "individual" | "average" | "shared";
@@ -138,7 +139,25 @@ async function postJson<T>(
     return await response.json() as T;
 }
 
+function preserveHelperStylesOutsideToolRoot(): void {
+    const root = document.getElementById("tool-root");
+    const head = root?.ownerDocument.head;
+    if (!(root instanceof HTMLElement) || !head) return;
+
+    const styles = root.querySelectorAll<HTMLStyleElement>(
+        ":scope > style[data-role], :scope > style[data-combat-state-style]"
+    );
+    for (const style of styles) {
+        head.append(style);
+    }
+}
+
 initializeCombatStateUi();
 initializeCombatantFieldUi();
 initializeInitiativeRollUi();
 initializeHealthControlUi();
+initializeTrackerLayoutUi();
+
+// app.ts rebuilds #tool-root after imports execute. Keep helper styles outside
+// that replaceable subtree so both compact controls and tracker layout survive mount.
+preserveHelperStylesOutsideToolRoot();

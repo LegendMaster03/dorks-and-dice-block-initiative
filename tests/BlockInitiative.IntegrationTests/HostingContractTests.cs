@@ -67,6 +67,13 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("bi-hp-fraction", content, StringComparison.Ordinal);
         Assert.Contains("Subtract the adjustment from current HP", content, StringComparison.Ordinal);
         Assert.Contains("Add the adjustment to current HP", content, StringComparison.Ordinal);
+        Assert.Contains("ownerDocument.head", content, StringComparison.Ordinal);
+        Assert.Contains(":scope > style[data-role]", content, StringComparison.Ordinal);
+        Assert.Contains("bi-dense-tracker", content, StringComparison.Ordinal);
+        Assert.Contains("bi-roster-header", content, StringComparison.Ordinal);
+        Assert.Contains("HP / Adjust", content, StringComparison.Ordinal);
+        Assert.Contains("bi-enemy-roster-header", content, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:minmax(12rem,1fr) 5rem", content, StringComparison.Ordinal);
     }
 
     [Fact]
