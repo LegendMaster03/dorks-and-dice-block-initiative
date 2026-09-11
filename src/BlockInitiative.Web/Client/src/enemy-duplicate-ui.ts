@@ -160,13 +160,11 @@ function duplicateManualEnemy(group: HTMLElement, source: HTMLElement): void {
             .filter((id): id is string => Boolean(id))
     );
 
-    const nextIndex = Math.max(
-        0,
-        ...Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"))
-            .filter(card => card.dataset.manualDuplicateKey === key)
-            .map(card => Number(card.dataset.manualDuplicateIndex ?? 0))
-            .filter(Number.isFinite)
-    ) + 1;
+    const usedIndexes = Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"))
+        .filter(card => card.dataset.manualDuplicateKey === key)
+        .map(card => Number(card.dataset.manualDuplicateIndex ?? 0))
+        .filter(Number.isFinite);
+    const nextIndex = Math.max(0, ...usedIndexes) + 1;
 
     addDifferent.click();
 
