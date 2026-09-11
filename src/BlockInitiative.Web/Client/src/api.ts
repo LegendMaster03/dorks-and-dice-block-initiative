@@ -138,7 +138,24 @@ async function postJson<T>(
     return await response.json() as T;
 }
 
+function preserveHelperStylesOutsideToolRoot(): void {
+    const root = document.getElementById("tool-root");
+    const head = root?.ownerDocument.head;
+    if (!(root instanceof HTMLElement) || !head) return;
+
+    const styles = root.querySelectorAll<HTMLStyleElement>(
+        ":scope > style[data-role], :scope > style[data-combat-state-style]"
+    );
+    for (const style of styles) {
+        head.append(style);
+    }
+}
+
 initializeCombatStateUi();
 initializeCombatantFieldUi();
 initializeInitiativeRollUi();
 initializeHealthControlUi();
+
+// app.ts rebuilds #tool-root after imports execute. Move helper-module styles out
+// of that replaceable subtree so their layout rules survive the application mount.
+preserveHelperStylesOutsideToolRoot();
