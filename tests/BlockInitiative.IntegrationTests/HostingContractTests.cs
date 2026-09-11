@@ -73,6 +73,7 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("bi-roster-header", content, StringComparison.Ordinal);
         Assert.Contains("HP / Adjust", content, StringComparison.Ordinal);
         Assert.Contains("bi-enemy-roster-header", content, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:minmax(12rem,1fr) 5rem", content, StringComparison.Ordinal);
     }
 
     [Fact]
