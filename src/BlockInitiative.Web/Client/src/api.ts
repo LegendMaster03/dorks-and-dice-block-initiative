@@ -1,3 +1,5 @@
+export type TurnBlockType = "standard" | "kaiju";
+
 export interface InitiativeCombatantInput {
     id: string;
     name: string;
@@ -6,6 +8,7 @@ export interface InitiativeCombatantInput {
     initiativeModifier: number | null;
     controllerId: string | null;
     tacticalGroupId: string | null;
+    blockType?: TurnBlockType;
 }
 
 export interface InitiativePreviewRequest {
@@ -15,11 +18,13 @@ export interface InitiativePreviewRequest {
 
 export interface InitiativeCombatantPreview extends InitiativeCombatantInput {
     effectiveInitiative: number;
+    blockType: TurnBlockType;
 }
 
 export interface InitiativeBlockPreview {
     id: string;
     allianceId: string;
+    blockType: TurnBlockType;
     memberIds: string[];
     memberOrder: string[];
     sourceBlockIds: string[];
@@ -30,6 +35,7 @@ export interface CyclicMergePreview {
     topBlockId: string;
     bottomBlockId: string;
     allianceId: string;
+    blockType: TurnBlockType;
 }
 
 export interface InitiativeIssuePreview {
