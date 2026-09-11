@@ -35,7 +35,7 @@ function enhance(root: HTMLElement): void {
 
         card.classList.add("bi-roster-entry");
         card.classList.toggle("bi-player-entry", card.dataset.alliance === "players");
-        card.classList.toggle("bi-enemy-entry", card.dataset.alliance === "enemies");
+        card.classList.toggle("bi-enemy-entry", card.dataset.alliance !== "players");
 
         const remove = card.querySelector<HTMLButtonElement>("[data-action='remove']");
         if (remove) {
