@@ -36,6 +36,11 @@ function schedule(root: HTMLElement): void {
     });
 }
 
+function scheduleToolRoot(): void {
+    const root = document.getElementById("tool-root");
+    if (root instanceof HTMLElement) schedule(root);
+}
+
 function enhance(root: HTMLElement): void {
     const method = root.querySelector<HTMLSelectElement>("[data-role='enemy-method']");
     const grouped = method?.value !== "individual";
@@ -126,7 +131,7 @@ function duplicateEnemy(group: HTMLElement, source: HTMLElement): void {
     const templateClone = source.querySelector<HTMLButtonElement>("[data-action='clone-monster']");
     if (source.dataset.templateId && templateClone?.onclick) {
         templateClone.click();
-        schedule(group.closest<HTMLElement>("#tool-root") ?? document.getElementById("tool-root") as HTMLElement);
+        scheduleToolRoot();
         return;
     }
 
@@ -181,7 +186,7 @@ function duplicateManualEnemy(group: HTMLElement, source: HTMLElement): void {
     if (sourceModifier && targetModifier) setInputValue(targetModifier, sourceModifier.value);
 
     copyHealthWhenReady(group, source, target);
-    schedule(group.closest<HTMLElement>("#tool-root") ?? document.getElementById("tool-root") as HTMLElement);
+    scheduleToolRoot();
 }
 
 function copyHealthWhenReady(group: HTMLElement, source: HTMLElement, target: HTMLElement): void {
