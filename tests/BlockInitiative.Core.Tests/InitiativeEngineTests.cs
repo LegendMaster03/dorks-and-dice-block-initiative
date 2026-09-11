@@ -130,7 +130,7 @@ public sealed class InitiativeEngineTests
     }
 
     [Fact]
-    public void Build_KaijuBlockDoesNotCollapseIntoAdjacentStandardEnemyBlock()
+    public void Build_MergesConsecutiveSameSideMembersAcrossBlockTypes()
     {
         var layout = InitiativeEngine.Build(new[]
         {
@@ -139,27 +139,14 @@ public sealed class InitiativeEngineTests
             C("enemy-b", "Enemy B", "enemies", 16)
         });
 
-        Assert.Collection(
-            layout.Blocks,
-            block =>
-            {
-                Assert.Equal(TurnBlockType.Standard, block.BlockType);
-                Assert.Equal(new[] { "enemy-a" }, block.MemberIds);
-            },
-            block =>
-            {
-                Assert.Equal(TurnBlockType.Kaiju, block.BlockType);
-                Assert.Equal(new[] { "kaiju" }, block.MemberIds);
-            },
-            block =>
-            {
-                Assert.Equal(TurnBlockType.Standard, block.BlockType);
-                Assert.Equal(new[] { "enemy-b" }, block.MemberIds);
-            });
+        var block = Assert.Single(layout.Blocks);
+        Assert.Equal("enemies", block.AllianceId);
+        Assert.Equal(TurnBlockType.Mixed, block.BlockType);
+        Assert.Equal(new[] { "enemy-a", "kaiju", "enemy-b" }, block.MemberIds);
     }
 
     [Fact]
-    public void Build_CyclicMergeDoesNotCrossDifferentBlockTypes()
+    public void Build_CyclicMergeCrossesDifferentMemberBlockTypesWhenSideMatches()
     {
         var layout = InitiativeEngine.Build(new[]
         {
@@ -168,7 +155,19 @@ public sealed class InitiativeEngineTests
             C("kaiju", "Kaiju", "enemies", 10, TurnBlockType.Kaiju)
         });
 
-        Assert.Null(layout.CyclicMerge);
+        Assert.NotNull(layout.CyclicMerge);
+        Assert.Equal("enemies", layout.CyclicMerge!.AllianceId);
+        Assert.Equal(TurnBlockType.Mixed, layout.CyclicMerge.BlockType);
+    }
+
+    [Fact]
+    public void Build_RejectsMixedAsARawCombatantBlockType()
+    {
+        Assert.Throws<ArgumentException>(() => InitiativeEngine.Build(new[]
+        {
+            C("player", "Player", "players", 15),
+            C("bad", "Bad", "enemies", 10, TurnBlockType.Mixed)
+        }));
     }
 
     private static CombatantInitiative C(
