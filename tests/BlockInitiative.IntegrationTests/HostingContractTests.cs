@@ -62,7 +62,8 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Roll all averages", content, StringComparison.Ordinal);
         Assert.Contains("Roll average", content, StringComparison.Ordinal);
         Assert.Contains("Single roll", content, StringComparison.Ordinal);
-        Assert.Contains("average initiative", content, StringComparison.Ordinal);
+        Assert.Contains("Group initiative", content, StringComparison.Ordinal);
+        Assert.Contains("Single d20:", content, StringComparison.Ordinal);
         Assert.Contains("there are no manual tactical groups in this mode", content, StringComparison.Ordinal);
         Assert.Contains("Tactical groups are DM-authored roster units", content, StringComparison.Ordinal);
         Assert.Contains("not rolled", content, StringComparison.Ordinal);
@@ -82,9 +83,11 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("bi-enemy-roster-header", content, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns:minmax(16rem,34rem) 5rem 13rem 6rem auto", content, StringComparison.Ordinal);
         Assert.Contains("grid-column:4;grid-row:1", content, StringComparison.Ordinal);
-        Assert.Contains("bi-kaiju-basics-compact", content, StringComparison.Ordinal);
+        Assert.Contains("bi-kaiju-state-strip", content, StringComparison.Ordinal);
         Assert.Contains("bi-kaiju-pool-editor", content, StringComparison.Ordinal);
-        Assert.Contains("Edit or adjust Chaos", content, StringComparison.Ordinal);
+        Assert.Contains("Chaos (current / threshold)", content, StringComparison.Ordinal);
+        Assert.Contains("Finishing Blow target", content, StringComparison.Ordinal);
+        Assert.Contains("+ Vulnerable area", content, StringComparison.Ordinal);
         Assert.Contains("Edit or adjust vulnerable area HP", content, StringComparison.Ordinal);
         Assert.Contains("bi-kaiju-area-header", content, StringComparison.Ordinal);
         Assert.Contains("<span>Targetable</span>", content, StringComparison.Ordinal);

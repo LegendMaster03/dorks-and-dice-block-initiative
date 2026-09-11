@@ -45,7 +45,7 @@ function configure(root: HTMLElement): void {
             rollAll.type = "button";
             rollAll.className = "btn btn-sm btn-outline-primary";
             rollAll.textContent = "Roll all averages";
-            rollAll.title = "Roll every standard enemy separately with its modifier, then calculate each tactical group's average initiative.";
+            rollAll.title = "Roll every standard enemy separately with its modifier, then calculate each tactical group's initiative.";
             rollAll.dataset.action = "roll-all-enemies";
             rollAll.onclick = () => rollAllEnemies(enemySide, method.value);
             cluster.append(rollAll);
@@ -68,6 +68,7 @@ function configure(root: HTMLElement): void {
             const group = target.closest<HTMLElement>(".bi-tactical-group");
             if (!group) return;
             if (target.dataset.field === "initiative" || target.dataset.field === "modifier") {
+                clearSingleRollDetail(group);
                 refreshGroupSummary(group, method.value);
             }
         });
@@ -95,11 +96,11 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-enemy-create-buttons{justify-content:flex-start}
 .block-initiative-app .bi-roll-line{display:flex;gap:.4rem;align-items:center;margin-top:.3rem;flex-wrap:wrap}
 .block-initiative-app .bi-roll-audit{font-size:.8rem;opacity:.75}
-.block-initiative-app .bi-shared-roll-control{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap}
-.block-initiative-app .bi-shared-roll-control[hidden],.block-initiative-app [data-action='roll-group'][hidden]{display:none!important}
-.block-initiative-app .bi-shared-roll-control label{font-size:.82rem;font-weight:600;opacity:.8;margin:0}
-.block-initiative-app .bi-shared-roll-control input{width:4.5rem;max-width:4.5rem}
-.block-initiative-app .bi-shared-result{font-size:.82rem;font-weight:600;white-space:nowrap}
+.block-initiative-app .bi-group-roll-actions{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.block-initiative-app .bi-group-roll-actions[hidden],.block-initiative-app [data-action='roll-group'][hidden]{display:none!important}
+.block-initiative-app .bi-group-initiative-result{font-size:.86rem;font-weight:700;white-space:nowrap;margin-left:.15rem}
+.block-initiative-app .bi-single-roll-detail{font-size:.78rem;opacity:.72;white-space:nowrap}
+.block-initiative-app .bi-single-roll-detail[hidden]{display:none!important}
 .block-initiative-app .bi-individual-flat-group{border:0!important;border-radius:0!important;overflow:visible!important}
 .block-initiative-app .bi-individual-flat-group>.bi-group-head{display:none!important}
 .block-initiative-app .bi-individual-flat-group>.bi-group-body{padding:0!important}
@@ -119,7 +120,7 @@ function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
     const help = enemySide.querySelector<HTMLElement>("[data-role='enemy-method-help']");
     if (help) {
         const helpText = grouped
-            ? "Tactical groups are placed at the average of their members' adjusted initiative totals. Use Roll average for separate member rolls or Single roll to use one d20 for the group."
+            ? "Tactical groups use one calculated group initiative. Roll average rolls every member separately; Single roll uses one d20 for the whole group before applying each member's modifier."
             : "Each enemy rolls separately and is placed individually. Turn blocks are derived afterward from initiative order; there are no manual tactical groups in this mode.";
         setTextIfChanged(help, helpText);
     }
@@ -128,7 +129,7 @@ function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
     if (rosterHelp) {
         rosterHelp.hidden = !grouped;
         if (grouped) {
-            setTextIfChanged(rosterHelp, "Tactical groups are DM-authored roster units; each group's placement uses the average of its member initiative totals.");
+            setTextIfChanged(rosterHelp, "Tactical groups are DM-authored roster units; the displayed group initiative is the average of member totals after modifiers.");
         }
     }
 
@@ -178,34 +179,51 @@ function enhanceGroup(group: HTMLElement): void {
     if (!actions) return;
     group.dataset.rollControlReady = "true";
 
+    const controls = document.createElement("div");
+    controls.className = "bi-group-roll-actions";
+    controls.dataset.role = "group-roll-actions";
+
     const rollAverage = document.createElement("button");
     rollAverage.type = "button";
     rollAverage.className = "btn btn-sm btn-outline-primary";
     rollAverage.textContent = "Roll average";
-    rollAverage.title = "Roll each group member separately as d20 + its own modifier, then average the adjusted totals.";
+    rollAverage.title = "Roll each group member separately as d20 + its own modifier, then use the average as group initiative.";
     rollAverage.dataset.action = "roll-group";
     rollAverage.onclick = () => rollMembersIndividually(group);
 
-    const singleRoll = document.createElement("div");
-    singleRoll.className = "bi-shared-roll-control";
-    singleRoll.dataset.role = "shared-d20-control";
-    singleRoll.innerHTML = `<label>d20</label><input type="number" min="1" max="20" step="1" data-role="shared-d20" placeholder="1–20"><button type="button" class="btn btn-sm btn-outline-primary" data-action="roll-shared-group">Single roll</button><span class="bi-shared-result" data-role="shared-result">Average —</span>`;
-    singleRoll.querySelector<HTMLInputElement>("[data-role='shared-d20']")!.addEventListener("input", () => applyOneRollToGroup(group));
-    singleRoll.querySelector<HTMLButtonElement>("[data-action='roll-shared-group']")!.onclick = () => {
-        const input = singleRoll.querySelector<HTMLInputElement>("[data-role='shared-d20']")!;
-        input.value = String(rollD20());
-        input.dispatchEvent(new Event("input", { bubbles: true }));
+    const singleRoll = document.createElement("button");
+    singleRoll.type = "button";
+    singleRoll.className = "btn btn-sm btn-outline-primary";
+    singleRoll.textContent = "Single roll";
+    singleRoll.title = "Roll one d20 for the tactical group, apply each member's own modifier, then use the average as group initiative.";
+    singleRoll.dataset.action = "roll-shared-group";
+    singleRoll.onclick = () => {
+        const raw = rollD20();
+        applyOneRollToGroup(group, raw);
+        const detail = group.querySelector<HTMLElement>("[data-role='single-roll-detail']");
+        if (detail) {
+            detail.hidden = false;
+            setTextIfChanged(detail, `Single d20: ${raw}`);
+        }
     };
 
-    actions.insertBefore(rollAverage, actions.firstChild);
-    actions.insertBefore(singleRoll, rollAverage.nextSibling);
+    const result = document.createElement("span");
+    result.className = "bi-group-initiative-result";
+    result.dataset.role = "group-initiative-result";
+    result.textContent = "Group initiative —";
+
+    const detail = document.createElement("span");
+    detail.className = "bi-single-roll-detail";
+    detail.dataset.role = "single-roll-detail";
+    detail.hidden = true;
+
+    controls.append(rollAverage, singleRoll, result, detail);
+    actions.insertBefore(controls, actions.firstChild);
 }
 
 function updateGroupRollingUi(group: HTMLElement, grouped: boolean): void {
-    const rollAverage = group.querySelector<HTMLButtonElement>("[data-action='roll-group']");
-    const singleRoll = group.querySelector<HTMLElement>("[data-role='shared-d20-control']");
-    if (rollAverage) rollAverage.hidden = !grouped;
-    if (singleRoll) singleRoll.hidden = !grouped;
+    const controls = group.querySelector<HTMLElement>("[data-role='group-roll-actions']");
+    if (controls) controls.hidden = !grouped;
 
     for (const card of group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]")) {
         const initiative = card.querySelector<HTMLInputElement>("[data-field='initiative']");
@@ -238,23 +256,11 @@ function rollMembersIndividually(group: HTMLElement): void {
     for (const card of group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]")) {
         rollCombatant(card);
     }
-    const singleRollInput = group.querySelector<HTMLInputElement>("[data-role='shared-d20']");
-    if (singleRollInput) singleRollInput.value = "";
+    clearSingleRollDetail(group);
     refreshGroupSummary(group, "average");
 }
 
-function applyOneRollToGroup(group: HTMLElement): void {
-    const rawInput = group.querySelector<HTMLInputElement>("[data-role='shared-d20']");
-    const result = group.querySelector<HTMLElement>("[data-role='shared-result']");
-    if (!rawInput) return;
-
-    const rawText = rawInput.value.trim();
-    const raw = Number(rawText);
-    if (!rawText || !Number.isInteger(raw) || raw < 1 || raw > D20_SIDES) {
-        if (result) setTextIfChanged(result, "Average —");
-        return;
-    }
-
+function applyOneRollToGroup(group: HTMLElement, raw: number): void {
     const members = Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"));
     for (const member of members) {
         const initiative = member.querySelector<HTMLInputElement>("[data-field='initiative']");
@@ -269,6 +275,13 @@ function applyOneRollToGroup(group: HTMLElement): void {
     }
 
     refreshGroupSummary(group, "average");
+}
+
+function clearSingleRollDetail(group: HTMLElement): void {
+    const detail = group.querySelector<HTMLElement>("[data-role='single-roll-detail']");
+    if (!detail) return;
+    detail.hidden = true;
+    if (detail.textContent) detail.textContent = "";
 }
 
 function rollCombatant(card: HTMLElement): void {
@@ -289,11 +302,11 @@ function refreshGroupSummary(group: HTMLElement, mode: string): void {
     const members = Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"));
     const count = members.length;
     const noun = count === 1 ? "enemy" : "enemies";
-    const result = group.querySelector<HTMLElement>("[data-role='shared-result']");
+    const result = group.querySelector<HTMLElement>("[data-role='group-initiative-result']");
 
     if (mode === "individual") {
         setTextIfChanged(summary, `${count} ${noun} · individual placement`);
-        if (result) setTextIfChanged(result, "Average —");
+        if (result) setTextIfChanged(result, "Group initiative —");
         return;
     }
 
@@ -305,19 +318,19 @@ function refreshGroupSummary(group: HTMLElement, mode: string): void {
 
     if (totals.length === 0) {
         setTextIfChanged(summary, `${count} ${noun} · not rolled`);
-        if (result) setTextIfChanged(result, "Average —");
+        if (result) setTextIfChanged(result, "Group initiative —");
         return;
     }
     if (totals.length < count) {
         setTextIfChanged(summary, `${count} ${noun} · ${totals.length}/${count} rolled`);
-        if (result) setTextIfChanged(result, "Average —");
+        if (result) setTextIfChanged(result, "Group initiative —");
         return;
     }
 
     const average = totals.reduce((sum, value) => sum + value, 0) / totals.length;
     const formatted = formatNumber(average);
-    setTextIfChanged(summary, `${count} ${noun} · average initiative ${formatted}`);
-    if (result) setTextIfChanged(result, `Average ${formatted}`);
+    setTextIfChanged(summary, `${count} ${noun} · group initiative ${formatted}`);
+    if (result) setTextIfChanged(result, `Group initiative ${formatted}`);
 }
 
 function initiativeModifier(card: HTMLElement): number {

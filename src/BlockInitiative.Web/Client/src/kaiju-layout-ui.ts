@@ -50,19 +50,36 @@ function enhanceKaijuSetup(panel: HTMLElement): void {
         if (basics && currentChaos && chaosThreshold && finishingBlow && phaseField) {
             panel.dataset.kaijuCompactReady = "true";
             basics.classList.remove("three");
-            basics.classList.add("bi-kaiju-basics-compact");
+            basics.classList.add("bi-kaiju-state-strip");
 
-            const chaos = buildPoolEditor(currentChaos, chaosThreshold, "Chaos", "Edit or adjust Chaos");
+            const chaos = buildPoolEditor(
+                currentChaos,
+                chaosThreshold,
+                "Chaos",
+                "Edit or adjust Chaos current / threshold"
+            );
+            chaos.classList.add("bi-kaiju-chaos");
+
             finishingBlow.classList.add("bi-kaiju-finishing-blow");
+            renameLabel(finishingBlow, "Finishing Blow target");
+
             phaseField.classList.add("bi-kaiju-phase");
-            const phaseLabel = phaseField.querySelector("label");
-            if (phaseLabel) phaseLabel.textContent = "Behaviour / phase";
+            renameLabel(phaseField, "Behaviour / phase");
 
             basics.replaceChildren(chaos, finishingBlow, phaseField);
         }
 
+        const addArea = panel.querySelector<HTMLButtonElement>("[data-action='add-area']");
+        if (addArea) {
+            addArea.textContent = "+ Vulnerable area";
+            addArea.title = "Add vulnerable area";
+        }
+
         const overrides = panel.querySelector<HTMLElement>("[data-role='overrides']");
         overrides?.classList.add("bi-kaiju-overrides");
+
+        const overrideDetails = overrides?.closest<HTMLDetailsElement>("details");
+        if (overrideDetails) overrideDetails.open = false;
     }
 
     const areaList = panel.querySelector<HTMLElement>("[data-role='setup-areas']");
@@ -94,6 +111,7 @@ function enhanceAreaRow(row: HTMLElement): void {
     const maxHp = findField(grid, "Max HP");
     const currentHp = findField(grid, "Current HP");
     const targetable = controls.querySelector<HTMLElement>(".bi-inline-check");
+    const targetableInput = targetable?.querySelector<HTMLInputElement>("input[type='checkbox']");
     const exploited = findField(controls, "Exploited");
     const remove = Array.from(controls.querySelectorAll<HTMLButtonElement>("button"))
         .find(button => button.textContent?.trim() === "Remove");
@@ -109,8 +127,10 @@ function enhanceAreaRow(row: HTMLElement): void {
     remove.classList.add("bi-kaiju-area-remove");
     remove.title = "Remove vulnerable area";
 
-    const targetableText = Array.from(targetable.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
-    if (targetableText) targetableText.textContent = " Targetable";
+    if (targetableInput) targetableInput.setAttribute("aria-label", "Targetable");
+    for (const node of Array.from(targetable.childNodes)) {
+        if (node.nodeType === Node.TEXT_NODE) node.textContent = "";
+    }
 
     row.replaceChildren(name, hp, targetable, exploited, remove);
 }
@@ -127,7 +147,7 @@ function buildPoolEditor(
     if (label) {
         const caption = document.createElement("span");
         caption.className = "bi-kaiju-pool-label";
-        caption.textContent = label;
+        caption.textContent = label === "Chaos" ? "Chaos (current / threshold)" : label;
         wrapper.append(caption);
     }
 
@@ -293,21 +313,27 @@ function installStyles(documentRef: Document): void {
     style.dataset.role = "kaiju-layout-ui-style";
     style.textContent = `
 .block-initiative-app .bi-kaiju-entry>[data-role='badges']{display:none!important}
-.block-initiative-app .bi-kaiju-entry>.bi-entry-main{grid-template-columns:minmax(16rem,34rem) 5rem 13rem auto!important;align-items:end}
+.block-initiative-app .bi-kaiju-entry>.bi-entry-main{grid-template-columns:minmax(18rem,1fr) 6rem 12rem auto!important;column-gap:.6rem;align-items:end}
 .block-initiative-app .bi-kaiju-entry>.bi-entry-main>button[data-action='remove']{width:auto!important;justify-self:start;padding:.25rem .5rem}
-.block-initiative-app .bi-kaiju-entry .bi-initiative-modifier input{max-width:5rem}
-.block-initiative-app .bi-kaiju-entry [data-role='initiative-wrap']{display:grid;grid-template-columns:5.5rem auto;gap:.3rem;align-items:end}
-.block-initiative-app .bi-kaiju-entry [data-role='initiative-wrap']>input{width:5.5rem;max-width:5.5rem}
-.block-initiative-app .bi-kaiju-entry .bi-roll-line{margin:0!important;flex-wrap:nowrap!important}
+.block-initiative-app .bi-kaiju-entry .bi-initiative-modifier input{width:6rem;max-width:6rem}
+.block-initiative-app .bi-kaiju-entry [data-role='initiative-wrap']{display:grid!important;grid-template-columns:5.5rem auto!important;grid-template-areas:'label label' 'input roll';gap:.25rem .35rem;align-items:end}
+.block-initiative-app .bi-kaiju-entry [data-role='initiative-wrap']>label{grid-area:label}
+.block-initiative-app .bi-kaiju-entry [data-role='initiative-wrap']>input{grid-area:input;width:5.5rem;max-width:5.5rem}
+.block-initiative-app .bi-kaiju-entry [data-role='initiative-wrap']>.bi-roll-line{grid-area:roll;margin:0!important;flex-wrap:nowrap!important;align-self:end}
+.block-initiative-app .bi-kaiju-entry .bi-roll-audit{display:none}
 
-.block-initiative-app .bi-kaiju-setup-compact{display:grid;gap:.65rem}
+.block-initiative-app .bi-kaiju-setup-compact{display:grid;gap:.6rem}
 .block-initiative-app .bi-kaiju-setup-compact>.mt-2,.block-initiative-app .bi-kaiju-setup-compact>.mt-3{margin-top:0!important}
-.block-initiative-app .bi-kaiju-basics-compact{display:grid!important;grid-template-columns:auto 9rem minmax(14rem,24rem);gap:.55rem;align-items:end}
-.block-initiative-app .bi-kaiju-finishing-blow input{width:8rem;max-width:8rem}
-.block-initiative-app .bi-kaiju-phase input{width:100%;max-width:24rem}
+.block-initiative-app .bi-kaiju-state-strip{display:flex!important;gap:.75rem;align-items:flex-end;flex-wrap:wrap}
+.block-initiative-app .bi-kaiju-chaos{flex:0 0 auto}
+.block-initiative-app .bi-kaiju-finishing-blow{flex:0 0 9rem}
+.block-initiative-app .bi-kaiju-finishing-blow input{width:9rem;max-width:9rem}
+.block-initiative-app .bi-kaiju-phase{flex:1 1 18rem;max-width:28rem}
+.block-initiative-app .bi-kaiju-phase input{width:100%;max-width:28rem}
 .block-initiative-app .bi-kaiju-overrides{grid-template-columns:repeat(3,minmax(8rem,12rem))!important;justify-content:start}
+.block-initiative-app .bi-kaiju-setup-compact>details{margin-top:.15rem}
 
-.block-initiative-app .bi-kaiju-pool-editor{position:relative;display:inline-flex;align-items:end;gap:.3rem;width:max-content;max-width:100%}
+.block-initiative-app .bi-kaiju-pool-editor{position:relative;display:inline-flex;align-items:flex-end;gap:.3rem;width:max-content;max-width:100%}
 .block-initiative-app .bi-kaiju-pool-label{font-size:.78rem;font-weight:700;opacity:.78;align-self:center;white-space:nowrap}
 .block-initiative-app .bi-kaiju-pool-summary{min-width:5.6rem;padding:.28rem .48rem;white-space:nowrap;font-variant-numeric:tabular-nums}
 .block-initiative-app .bi-kaiju-pool-popover{position:absolute;z-index:45;top:calc(100% + .3rem);left:0;display:grid;gap:.45rem;min-width:18rem;padding:.55rem;border:1px solid var(--bi-border);border-radius:.5rem;background:var(--bs-body-bg,#fff);box-shadow:0 .45rem 1.2rem rgba(0,0,0,.22)}
@@ -322,18 +348,17 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-kaiju-pool-adjust .btn{width:2.15rem;height:2.15rem;min-width:2.15rem;padding:0;font-weight:700}
 .block-initiative-app .bi-kaiju-pool-popover label{font-size:.72rem;font-weight:600;opacity:.78;margin:0}
 
-.block-initiative-app .bi-kaiju-area-header,.block-initiative-app .bi-kaiju-area-compact{display:grid;grid-template-columns:minmax(13rem,1fr) 6rem 7rem 9rem auto;gap:.5rem;align-items:center}
+.block-initiative-app .bi-kaiju-area-header,.block-initiative-app .bi-kaiju-area-compact{display:grid;grid-template-columns:minmax(13rem,1fr) 6rem 5.5rem 8rem auto;gap:.5rem;align-items:center}
 .block-initiative-app .bi-kaiju-area-header{padding:0 .2rem;font-size:.75rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase;opacity:.68}
 .block-initiative-app .bi-kaiju-area-compact{padding:.4rem .2rem!important;border:0!important;border-bottom:1px solid var(--bi-border)!important;border-radius:0!important}
 .block-initiative-app .bi-kaiju-area-name label,.block-initiative-app .bi-kaiju-area-exploited label{position:absolute!important;width:1px!important;height:1px!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important}
 .block-initiative-app .bi-kaiju-area-name input{width:100%}
-.block-initiative-app .bi-kaiju-area-targetable{margin:0!important;justify-self:start}
-.block-initiative-app .bi-kaiju-area-exploited select{width:9rem;max-width:9rem}
+.block-initiative-app .bi-kaiju-area-targetable{margin:0!important;justify-self:center}
+.block-initiative-app .bi-kaiju-area-exploited select{width:8rem;max-width:8rem}
 .block-initiative-app .bi-kaiju-area-remove{width:auto!important;justify-self:start;padding:.25rem .5rem}
 
 @media(max-width:900px){
-  .block-initiative-app .bi-kaiju-entry>.bi-entry-main{grid-template-columns:minmax(12rem,1fr) 5rem 13rem auto!important}
-  .block-initiative-app .bi-kaiju-basics-compact{grid-template-columns:auto 9rem minmax(12rem,1fr)}
+  .block-initiative-app .bi-kaiju-entry>.bi-entry-main{grid-template-columns:minmax(12rem,1fr) 6rem 12rem auto!important}
 }
 @media(max-width:760px){
   .block-initiative-app .bi-kaiju-area-header{display:none}
@@ -351,7 +376,8 @@ function installStyles(documentRef: Document): void {
   .block-initiative-app .bi-kaiju-entry .bi-initiative-modifier{grid-column:1}
   .block-initiative-app .bi-kaiju-entry [data-role='initiative-wrap']{grid-column:2}
   .block-initiative-app .bi-kaiju-entry>.bi-entry-main>button[data-action='remove']{grid-column:1/-1}
-  .block-initiative-app .bi-kaiju-basics-compact{grid-template-columns:1fr}
+  .block-initiative-app .bi-kaiju-state-strip{display:grid!important;grid-template-columns:1fr}
+  .block-initiative-app .bi-kaiju-phase{max-width:none}
 }
 `;
     documentRef.head.append(style);
