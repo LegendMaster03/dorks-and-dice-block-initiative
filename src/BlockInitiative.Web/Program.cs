@@ -1,3 +1,4 @@
+using BlockInitiative.Web.Combat;
 using BlockInitiative.Web.Initiative;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,10 +20,11 @@ app.MapGet("/api", () => Results.Ok(new
 {
     service = "Block Initiative API",
     version = "0.1-dev",
-    status = "initiative-preview"
+    status = "initiative-and-combat-tracking"
 }));
 
 app.MapInitiativePreviewEndpoints();
+app.MapKaijuTrackingEndpoints();
 
 app.MapGet("/", () => Results.Content(
     """

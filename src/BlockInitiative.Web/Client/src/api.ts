@@ -1,3 +1,5 @@
+import { initializeCombatStateUi } from "./combat-state-ui";
+
 export type TurnBlockType = "standard" | "kaiju";
 
 export interface InitiativeCombatantInput {
@@ -81,14 +83,22 @@ export async function previewInitiative(
     url: string,
     request: InitiativePreviewRequest
 ): Promise<InitiativePreviewResponse> {
-    return postJson<InitiativePreviewResponse>(url, request, "Initiative preview");
+    const response = await postJson<InitiativePreviewResponse>(url, request, "Initiative preview");
+    window.dispatchEvent(new CustomEvent("block-initiative:preview", {
+        detail: { request, response }
+    }));
+    return response;
 }
 
 export async function loadInitiativeTurnState(
     url: string,
     request: InitiativeTurnStateRequest
 ): Promise<InitiativeTurnStateResponse> {
-    return postJson<InitiativeTurnStateResponse>(url, request, "Initiative state");
+    const response = await postJson<InitiativeTurnStateResponse>(url, request, "Initiative state");
+    window.dispatchEvent(new CustomEvent("block-initiative:state", {
+        detail: { request, response }
+    }));
+    return response;
 }
 
 async function postJson<T>(
@@ -122,3 +132,5 @@ async function postJson<T>(
 
     return await response.json() as T;
 }
+
+initializeCombatStateUi();
