@@ -44,7 +44,7 @@ function configure(root: HTMLElement): void {
             const rollAll = document.createElement("button");
             rollAll.type = "button";
             rollAll.className = "btn btn-sm btn-outline-primary";
-            rollAll.textContent = "Roll all enemy members";
+            rollAll.textContent = "Roll all averages";
             rollAll.title = "Roll every standard enemy separately with its modifier, then calculate each tactical group's average initiative.";
             rollAll.dataset.action = "roll-all-enemies";
             rollAll.onclick = () => rollAllEnemies(enemySide, method.value);
