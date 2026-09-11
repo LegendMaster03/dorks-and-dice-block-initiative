@@ -65,8 +65,12 @@ function enhanceSetupPanel(panel: HTMLElement): void {
     const current = findField(fields, "Current HP");
     if (!current || !max) return;
 
+    syncFullHealthDefault(current, max);
     panel.dataset.compactHealthReady = "true";
-    grid.replaceChildren(buildHealthEditor(current, max));
+    const editor = buildHealthEditor(current, max);
+    const summary = editor.querySelector<HTMLButtonElement>("[data-role='hp-summary']");
+    if (summary) summary.title = "Current HP defaults to Max HP. Click to override starting HP or adjust it.";
+    grid.replaceChildren(editor);
 }
 
 function enhanceHealthRow(row: HTMLElement): void {
@@ -81,6 +85,46 @@ function enhanceHealthRow(row: HTMLElement): void {
 
     row.dataset.compactHealthReady = "true";
     controls.replaceWith(buildHealthEditor(current, max));
+}
+
+function syncFullHealthDefault(current: HTMLElement, max: HTMLElement): void {
+    const currentInput = current.querySelector<HTMLInputElement>("input[type='number']");
+    const maxInput = max.querySelector<HTMLInputElement>("input[type='number']");
+    if (!currentInput || !maxInput || maxInput.dataset.fullHealthSyncReady === "true") return;
+
+    maxInput.dataset.fullHealthSyncReady = "true";
+    let syncing = false;
+    let previousMax = maxInput.value;
+    let currentOverridden = currentInput.value.trim() !== "" && currentInput.value !== maxInput.value;
+
+    currentInput.addEventListener("input", () => {
+        if (syncing) return;
+        currentOverridden = currentInput.value.trim() !== "" && currentInput.value !== maxInput.value;
+    });
+
+    maxInput.addEventListener("input", () => {
+        const shouldSync = !currentOverridden
+            || currentInput.value.trim() === ""
+            || currentInput.value === previousMax;
+        previousMax = maxInput.value;
+        if (!shouldSync) return;
+
+        syncing = true;
+        currentInput.value = maxInput.value;
+        currentInput.dispatchEvent(new Event("input", { bubbles: true }));
+        currentInput.dispatchEvent(new Event("change", { bubbles: true }));
+        syncing = false;
+        currentOverridden = false;
+    });
+
+    if (currentInput.value.trim() === "" && maxInput.value.trim() !== "") {
+        syncing = true;
+        currentInput.value = maxInput.value;
+        currentInput.dispatchEvent(new Event("input", { bubbles: true }));
+        currentInput.dispatchEvent(new Event("change", { bubbles: true }));
+        syncing = false;
+        currentOverridden = false;
+    }
 }
 
 function buildHealthEditor(current: HTMLElement, max: HTMLElement): HTMLElement {
