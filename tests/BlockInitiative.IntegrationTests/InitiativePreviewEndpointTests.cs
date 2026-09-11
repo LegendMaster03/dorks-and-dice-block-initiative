@@ -39,6 +39,7 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
         Assert.False(root.GetProperty("requiresAdjudication").GetBoolean());
         Assert.Equal("block-1", root.GetProperty("cyclicMerge").GetProperty("topBlockId").GetString());
         Assert.Equal("block-3", root.GetProperty("cyclicMerge").GetProperty("bottomBlockId").GetString());
+        Assert.Equal("standard", root.GetProperty("cyclicMerge").GetProperty("blockType").GetString());
     }
 
     [Fact]
@@ -89,11 +90,37 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
         Assert.Equal(15m, ordered[1].GetProperty("initiativeTotal").GetDecimal());
     }
 
+    [Fact]
+    public async Task PreviewKeepsKaijuInDedicatedBlockType()
+    {
+        var request = new
+        {
+            combatants = new[]
+            {
+                Combatant("enemy-a", "Enemy A", "enemies", 20m),
+                Combatant("kaiju", "Kaiju", "enemies", 18m, "kaiju"),
+                Combatant("enemy-b", "Enemy B", "enemies", 16m)
+            }
+        };
+
+        using var response = await _client.PostAsJsonAsync("/api/initiative/preview", request);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = document.RootElement;
+        var blocks = root.GetProperty("blocks").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(3, blocks.Length);
+        Assert.Equal("standard", blocks[0].GetProperty("blockType").GetString());
+        Assert.Equal("kaiju", blocks[1].GetProperty("blockType").GetString());
+        Assert.Equal("standard", blocks[2].GetProperty("blockType").GetString());
+    }
+
     private static object Combatant(
         string id,
         string name,
         string allianceId,
-        decimal initiativeTotal)
+        decimal initiativeTotal,
+        string? blockType = null)
         => new
         {
             id,
@@ -102,6 +129,7 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
             initiativeTotal,
             initiativeModifier = (decimal?)null,
             controllerId = (string?)null,
-            tacticalGroupId = (string?)null
+            tacticalGroupId = (string?)null,
+            blockType
         };
 }
