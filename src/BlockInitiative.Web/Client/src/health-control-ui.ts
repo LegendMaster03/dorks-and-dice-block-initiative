@@ -2,29 +2,31 @@ export function initializeHealthControlUi(): void {
     const root = document.getElementById("tool-root");
     if (!(root instanceof HTMLElement)) return;
 
-    installStyles(root);
+    installStyles(root.ownerDocument);
     const observer = new MutationObserver(() => enhance(root));
     observer.observe(root, { childList: true, subtree: true });
     enhance(root);
 }
 
-function installStyles(root: HTMLElement): void {
-    if (root.querySelector("style[data-role='health-control-ui-style']")) return;
-    const style = document.createElement("style");
+function installStyles(documentRef: Document): void {
+    if (documentRef.head.querySelector("style[data-role='health-control-ui-style']")) return;
+    const style = documentRef.createElement("style");
     style.dataset.role = "health-control-ui-style";
     style.textContent = `
-.block-initiative-app .bi-hp-controls{display:flex;gap:.8rem;align-items:end;flex-wrap:wrap;margin-top:.45rem}
-.block-initiative-app .bi-hp-fraction,.block-initiative-app .bi-hp-adjust{display:flex;gap:.35rem;align-items:end;flex:0 0 auto}
-.block-initiative-app .bi-hp-fraction>.bi-field,.block-initiative-app .bi-hp-adjust>.bi-field{min-width:4.75rem;max-width:6.5rem;flex:0 0 6rem}
-.block-initiative-app .bi-hp-fraction input,.block-initiative-app .bi-hp-adjust input{width:100%;max-width:6.5rem}
-.block-initiative-app .bi-hp-slash{font-size:1.35rem;line-height:2.1rem;font-weight:600;opacity:.72;padding-bottom:.05rem}
-.block-initiative-app .bi-hp-adjust .btn{min-width:2.35rem;width:2.35rem;height:2.35rem;padding:.2rem;font-size:1.05rem;font-weight:700;line-height:1}
+.block-initiative-app .bi-hp-controls{display:inline-flex;gap:.3rem;align-items:center;flex-wrap:nowrap;margin:0;width:max-content;max-width:100%}
+.block-initiative-app .bi-hp-fraction,.block-initiative-app .bi-hp-adjust{display:inline-flex;gap:.2rem;align-items:center;flex:0 0 auto}
+.block-initiative-app .bi-hp-fraction>.bi-field{min-width:3.5rem;max-width:3.5rem;flex:0 0 3.5rem}
+.block-initiative-app .bi-hp-adjust>.bi-field{min-width:3.25rem;max-width:3.25rem;flex:0 0 3.25rem}
+.block-initiative-app .bi-hp-fraction input{width:3.5rem;max-width:3.5rem}
+.block-initiative-app .bi-hp-adjust input{width:3.25rem;max-width:3.25rem;text-align:center}
+.block-initiative-app .bi-hp-slash{font-size:1rem;line-height:1;font-weight:600;opacity:.72;padding:0 .05rem}
+.block-initiative-app .bi-hp-adjust .btn{min-width:1.9rem;width:1.9rem;height:1.9rem;padding:0;font-size:1rem;font-weight:700;line-height:1}
 .block-initiative-app [data-combat-setup='standard']>.bi-combat-grid{display:block}
 .block-initiative-app .bi-combat-grid .bi-field input[type='number'],
-.block-initiative-app .bi-combat-controls .bi-field input[type='number']{max-width:8rem}
+.block-initiative-app .bi-combat-controls .bi-field input[type='number']{max-width:4rem}
 .block-initiative-app .bi-combat-grid{justify-content:start}
 `;
-    root.prepend(style);
+    documentRef.head.append(style);
 }
 
 function enhance(root: HTMLElement): void {
@@ -63,28 +65,32 @@ function enhanceHealthRow(row: HTMLElement): void {
 }
 
 function buildCompactControls(current: HTMLElement, max: HTMLElement): HTMLElement {
-    renameLabel(current, "Current");
-    renameLabel(max, "Max");
+    renameLabel(current, "Current HP");
+    renameLabel(max, "Max HP");
 
     const wrapper = document.createElement("div");
     wrapper.className = "bi-hp-controls";
+    wrapper.setAttribute("aria-label", "Hit points and HP adjustment");
 
     const fraction = document.createElement("div");
     fraction.className = "bi-hp-fraction";
     const slash = document.createElement("span");
     slash.className = "bi-hp-slash";
     slash.textContent = "/";
+    slash.setAttribute("aria-hidden", "true");
     fraction.append(current, slash, max);
 
     const amount = document.createElement("div");
     amount.className = "bi-field";
     const amountLabel = document.createElement("label");
-    amountLabel.textContent = "Adjust";
+    amountLabel.textContent = "HP adjustment";
     const amountInput = document.createElement("input");
     amountInput.type = "number";
     amountInput.min = "0";
     amountInput.step = "1";
     amountInput.placeholder = "0";
+    amountInput.inputMode = "numeric";
+    amountInput.title = "Amount to add to or subtract from current HP";
     amount.append(amountLabel, amountInput);
 
     const subtract = document.createElement("button");
@@ -92,12 +98,14 @@ function buildCompactControls(current: HTMLElement, max: HTMLElement): HTMLEleme
     subtract.className = "btn btn-sm btn-outline-secondary";
     subtract.textContent = "−";
     subtract.title = "Subtract the adjustment from current HP";
+    subtract.setAttribute("aria-label", "Subtract HP adjustment");
 
     const add = document.createElement("button");
     add.type = "button";
     add.className = "btn btn-sm btn-outline-secondary";
     add.textContent = "+";
     add.title = "Add the adjustment to current HP";
+    add.setAttribute("aria-label", "Add HP adjustment");
 
     subtract.onclick = () => applyAdjustment(current, max, amountInput, -1);
     add.onclick = () => applyAdjustment(current, max, amountInput, 1);
