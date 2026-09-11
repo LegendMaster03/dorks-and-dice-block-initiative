@@ -1,22 +1,24 @@
 # Dorks & Dice Block Initiative
 
-Block Initiative is a separately deployable Dorks & Dice Tool for building and eventually running the house-rule block initiative system used at the table.
+Block Initiative is a separately deployable Dorks & Dice Tool for building and running the house-rule block initiative system used at the table.
 
 The production integration type is **Embedded Module**. The Dorks & Dice site owns the outer page shell, identity, campaign authority, Tool registration, and routing. Block Initiative owns the encounter workspace rendered inside the host's `#tool-root`.
 
 ## Current development slice
 
-The current implementation establishes the initiative engine and a manual encounter setup workflow. A DM can:
+The current implementation establishes the initiative engine and a manual encounter workflow. A DM can:
 
 - add players and enemies using only a name and initiative result;
 - add Kaiju as a distinct turn block type;
 - add additional encounter sides when needed;
 - optionally record controller relationships and metadata;
 - derive contiguous allied turn blocks without changing the original initiative rolls;
-- see the cyclic top/bottom merge explained as round-one and round-two behavior;
-- resolve opposing-side initiative ties explicitly without inventing a house rule.
+- resolve opposing-side initiative ties explicitly without inventing a house rule;
+- start the encounter after reviewing the derived blocks;
+- track the current round and active block with a single **Next block** action;
+- automatically apply the special round-one cyclic merge through the Core turn-state engine.
 
-The UI deliberately separates ordinary encounter setup from advanced mechanics. Character sheets are not required for manual use.
+The UI deliberately separates ordinary encounter setup from advanced mechanics. Character sheets are not required for manual use. The current running position is browser-session state and is not persisted yet.
 
 Kaiju-specific turn-state mechanics such as Chaos Threshold, Vulnerable Areas, behaviours, Death Throes, and Finishing Blow are not yet implemented. The `kaiju` block type exists so those mechanics can attach to a real special block instead of being folded into a standard enemy block.
 
@@ -42,6 +44,7 @@ No persistence technology has been selected yet.
 - `/` — standalone development shell.
 - `/app.js` — Embedded Module frontend entry point.
 - `/api/initiative/preview` — derive initiative order and turn blocks from manual encounter input.
+- `/api/initiative/state` — reconstruct authoritative running encounter state for a given advance count.
 - `/health` — service health.
 - `/ready` — readiness response.
 
