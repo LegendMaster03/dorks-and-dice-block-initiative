@@ -2,6 +2,7 @@ import { initializeCombatStateUi } from "./combat-state-ui";
 import { initializeCombatantFieldUi } from "./combatant-field-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
+import { initializeKaijuLayoutUi } from "./kaiju-layout-ui";
 import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
 
 export type TurnBlockType = "standard" | "kaiju";
@@ -156,6 +157,7 @@ initializeCombatStateUi();
 initializeCombatantFieldUi();
 initializeInitiativeRollUi();
 initializeHealthControlUi();
+initializeKaijuLayoutUi();
 initializeTrackerLayoutUi();
 
 // app.ts rebuilds #tool-root after imports execute. Keep helper styles outside
