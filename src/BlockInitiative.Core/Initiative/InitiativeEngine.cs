@@ -175,13 +175,16 @@ public static class InitiativeEngine
             if (!string.Equals(
                     allianceId,
                     placement.Combatant.AllianceId,
-                    StringComparison.Ordinal)
-                || blockType != placement.Combatant.BlockType)
+                    StringComparison.Ordinal))
             {
                 blocks.Add(CreateBlock(blocks.Count, allianceId, blockType, memberIds));
                 memberIds = new List<string>();
                 allianceId = placement.Combatant.AllianceId;
                 blockType = placement.Combatant.BlockType;
+            }
+            else
+            {
+                blockType = TurnBlock.CombineBlockTypes(blockType, placement.Combatant.BlockType);
             }
 
             memberIds.Add(placement.Combatant.Id);
@@ -216,8 +219,11 @@ public static class InitiativeEngine
         var bottom = blocks[^1];
 
         return string.Equals(top.AllianceId, bottom.AllianceId, StringComparison.Ordinal)
-            && top.BlockType == bottom.BlockType
-            ? new CyclicMergePlan(top.Id, bottom.Id, top.AllianceId, top.BlockType)
+            ? new CyclicMergePlan(
+                top.Id,
+                bottom.Id,
+                top.AllianceId,
+                TurnBlock.CombineBlockTypes(top.BlockType, bottom.BlockType))
             : null;
     }
 
@@ -271,6 +277,13 @@ public static class InitiativeEngine
             {
                 throw new ArgumentException(
                     $"Combatant '{combatant.Id}' requires an alliance.",
+                    nameof(combatants));
+            }
+
+            if (combatant.BlockType == TurnBlockType.Mixed)
+            {
+                throw new ArgumentException(
+                    $"Combatant '{combatant.Id}' can not use the derived Mixed block type.",
                     nameof(combatants));
             }
         }
