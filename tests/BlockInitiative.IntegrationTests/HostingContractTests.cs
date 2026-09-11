@@ -55,6 +55,10 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Chaos Threshold", content, StringComparison.Ordinal);
         Assert.Contains("Vulnerable Areas", content, StringComparison.Ordinal);
         Assert.Contains("Finishing Blow", content, StringComparison.Ordinal);
+        Assert.Contains("Tactical groups", content, StringComparison.Ordinal);
+        Assert.Contains("+ Tactical group", content, StringComparison.Ordinal);
+        Assert.Contains("+ Another", content, StringComparison.Ordinal);
+        Assert.Contains("Rules Core", content, StringComparison.Ordinal);
     }
 
     [Fact]
