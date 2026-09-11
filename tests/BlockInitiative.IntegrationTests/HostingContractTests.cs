@@ -40,6 +40,18 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
     }
 
     [Fact]
+    public async Task EmbeddedModuleExposesPrimaryEncounterWorkflow()
+    {
+        using var response = await _client.GetAsync("/app.js");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Build initiative blocks", content, StringComparison.Ordinal);
+        Assert.Contains("+ Kaiju", content, StringComparison.Ordinal);
+        Assert.Contains("Apply DM tie order", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task StandaloneShellMountsTheEmbeddedApplication()
     {
         using var response = await _client.GetAsync("/");
