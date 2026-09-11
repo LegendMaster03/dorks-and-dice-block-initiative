@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/BlockInitiative.Core/BlockInitiative.Core.csproj" />
+  <Project Path="src/BlockInitiative.Web/BlockInitiative.Web.csproj" />
+  <Project Path="tests/BlockInitiative.Core.Tests/BlockInitiative.Core.Tests.csproj" />
+  <Project Path="tests/BlockInitiative.IntegrationTests/BlockInitiative.IntegrationTests.csproj" />
+</Solution>

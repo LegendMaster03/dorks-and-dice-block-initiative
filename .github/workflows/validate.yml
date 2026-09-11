@@ -1,0 +1,40 @@
+name: Validate Block Initiative
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "**" ]
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build frontend
+        working-directory: src/BlockInitiative.Web/Client
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Restore
+        run: dotnet restore dorks-and-dice-block-initiative.slnx
+
+      - name: Test
+        run: dotnet test dorks-and-dice-block-initiative.slnx --configuration Release --no-restore -p:BuildClient=false
+
+      - name: Build container
+        run: docker build -t dorks-and-dice-block-initiative:test -f src/BlockInitiative.Web/Dockerfile .

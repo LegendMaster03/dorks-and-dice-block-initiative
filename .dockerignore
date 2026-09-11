@@ -1,0 +1,11 @@
+.git
+.github
+.vs
+.idea
+**/bin
+**/obj
+**/node_modules
+TestResults
+coverage
+.env
+.env.*
