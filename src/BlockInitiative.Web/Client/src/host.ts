@@ -24,3 +24,9 @@ export async function loadToolHostContext(url: string): Promise<ToolHostContext>
 
     return await response.json() as ToolHostContext;
 }
+
+export function initiativePreviewUrl(context: ToolHostContext | null): string {
+    return context
+        ? `${context.apiBaseUrl}/upstream/api/initiative/preview`
+        : "/api/initiative/preview";
+}
