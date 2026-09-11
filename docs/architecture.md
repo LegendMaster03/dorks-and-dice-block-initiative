@@ -43,6 +43,14 @@ This distinction prevents an adjacent Kaiju and ordinary enemy from collapsing i
 
 Kaiju-specific design is documented in [`kaiju-integration.md`](kaiju-integration.md).
 
+## Encounter UX boundary
+
+The normal manual workflow should expose only the information needed to establish an encounter: combatant name, side, and initiative result. Common sides are represented as separate Player and Enemy entry areas rather than requiring the DM to interpret an alliance field on every row.
+
+Options that change calculation behavior, such as controller initiative and special block type, belong under advanced options. Raw metadata that is retained but does not currently change block construction, such as initiative modifier and tactical-group label, must be identified as metadata rather than presented as active mechanics.
+
+Unresolved rules cases should appear only when encountered. Opposing-side initiative ties are therefore adjudicated in the result view instead of requiring the DM to maintain a manual row order during normal setup. The result view should also explain how to execute the derived order, including the round-one cyclic wraparound and the merged round-two block.
+
 ## Persistence
 
 No persistence technology is selected yet. Encounter storage requirements need to be established before choosing PostgreSQL, another service, or a different persistence model.
