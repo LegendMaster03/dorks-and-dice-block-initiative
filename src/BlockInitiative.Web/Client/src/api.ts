@@ -1,5 +1,6 @@
 import { initializeCombatStateUi } from "./combat-state-ui";
 import { initializeCombatantFieldUi } from "./combatant-field-ui";
+import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
 import { initializeKaijuLayoutUi } from "./kaiju-layout-ui";
@@ -155,11 +156,12 @@ function preserveHelperStylesOutsideToolRoot(): void {
 
 initializeCombatStateUi();
 initializeCombatantFieldUi();
+initializeEnemyDuplicateUi();
 initializeInitiativeRollUi();
 initializeHealthControlUi();
 initializeKaijuLayoutUi();
 initializeTrackerLayoutUi();
 
 // app.ts rebuilds #tool-root after imports execute. Keep helper styles outside
-// that replaceable subtree so both compact controls and tracker layout survive mount.
+// that replaceable subtree so compact controls and tracker layout survive mount.
 preserveHelperStylesOutsideToolRoot();
