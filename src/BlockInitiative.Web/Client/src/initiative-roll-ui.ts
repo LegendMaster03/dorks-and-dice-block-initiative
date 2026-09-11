@@ -89,15 +89,16 @@ function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
     if (!addGroup) return;
 
     const desiredLabel = method.value === "individual" ? "+ Enemy" : "+ Tactical group";
-    if (addGroup.textContent !== desiredLabel) addGroup.textContent = desiredLabel;
+    setTextIfChanged(addGroup, desiredLabel);
 
     const help = enemySide.querySelector<HTMLElement>("[data-role='enemy-method-help']");
     if (help) {
-        help.textContent = method.value === "average"
+        const helpText = method.value === "average"
             ? "Each enemy rolls d20 + its own modifier. The adjusted totals are averaged to place each tactical group."
             : method.value === "shared"
                 ? "Roll one d20 for the tactical group. Each member's modifier is applied, then the adjusted totals are averaged for group placement."
                 : "Each enemy rolls separately and is placed individually. Turn blocks are derived afterward from initiative order; there are no manual tactical groups in this mode.";
+        setTextIfChanged(help, helpText);
     }
 
     for (const card of enemySide.querySelectorAll<HTMLElement>(".bi-entry[data-id]")) enhanceCombatant(card);
@@ -201,7 +202,7 @@ function rollCombatant(card: HTMLElement): void {
     initiative.value = formatNumber(total);
     initiative.dispatchEvent(new Event("input", { bubbles: true }));
     const audit = card.querySelector<HTMLElement>("[data-role='roll-audit']");
-    if (audit) audit.textContent = `d20 ${raw} ${formatModifier(modifier)} = ${formatNumber(total)}`;
+    if (audit) setTextIfChanged(audit, `d20 ${raw} ${formatModifier(modifier)} = ${formatNumber(total)}`);
 }
 
 function recalculateSharedGroup(group: HTMLElement): void {
@@ -217,7 +218,7 @@ function recalculateSharedGroup(group: HTMLElement): void {
             internal.value = "";
             internal.dispatchEvent(new Event("input", { bubbles: true }));
         }
-        if (audit) audit.textContent = "Enter or roll one d20; member modifiers are applied automatically.";
+        if (audit) setTextIfChanged(audit, "Enter or roll one d20; member modifiers are applied automatically.");
         return;
     }
 
@@ -238,7 +239,7 @@ function recalculateSharedGroup(group: HTMLElement): void {
     }
     if (audit) {
         const detail = adjusted.length ? `Adjusted totals ${adjusted.map(formatNumber).join(", ")}` : "No members yet";
-        audit.textContent = `${detail}; group initiative ${next}.`;
+        setTextIfChanged(audit, `${detail}; group initiative ${next}.`);
     }
 }
 
@@ -260,4 +261,10 @@ function formatModifier(value: number): string {
 
 function formatNumber(value: number): string {
     return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100);
+}
+
+function setTextIfChanged(element: HTMLElement, value: string): void {
+    if (element.textContent !== value) {
+        element.textContent = value;
+    }
 }
