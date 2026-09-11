@@ -2,6 +2,7 @@ import { initializeCombatStateUi } from "./combat-state-ui";
 import { initializeCombatantFieldUi } from "./combatant-field-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
+import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
 
 export type TurnBlockType = "standard" | "kaiju";
 export type TacticalGroupInitiativeMode = "individual" | "average" | "shared";
@@ -155,6 +156,7 @@ initializeCombatStateUi();
 initializeCombatantFieldUi();
 initializeInitiativeRollUi();
 initializeHealthControlUi();
+initializeTrackerLayoutUi();
 
 // app.ts rebuilds #tool-root after imports execute. Move helper-module styles out
 // of that replaceable subtree so their layout rules survive the application mount.
