@@ -91,6 +91,7 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("bi-duplicate-actions", content, StringComparison.Ordinal);
         Assert.Contains("Add another", content, StringComparison.Ordinal);
         Assert.Contains("manualDuplicateIndex", content, StringComparison.Ordinal);
+        Assert.Contains("+ Different enemy", content, StringComparison.Ordinal);
     }
 
     [Fact]
