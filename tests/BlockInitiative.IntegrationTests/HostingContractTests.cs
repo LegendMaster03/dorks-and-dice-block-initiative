@@ -69,15 +69,16 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Initiative modifier", content, StringComparison.Ordinal);
         Assert.Contains("internal-combatant-fields", content, StringComparison.Ordinal);
         Assert.Contains("bi-hp-fraction", content, StringComparison.Ordinal);
+        Assert.Contains("Hit points and HP adjustment", content, StringComparison.Ordinal);
         Assert.Contains("Subtract the adjustment from current HP", content, StringComparison.Ordinal);
         Assert.Contains("Add the adjustment to current HP", content, StringComparison.Ordinal);
         Assert.Contains("ownerDocument.head", content, StringComparison.Ordinal);
         Assert.Contains(":scope > style[data-role]", content, StringComparison.Ordinal);
         Assert.Contains("bi-dense-tracker", content, StringComparison.Ordinal);
         Assert.Contains("bi-roster-header", content, StringComparison.Ordinal);
-        Assert.Contains("HP / Adjust", content, StringComparison.Ordinal);
+        Assert.Contains("<span>HP</span>", content, StringComparison.Ordinal);
         Assert.Contains("bi-enemy-roster-header", content, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns:minmax(16rem,32rem) 5rem 13rem 22rem auto", content, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:minmax(16rem,34rem) 5rem 13rem 16.5rem auto", content, StringComparison.Ordinal);
         Assert.Contains("grid-column:4;grid-row:1", content, StringComparison.Ordinal);
     }
 
