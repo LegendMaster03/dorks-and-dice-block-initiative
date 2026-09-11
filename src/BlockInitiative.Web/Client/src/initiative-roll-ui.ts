@@ -1,6 +1,6 @@
 const D20_SIDES = 20;
 
-type ClickHandler = ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null;
+type ClickHandler = HTMLButtonElement["onclick"];
 
 export function initializeInitiativeRollUi(): void {
     const root = document.getElementById("tool-root");
@@ -112,7 +112,7 @@ function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
 function addIndividualEnemy(enemySide: HTMLElement, addGroup: HTMLButtonElement, originalAddGroup: ClickHandler): void {
     let firstGroup = enemySide.querySelector<HTMLElement>(".bi-tactical-group");
     if (!firstGroup && originalAddGroup) {
-        originalAddGroup.call(addGroup, new MouseEvent("click"));
+        originalAddGroup.call(addGroup, new PointerEvent("click"));
         firstGroup = enemySide.querySelector<HTMLElement>(".bi-tactical-group");
     }
     firstGroup?.querySelector<HTMLButtonElement>("[data-action='add-member']")?.click();
