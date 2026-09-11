@@ -1,3 +1,5 @@
+using BlockInitiative.Web.Initiative;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHealthChecks();
@@ -17,8 +19,10 @@ app.MapGet("/api", () => Results.Ok(new
 {
     service = "Block Initiative API",
     version = "0.1-dev",
-    status = "scaffolded"
+    status = "initiative-preview"
 }));
+
+app.MapInitiativePreviewEndpoints();
 
 app.MapGet("/", () => Results.Content(
     """
