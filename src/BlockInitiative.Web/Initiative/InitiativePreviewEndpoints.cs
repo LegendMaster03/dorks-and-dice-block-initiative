@@ -55,7 +55,21 @@ public static class InitiativePreviewEndpoints
                 combatants,
                 request.ManualOrderOverride,
                 tacticalGroupMode);
-            var state = EncounterTurnState.Start(layout);
+
+            var isResume = request.ResumeRound is not null || request.ResumeActiveCombatantId is not null;
+            if (isResume && (request.ResumeRound is null || string.IsNullOrWhiteSpace(request.ResumeActiveCombatantId)))
+            {
+                throw new ArgumentException(
+                    "ResumeRound and ResumeActiveCombatantId must be supplied together.");
+            }
+
+            var state = isResume
+                ? EncounterTurnState.Resume(
+                    layout,
+                    request.ResumeRound!.Value,
+                    request.ResumeActiveCombatantId!,
+                    request.ResumeCyclicMergeCompleted)
+                : EncounterTurnState.Start(layout);
             TurnAdvanceResult? lastAdvance = null;
 
             for (var index = 0; index < request.AdvanceCount; index++)
@@ -190,6 +204,7 @@ public static class InitiativePreviewEndpoints
         {
             TurnBlockType.Standard => "standard",
             TurnBlockType.Kaiju => "kaiju",
+            TurnBlockType.Mixed => "mixed",
             _ => throw new ArgumentOutOfRangeException(nameof(blockType), blockType, null)
         };
 }
@@ -203,7 +218,10 @@ public sealed record InitiativeTurnStateRequest(
     IReadOnlyList<InitiativeCombatantRequest>? Combatants,
     IReadOnlyList<string>? ManualOrderOverride = null,
     string? TacticalGroupMode = null,
-    int AdvanceCount = 0);
+    int AdvanceCount = 0,
+    int? ResumeRound = null,
+    string? ResumeActiveCombatantId = null,
+    bool ResumeCyclicMergeCompleted = false);
 
 public sealed record InitiativeCombatantRequest(
     string Id,
