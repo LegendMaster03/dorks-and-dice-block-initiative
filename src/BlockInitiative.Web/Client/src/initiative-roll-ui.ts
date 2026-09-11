@@ -91,6 +91,15 @@ function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
     const desiredLabel = method.value === "individual" ? "+ Enemy" : "+ Tactical group";
     if (addGroup.textContent !== desiredLabel) addGroup.textContent = desiredLabel;
 
+    const help = enemySide.querySelector<HTMLElement>("[data-role='enemy-method-help']");
+    if (help) {
+        help.textContent = method.value === "average"
+            ? "Each enemy rolls d20 + its own modifier. The adjusted totals are averaged to place each tactical group."
+            : method.value === "shared"
+                ? "Roll one d20 for the tactical group. Each member's modifier is applied, then the adjusted totals are averaged for group placement."
+                : "Each enemy rolls separately and is placed individually. Turn blocks are derived afterward from initiative order; there are no manual tactical groups in this mode.";
+    }
+
     for (const card of enemySide.querySelectorAll<HTMLElement>(".bi-entry[data-id]")) enhanceCombatant(card);
     for (const group of enemySide.querySelectorAll<HTMLElement>(".bi-tactical-group")) {
         enhanceGroup(group, method);
