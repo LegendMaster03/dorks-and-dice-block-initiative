@@ -158,8 +158,6 @@ initializeInitiativeRollUi();
 initializeHealthControlUi();
 initializeTrackerLayoutUi();
 
-// app.ts rebuilds #tool-root after imports execute. Move helper-module styles out
-// of that replaceable subtree so their layout rules survive the application mount.
-// The dense tracker stylesheet is installed directly into document.head for the
-// same reason and then reacts to roster rows as app.ts creates them.
+// app.ts rebuilds #tool-root after imports execute. Keep helper styles outside
+// that replaceable subtree so both compact controls and tracker layout survive mount.
 preserveHelperStylesOutsideToolRoot();
