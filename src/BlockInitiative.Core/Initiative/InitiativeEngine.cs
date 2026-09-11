@@ -4,16 +4,18 @@ public static class InitiativeEngine
 {
     public static InitiativeLayout Build(
         IEnumerable<CombatantInitiative> combatants,
-        IReadOnlyList<string>? manualOrderOverride = null)
+        IReadOnlyList<string>? manualOrderOverride = null,
+        TacticalGroupInitiativeMode tacticalGroupMode = TacticalGroupInitiativeMode.Individual)
     {
         var source = combatants.ToArray();
         ValidateCombatants(source);
 
         var byId = source.ToDictionary(combatant => combatant.Id, StringComparer.Ordinal);
+        var tacticalGroupInitiatives = BuildTacticalGroupInitiatives(source, tacticalGroupMode);
         var placements = source
             .Select((combatant, index) => new InitiativePlacement(
                 combatant,
-                ResolveEffectiveInitiative(combatant, byId),
+                ResolveEffectiveInitiative(combatant, byId, tacticalGroupInitiatives),
                 index))
             .ToArray();
 
@@ -34,6 +36,7 @@ public static class InitiativeEngine
         {
             ordered = placements
                 .OrderByDescending(placement => placement.EffectiveInitiative)
+                .ThenBy(placement => TacticalGroupSortIndex(placement, placements, tacticalGroupMode))
                 .ThenBy(placement => placement.SourceIndex)
                 .ToArray();
 
@@ -54,29 +57,105 @@ public static class InitiativeEngine
 
     private static decimal ResolveEffectiveInitiative(
         CombatantInitiative combatant,
-        IReadOnlyDictionary<string, CombatantInitiative> byId)
+        IReadOnlyDictionary<string, CombatantInitiative> byId,
+        IReadOnlyDictionary<TacticalGroupKey, decimal> tacticalGroupInitiatives)
     {
-        if (combatant.ControllerId is null)
+        if (combatant.ControllerId is not null)
         {
-            return combatant.InitiativeTotal;
+            if (!byId.TryGetValue(combatant.ControllerId, out var controller))
+            {
+                throw new ArgumentException(
+                    $"Combatant '{combatant.Id}' references missing controller '{combatant.ControllerId}'.",
+                    nameof(byId));
+            }
+
+            if (string.Equals(combatant.Id, controller.Id, StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    $"Combatant '{combatant.Id}' can not control itself.",
+                    nameof(byId));
+            }
+
+            return controller.InitiativeTotal;
         }
 
-        if (!byId.TryGetValue(combatant.ControllerId, out var controller))
-        {
-            throw new ArgumentException(
-                $"Combatant '{combatant.Id}' references missing controller '{combatant.ControllerId}'.",
-                nameof(byId));
-        }
-
-        if (string.Equals(combatant.Id, controller.Id, StringComparison.Ordinal))
-        {
-            throw new ArgumentException(
-                $"Combatant '{combatant.Id}' can not control itself.",
-                nameof(byId));
-        }
-
-        return controller.InitiativeTotal;
+        var tacticalKey = GetTacticalGroupKey(combatant);
+        return tacticalKey is not null && tacticalGroupInitiatives.TryGetValue(tacticalKey, out var groupInitiative)
+            ? groupInitiative
+            : combatant.InitiativeTotal;
     }
+
+    private static IReadOnlyDictionary<TacticalGroupKey, decimal> BuildTacticalGroupInitiatives(
+        IReadOnlyList<CombatantInitiative> combatants,
+        TacticalGroupInitiativeMode mode)
+    {
+        if (mode == TacticalGroupInitiativeMode.Individual)
+        {
+            return new Dictionary<TacticalGroupKey, decimal>();
+        }
+
+        var result = new Dictionary<TacticalGroupKey, decimal>();
+        var grouped = combatants
+            .Where(combatant => combatant.ControllerId is null)
+            .Select(combatant => new { Combatant = combatant, Key = GetTacticalGroupKey(combatant) })
+            .Where(value => value.Key is not null)
+            .GroupBy(value => value.Key!);
+
+        foreach (var group in grouped)
+        {
+            var members = group.Select(value => value.Combatant).ToArray();
+            if (mode == TacticalGroupInitiativeMode.SharedGroupRoll)
+            {
+                var distinctRolls = members
+                    .Select(member => member.InitiativeTotal)
+                    .Distinct()
+                    .ToArray();
+                if (distinctRolls.Length != 1)
+                {
+                    throw new ArgumentException(
+                        $"Tactical group '{group.Key.TacticalGroupId}' uses one shared roll, but its members do not have the same initiative total.",
+                        nameof(combatants));
+                }
+
+                result[group.Key] = distinctRolls[0];
+                continue;
+            }
+
+            result[group.Key] = members.Average(member => member.InitiativeTotal);
+        }
+
+        return result;
+    }
+
+    private static int TacticalGroupSortIndex(
+        InitiativePlacement placement,
+        IReadOnlyList<InitiativePlacement> placements,
+        TacticalGroupInitiativeMode mode)
+    {
+        if (mode == TacticalGroupInitiativeMode.Individual)
+        {
+            return placement.SourceIndex;
+        }
+
+        var key = GetTacticalGroupKey(placement.Combatant);
+        if (key is null || placement.Combatant.ControllerId is not null)
+        {
+            return placement.SourceIndex;
+        }
+
+        return placements
+            .Where(candidate => candidate.Combatant.ControllerId is null
+                && Equals(GetTacticalGroupKey(candidate.Combatant), key))
+            .Min(candidate => candidate.SourceIndex);
+    }
+
+    private static TacticalGroupKey? GetTacticalGroupKey(CombatantInitiative combatant)
+        => string.IsNullOrWhiteSpace(combatant.TacticalGroupId)
+            ? null
+            : new TacticalGroupKey(
+                combatant.AllianceId,
+                combatant.BlockType,
+                combatant.TacticalGroupId.Trim());
 
     private static IReadOnlyList<TurnBlock> BuildBlocks(
         IReadOnlyList<InitiativePlacement> ordered)
@@ -225,4 +304,9 @@ public static class InitiativeEngine
                 nameof(manualOrder));
         }
     }
+
+    private sealed record TacticalGroupKey(
+        string AllianceId,
+        TurnBlockType BlockType,
+        string TacticalGroupId);
 }
