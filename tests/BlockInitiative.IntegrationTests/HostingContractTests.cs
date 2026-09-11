@@ -59,13 +59,14 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("+ Tactical group", content, StringComparison.Ordinal);
         Assert.Contains("+ Another", content, StringComparison.Ordinal);
         Assert.Contains("Rules Core", content, StringComparison.Ordinal);
-        Assert.Contains("Roll all enemies", content, StringComparison.Ordinal);
-        Assert.Contains("Group d20", content, StringComparison.Ordinal);
-        Assert.Contains("Initiative —", content, StringComparison.Ordinal);
+        Assert.Contains("Roll all enemy members", content, StringComparison.Ordinal);
+        Assert.Contains("Roll members", content, StringComparison.Ordinal);
+        Assert.Contains("One d20", content, StringComparison.Ordinal);
+        Assert.Contains("Roll once", content, StringComparison.Ordinal);
+        Assert.Contains("average initiative", content, StringComparison.Ordinal);
         Assert.Contains("there are no manual tactical groups in this mode", content, StringComparison.Ordinal);
         Assert.Contains("Tactical groups are DM-authored roster units", content, StringComparison.Ordinal);
         Assert.Contains("not rolled", content, StringComparison.Ordinal);
-        Assert.Contains("Calculated from the tactical group's d20 roll", content, StringComparison.Ordinal);
         Assert.Contains("Initiative modifier", content, StringComparison.Ordinal);
         Assert.Contains("internal-combatant-fields", content, StringComparison.Ordinal);
         Assert.Contains("bi-hp-editor", content, StringComparison.Ordinal);
