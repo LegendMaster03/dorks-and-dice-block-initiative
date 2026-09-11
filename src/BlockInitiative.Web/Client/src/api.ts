@@ -1,4 +1,5 @@
 import { initializeCombatStateUi } from "./combat-state-ui";
+import { initializeCombatantFieldUi } from "./combatant-field-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
 
@@ -138,5 +139,6 @@ async function postJson<T>(
 }
 
 initializeCombatStateUi();
+initializeCombatantFieldUi();
 initializeInitiativeRollUi();
 initializeHealthControlUi();
