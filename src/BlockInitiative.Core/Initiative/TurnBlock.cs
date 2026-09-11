@@ -1,21 +1,23 @@
 namespace BlockInitiative.Core.Initiative;
 
 /// <summary>
-/// A contiguous allied run in initiative order. MemberOrder is deliberately
-/// separate from the combatants' initiative totals so tactical reordering does
-/// not falsify the underlying rolls.
+/// A contiguous run in initiative order governed by one block ruleset.
+/// MemberOrder is deliberately separate from the combatants' initiative totals
+/// so tactical reordering does not falsify the underlying rolls.
 /// </summary>
 public sealed class TurnBlock
 {
     internal TurnBlock(
         string id,
         string allianceId,
+        TurnBlockType blockType,
         IEnumerable<string> memberIds,
         IEnumerable<string>? memberOrder = null,
         IEnumerable<string>? sourceBlockIds = null)
     {
         Id = id;
         AllianceId = allianceId;
+        BlockType = blockType;
         MemberIds = memberIds.ToArray();
         MemberOrder = (memberOrder ?? MemberIds).ToArray();
         SourceBlockIds = (sourceBlockIds ?? new[] { id }).ToArray();
@@ -26,6 +28,8 @@ public sealed class TurnBlock
     public string Id { get; }
 
     public string AllianceId { get; }
+
+    public TurnBlockType BlockType { get; }
 
     public IReadOnlyList<string> MemberIds { get; }
 
@@ -40,19 +44,22 @@ public sealed class TurnBlock
         var order = memberOrder.ToArray();
         ValidateOrder(order);
 
-        return new TurnBlock(Id, AllianceId, MemberIds, order, SourceBlockIds);
+        return new TurnBlock(Id, AllianceId, BlockType, MemberIds, order, SourceBlockIds);
     }
 
     internal TurnBlock MergeWith(TurnBlock other)
     {
-        if (!string.Equals(AllianceId, other.AllianceId, StringComparison.Ordinal))
+        if (!string.Equals(AllianceId, other.AllianceId, StringComparison.Ordinal)
+            || BlockType != other.BlockType)
         {
-            throw new InvalidOperationException("Only allied turn blocks can be merged.");
+            throw new InvalidOperationException(
+                "Only turn blocks with the same alliance and block type can be merged.");
         }
 
         return new TurnBlock(
             Id,
             AllianceId,
+            BlockType,
             MemberIds.Concat(other.MemberIds),
             MemberOrder.Concat(other.MemberOrder),
             SourceBlockIds.Concat(other.SourceBlockIds));

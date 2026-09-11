@@ -1,3 +1,5 @@
+export type TurnBlockType = "standard" | "kaiju";
+
 export interface InitiativeCombatantInput {
     id: string;
     name: string;
@@ -6,6 +8,7 @@ export interface InitiativeCombatantInput {
     initiativeModifier: number | null;
     controllerId: string | null;
     tacticalGroupId: string | null;
+    blockType?: TurnBlockType;
 }
 
 export interface InitiativePreviewRequest {
@@ -13,13 +16,19 @@ export interface InitiativePreviewRequest {
     manualOrderOverride?: string[] | null;
 }
 
+export interface InitiativeTurnStateRequest extends InitiativePreviewRequest {
+    advanceCount: number;
+}
+
 export interface InitiativeCombatantPreview extends InitiativeCombatantInput {
     effectiveInitiative: number;
+    blockType: TurnBlockType;
 }
 
 export interface InitiativeBlockPreview {
     id: string;
     allianceId: string;
+    blockType: TurnBlockType;
     memberIds: string[];
     memberOrder: string[];
     sourceBlockIds: string[];
@@ -30,6 +39,7 @@ export interface CyclicMergePreview {
     topBlockId: string;
     bottomBlockId: string;
     allianceId: string;
+    blockType: TurnBlockType;
 }
 
 export interface InitiativeIssuePreview {
@@ -47,10 +57,45 @@ export interface InitiativePreviewResponse {
     usesManualOrderOverride: boolean;
 }
 
+export interface TurnAdvancePreview {
+    previousRound: number;
+    currentRound: number;
+    previousBlockId: string | null;
+    currentBlockId: string | null;
+    roundAdvanced: boolean;
+    cyclicMergeCompleted: boolean;
+    skippedBlockId: string | null;
+}
+
+export interface InitiativeTurnStateResponse {
+    round: number;
+    activeBlockId: string | null;
+    blocks: InitiativeBlockPreview[];
+    cyclicMergePending: boolean;
+    cyclicMergeCompleted: boolean;
+    lowerCyclicBlockSkippedRoundOne: boolean;
+    lastAdvance: TurnAdvancePreview | null;
+}
+
 export async function previewInitiative(
     url: string,
     request: InitiativePreviewRequest
 ): Promise<InitiativePreviewResponse> {
+    return postJson<InitiativePreviewResponse>(url, request, "Initiative preview");
+}
+
+export async function loadInitiativeTurnState(
+    url: string,
+    request: InitiativeTurnStateRequest
+): Promise<InitiativeTurnStateResponse> {
+    return postJson<InitiativeTurnStateResponse>(url, request, "Initiative state");
+}
+
+async function postJson<T>(
+    url: string,
+    request: unknown,
+    label: string
+): Promise<T> {
     const response = await fetch(url, {
         method: "POST",
         credentials: "same-origin",
@@ -62,7 +107,7 @@ export async function previewInitiative(
     });
 
     if (!response.ok) {
-        let detail = `Initiative preview returned HTTP ${response.status}.`;
+        let detail = `${label} returned HTTP ${response.status}.`;
         try {
             const payload = await response.json() as { error?: string };
             if (payload.error) {
@@ -75,5 +120,5 @@ export async function previewInitiative(
         throw new Error(detail);
     }
 
-    return await response.json() as InitiativePreviewResponse;
+    return await response.json() as T;
 }

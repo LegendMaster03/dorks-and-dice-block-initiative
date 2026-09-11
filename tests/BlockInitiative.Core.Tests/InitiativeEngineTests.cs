@@ -55,6 +55,7 @@ public sealed class InitiativeEngineTests
         Assert.Equal("block-1", layout.CyclicMerge!.TopBlockId);
         Assert.Equal("block-3", layout.CyclicMerge.BottomBlockId);
         Assert.Equal("players", layout.CyclicMerge.AllianceId);
+        Assert.Equal(TurnBlockType.Standard, layout.CyclicMerge.BlockType);
     }
 
     [Fact]
@@ -128,12 +129,55 @@ public sealed class InitiativeEngineTests
             InitiativeEngine.Build(combatants, new[] { "player" }));
     }
 
+    [Fact]
+    public void Build_KaijuBlockDoesNotCollapseIntoAdjacentStandardEnemyBlock()
+    {
+        var layout = InitiativeEngine.Build(new[]
+        {
+            C("enemy-a", "Enemy A", "enemies", 20),
+            C("kaiju", "Kaiju", "enemies", 18, TurnBlockType.Kaiju),
+            C("enemy-b", "Enemy B", "enemies", 16)
+        });
+
+        Assert.Collection(
+            layout.Blocks,
+            block =>
+            {
+                Assert.Equal(TurnBlockType.Standard, block.BlockType);
+                Assert.Equal(new[] { "enemy-a" }, block.MemberIds);
+            },
+            block =>
+            {
+                Assert.Equal(TurnBlockType.Kaiju, block.BlockType);
+                Assert.Equal(new[] { "kaiju" }, block.MemberIds);
+            },
+            block =>
+            {
+                Assert.Equal(TurnBlockType.Standard, block.BlockType);
+                Assert.Equal(new[] { "enemy-b" }, block.MemberIds);
+            });
+    }
+
+    [Fact]
+    public void Build_CyclicMergeDoesNotCrossDifferentBlockTypes()
+    {
+        var layout = InitiativeEngine.Build(new[]
+        {
+            C("enemy", "Enemy", "enemies", 20),
+            C("player", "Player", "players", 15),
+            C("kaiju", "Kaiju", "enemies", 10, TurnBlockType.Kaiju)
+        });
+
+        Assert.Null(layout.CyclicMerge);
+    }
+
     private static CombatantInitiative C(
         string id,
         string name,
         string alliance,
-        decimal initiative)
-        => new(id, name, alliance, initiative);
+        decimal initiative,
+        TurnBlockType blockType = TurnBlockType.Standard)
+        => new(id, name, alliance, initiative, BlockType: blockType);
 
     internal static CombatantInitiative[] WorkedExample() =>
     [

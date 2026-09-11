@@ -7,6 +7,7 @@ public static class InitiativePreviewEndpoints
     public static IEndpointRouteBuilder MapInitiativePreviewEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapPost("/api/initiative/preview", Preview);
+        endpoints.MapPost("/api/initiative/state", State);
         return endpoints;
     }
 
@@ -19,59 +20,155 @@ public static class InitiativePreviewEndpoints
 
         try
         {
-            var combatants = request.Combatants
-                .Select(combatant => new CombatantInitiative(
-                    combatant.Id,
-                    combatant.Name,
-                    combatant.AllianceId,
-                    combatant.InitiativeTotal,
-                    combatant.InitiativeModifier,
-                    combatant.ControllerId,
-                    combatant.TacticalGroupId))
-                .ToArray();
-
+            var combatants = ToCombatants(request.Combatants);
             var layout = InitiativeEngine.Build(combatants, request.ManualOrderOverride);
 
-            return Results.Ok(new InitiativePreviewResponse(
-                layout.Placements.Select(placement => new InitiativeCombatantPreview(
-                    placement.Combatant.Id,
-                    placement.Combatant.Name,
-                    placement.Combatant.AllianceId,
-                    placement.Combatant.InitiativeTotal,
-                    placement.EffectiveInitiative,
-                    placement.Combatant.InitiativeModifier,
-                    placement.Combatant.ControllerId,
-                    placement.Combatant.TacticalGroupId)).ToArray(),
-                layout.Blocks.Select(block => new InitiativeBlockPreview(
-                    block.Id,
-                    block.AllianceId,
-                    block.MemberIds,
-                    block.MemberOrder,
-                    block.SourceBlockIds,
-                    block.IsMerged)).ToArray(),
-                layout.CyclicMerge is null
-                    ? null
-                    : new CyclicMergePreview(
-                        layout.CyclicMerge.TopBlockId,
-                        layout.CyclicMerge.BottomBlockId,
-                        layout.CyclicMerge.AllianceId),
-                layout.Issues.Select(issue => new InitiativeIssuePreview(
-                    issue.Code.ToString(),
-                    issue.Message,
-                    issue.CombatantIds)).ToArray(),
-                layout.RequiresAdjudication,
-                layout.UsesManualOrderOverride));
+            return Results.Ok(ToPreviewResponse(layout));
         }
         catch (ArgumentException exception)
         {
             return Results.BadRequest(new { error = exception.Message });
         }
     }
+
+    private static IResult State(InitiativeTurnStateRequest request)
+    {
+        if (request.Combatants is null)
+        {
+            return Results.BadRequest(new { error = "Combatants are required." });
+        }
+
+        if (request.AdvanceCount < 0 || request.AdvanceCount > 10_000)
+        {
+            return Results.BadRequest(new { error = "AdvanceCount must be between 0 and 10000." });
+        }
+
+        try
+        {
+            var combatants = ToCombatants(request.Combatants);
+            var layout = InitiativeEngine.Build(combatants, request.ManualOrderOverride);
+            var state = EncounterTurnState.Start(layout);
+            TurnAdvanceResult? lastAdvance = null;
+
+            for (var index = 0; index < request.AdvanceCount; index++)
+            {
+                lastAdvance = state.AdvanceBlock();
+            }
+
+            return Results.Ok(new InitiativeTurnStateResponse(
+                state.Round,
+                state.ActiveBlock?.Id,
+                state.Blocks.Select(ToBlockPreview).ToArray(),
+                state.CyclicMergePending,
+                state.CyclicMergeCompleted,
+                state.LowerCyclicBlockSkippedRoundOne,
+                lastAdvance is null
+                    ? null
+                    : new TurnAdvancePreview(
+                        lastAdvance.PreviousRound,
+                        lastAdvance.CurrentRound,
+                        lastAdvance.PreviousBlockId,
+                        lastAdvance.CurrentBlockId,
+                        lastAdvance.RoundAdvanced,
+                        lastAdvance.CyclicMergeCompleted,
+                        lastAdvance.SkippedBlockId)));
+        }
+        catch (ArgumentException exception)
+        {
+            return Results.BadRequest(new { error = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Results.BadRequest(new { error = exception.Message });
+        }
+    }
+
+    private static CombatantInitiative[] ToCombatants(
+        IReadOnlyList<InitiativeCombatantRequest> combatants)
+        => combatants
+            .Select(combatant => new CombatantInitiative(
+                combatant.Id,
+                combatant.Name,
+                combatant.AllianceId,
+                combatant.InitiativeTotal,
+                combatant.InitiativeModifier,
+                combatant.ControllerId,
+                combatant.TacticalGroupId,
+                ParseBlockType(combatant.BlockType)))
+            .ToArray();
+
+    private static InitiativePreviewResponse ToPreviewResponse(InitiativeLayout layout)
+        => new(
+            layout.Placements.Select(placement => new InitiativeCombatantPreview(
+                placement.Combatant.Id,
+                placement.Combatant.Name,
+                placement.Combatant.AllianceId,
+                placement.Combatant.InitiativeTotal,
+                placement.EffectiveInitiative,
+                placement.Combatant.InitiativeModifier,
+                placement.Combatant.ControllerId,
+                placement.Combatant.TacticalGroupId,
+                FormatBlockType(placement.Combatant.BlockType))).ToArray(),
+            layout.Blocks.Select(ToBlockPreview).ToArray(),
+            layout.CyclicMerge is null
+                ? null
+                : new CyclicMergePreview(
+                    layout.CyclicMerge.TopBlockId,
+                    layout.CyclicMerge.BottomBlockId,
+                    layout.CyclicMerge.AllianceId,
+                    FormatBlockType(layout.CyclicMerge.BlockType)),
+            layout.Issues.Select(issue => new InitiativeIssuePreview(
+                issue.Code.ToString(),
+                issue.Message,
+                issue.CombatantIds)).ToArray(),
+            layout.RequiresAdjudication,
+            layout.UsesManualOrderOverride);
+
+    private static InitiativeBlockPreview ToBlockPreview(TurnBlock block)
+        => new(
+            block.Id,
+            block.AllianceId,
+            FormatBlockType(block.BlockType),
+            block.MemberIds,
+            block.MemberOrder,
+            block.SourceBlockIds,
+            block.IsMerged);
+
+    private static TurnBlockType ParseBlockType(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || string.Equals(value, "standard", StringComparison.OrdinalIgnoreCase))
+        {
+            return TurnBlockType.Standard;
+        }
+
+        if (string.Equals(value, "kaiju", StringComparison.OrdinalIgnoreCase))
+        {
+            return TurnBlockType.Kaiju;
+        }
+
+        throw new ArgumentException(
+            $"Unknown turn block type '{value}'. Expected 'standard' or 'kaiju'.",
+            nameof(value));
+    }
+
+    private static string FormatBlockType(TurnBlockType blockType)
+        => blockType switch
+        {
+            TurnBlockType.Standard => "standard",
+            TurnBlockType.Kaiju => "kaiju",
+            _ => throw new ArgumentOutOfRangeException(nameof(blockType), blockType, null)
+        };
 }
 
 public sealed record InitiativePreviewRequest(
     IReadOnlyList<InitiativeCombatantRequest>? Combatants,
     IReadOnlyList<string>? ManualOrderOverride = null);
+
+public sealed record InitiativeTurnStateRequest(
+    IReadOnlyList<InitiativeCombatantRequest>? Combatants,
+    IReadOnlyList<string>? ManualOrderOverride = null,
+    int AdvanceCount = 0);
 
 public sealed record InitiativeCombatantRequest(
     string Id,
@@ -80,7 +177,8 @@ public sealed record InitiativeCombatantRequest(
     decimal InitiativeTotal,
     decimal? InitiativeModifier = null,
     string? ControllerId = null,
-    string? TacticalGroupId = null);
+    string? TacticalGroupId = null,
+    string? BlockType = null);
 
 public sealed record InitiativePreviewResponse(
     IReadOnlyList<InitiativeCombatantPreview> OrderedCombatants,
@@ -90,6 +188,24 @@ public sealed record InitiativePreviewResponse(
     bool RequiresAdjudication,
     bool UsesManualOrderOverride);
 
+public sealed record InitiativeTurnStateResponse(
+    int Round,
+    string? ActiveBlockId,
+    IReadOnlyList<InitiativeBlockPreview> Blocks,
+    bool CyclicMergePending,
+    bool CyclicMergeCompleted,
+    bool LowerCyclicBlockSkippedRoundOne,
+    TurnAdvancePreview? LastAdvance);
+
+public sealed record TurnAdvancePreview(
+    int PreviousRound,
+    int CurrentRound,
+    string? PreviousBlockId,
+    string? CurrentBlockId,
+    bool RoundAdvanced,
+    bool CyclicMergeCompleted,
+    string? SkippedBlockId);
+
 public sealed record InitiativeCombatantPreview(
     string Id,
     string Name,
@@ -98,11 +214,13 @@ public sealed record InitiativeCombatantPreview(
     decimal EffectiveInitiative,
     decimal? InitiativeModifier,
     string? ControllerId,
-    string? TacticalGroupId);
+    string? TacticalGroupId,
+    string BlockType);
 
 public sealed record InitiativeBlockPreview(
     string Id,
     string AllianceId,
+    string BlockType,
     IReadOnlyList<string> MemberIds,
     IReadOnlyList<string> MemberOrder,
     IReadOnlyList<string> SourceBlockIds,
@@ -111,7 +229,8 @@ public sealed record InitiativeBlockPreview(
 public sealed record CyclicMergePreview(
     string TopBlockId,
     string BottomBlockId,
-    string AllianceId);
+    string AllianceId,
+    string BlockType);
 
 public sealed record InitiativeIssuePreview(
     string Code,

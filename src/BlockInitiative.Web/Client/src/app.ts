@@ -1,370 +1,120 @@
-import { previewInitiative } from "./api";
-import type {
-    InitiativeCombatantInput,
-    InitiativePreviewResponse
-} from "./api";
-import { initiativePreviewUrl, loadToolHostContext } from "./host";
+import { loadInitiativeTurnState, previewInitiative } from "./api";
+import type { InitiativeCombatantInput, InitiativePreviewRequest, InitiativePreviewResponse, InitiativeTurnStateResponse, TurnBlockType } from "./api";
+import { initiativePreviewUrl, initiativeStateUrl, loadToolHostContext } from "./host";
 import type { ToolHostContext } from "./host";
 
 const root = document.getElementById("tool-root");
-if (!(root instanceof HTMLElement)) {
-    throw new Error("Block Initiative could not find the Dorks & Dice tool root.");
-}
-
+if (!(root instanceof HTMLElement)) throw new Error("Block Initiative could not find the Dorks & Dice tool root.");
 root.replaceChildren();
 root.classList.add("block-initiative-app");
 
 const style = document.createElement("style");
 style.textContent = `
-.block-initiative-app .bi-grid { display: grid; gap: 1rem; }
-.block-initiative-app .bi-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
-.block-initiative-app .bi-table-wrap { overflow-x: auto; }
-.block-initiative-app table { width: 100%; border-collapse: collapse; }
-.block-initiative-app th, .block-initiative-app td { padding: .45rem; vertical-align: middle; border-bottom: 1px solid rgba(127,127,127,.25); }
-.block-initiative-app input, .block-initiative-app select { width: 100%; min-width: 6rem; padding: .35rem .45rem; }
-.block-initiative-app .bi-name { min-width: 10rem; }
-.block-initiative-app .bi-small { min-width: 5rem; }
-.block-initiative-app .bi-blocks { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-.block-initiative-app .bi-block { border: 1px solid rgba(127,127,127,.3); border-radius: .5rem; padding: .75rem; }
-.block-initiative-app .bi-muted { opacity: .72; }
-.block-initiative-app .bi-warning { border-left: 4px solid currentColor; padding: .65rem .8rem; background: rgba(180,130,0,.08); }
-.block-initiative-app .bi-error { border-left: 4px solid currentColor; padding: .65rem .8rem; background: rgba(180,0,0,.08); }
-.block-initiative-app button { padding: .45rem .75rem; cursor: pointer; }
-.block-initiative-app button:disabled { cursor: not-allowed; opacity: .55; }
+.block-initiative-app{--bi-border:rgba(127,127,127,.28);--bi-soft:rgba(127,127,127,.08)}
+.block-initiative-app .bi-grid,.block-initiative-app .bi-list{display:grid;gap:.75rem}
+.block-initiative-app .bi-steps,.block-initiative-app .bi-sides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
+.block-initiative-app .bi-steps{grid-template-columns:repeat(3,minmax(0,1fr))}
+.block-initiative-app .bi-step,.block-initiative-app .bi-side,.block-initiative-app .bi-entry,.block-initiative-app .bi-block,.block-initiative-app .bi-active{border:1px solid var(--bi-border);border-radius:.65rem}
+.block-initiative-app .bi-step,.block-initiative-app .bi-entry,.block-initiative-app .bi-active{padding:.75rem}
+.block-initiative-app .bi-side{overflow:hidden}.block-initiative-app .bi-side-head,.block-initiative-app .bi-block-head{display:flex;justify-content:space-between;gap:.5rem;align-items:start;padding:.7rem;background:var(--bi-soft);border-bottom:1px solid var(--bi-border)}
+.block-initiative-app .bi-side-body,.block-initiative-app .bi-block-body{padding:.7rem}.block-initiative-app .bi-side-body{display:grid;gap:.55rem}
+.block-initiative-app .bi-entry-main{display:grid;grid-template-columns:minmax(10rem,1.7fr) minmax(6rem,.6fr) auto;gap:.5rem;align-items:end}.block-initiative-app .bi-entry-main.custom{grid-template-columns:1.3fr 1fr .6fr auto}
+.block-initiative-app .bi-field{display:grid;gap:.2rem}.block-initiative-app .bi-field label{font-size:.82rem;font-weight:600;opacity:.8}.block-initiative-app input,.block-initiative-app select{width:100%;min-width:0;padding:.4rem .5rem}
+.block-initiative-app .bi-row,.block-initiative-app .bi-actions,.block-initiative-app .bi-badges,.block-initiative-app .bi-sequence{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}.block-initiative-app .bi-row{justify-content:space-between}.block-initiative-app .bi-actions{justify-content:flex-end}
+.block-initiative-app .bi-badge,.block-initiative-app .bi-seq{border:1px solid currentColor;border-radius:999px;padding:.15rem .5rem;font-size:.8rem}.block-initiative-app .bi-seq.active{border-width:2px;font-weight:700}.block-initiative-app .bi-kaiju{font-weight:700}
+.block-initiative-app .bi-muted{opacity:.72}.block-initiative-app .bi-message{border-left:4px solid currentColor;padding:.65rem .8rem}.block-initiative-app .bi-warning{background:rgba(180,130,0,.08)}.block-initiative-app .bi-success{background:rgba(0,130,70,.08)}.block-initiative-app .bi-error{background:rgba(180,0,0,.08)}
+.block-initiative-app .bi-blocks{display:grid;gap:.6rem}.block-initiative-app .bi-member{display:flex;justify-content:space-between;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--bi-border)}.block-initiative-app .bi-member:last-child{border-bottom:0}
+.block-initiative-app .bi-primary{border-top:1px solid var(--bi-border);margin-top:.8rem;padding-top:.8rem}.block-initiative-app details{margin-top:.55rem}.block-initiative-app summary{cursor:pointer}.block-initiative-app .bi-advanced{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin-top:.55rem}
+.block-initiative-app .bi-active{border-width:2px}.block-initiative-app .bi-active h4{margin-bottom:.2rem}.block-initiative-app .bi-runner-member{padding:.5rem;border:1px solid var(--bi-border);border-radius:.45rem}
+@media(max-width:800px){.block-initiative-app .bi-steps,.block-initiative-app .bi-sides{grid-template-columns:1fr}.block-initiative-app .bi-entry-main,.block-initiative-app .bi-entry-main.custom,.block-initiative-app .bi-advanced{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.block-initiative-app .bi-entry-main,.block-initiative-app .bi-entry-main.custom,.block-initiative-app .bi-advanced{grid-template-columns:1fr}}
 `;
 root.append(style);
 
-const container = document.createElement("section");
-container.className = "container-fluid px-0 bi-grid";
-container.innerHTML = `
-    <header>
-        <h2 class="h4 mb-1">Block Initiative</h2>
-        <p class="mb-1">Enter ordinary initiative results. The tracker derives contiguous allied blocks while preserving the original rolls.</p>
-        <p class="mb-0 bi-muted" data-role="host-status" role="status"></p>
-    </header>
+const shell = document.createElement("section");
+shell.className = "bi-grid";
+shell.innerHTML = `
+<header class="bi-grid">
+  <div><h2 class="h4 mb-1">Block Initiative</h2><p class="mb-1">Enter the rolls, build the blocks, then track the active block through combat.</p><p class="bi-muted mb-0" data-role="host-status"></p></div>
+  <div class="bi-steps"><div class="bi-step"><strong>1. Enter rolls</strong><div class="bi-muted">Name and initiative are enough for a normal fight.</div></div><div class="bi-step"><strong>2. Build blocks</strong><div class="bi-muted">Adjacent allies share a block. Kaiju remain special blocks.</div></div><div class="bi-step"><strong>3. Run encounter</strong><div class="bi-muted">Use Next block; round changes and wraparound are handled for you.</div></div></div>
+  <details><summary>How the block rule works</summary><p class="mb-0">Initiative is sorted normally. Consecutive allies form blocks. Players in the same player block may act in any order. If the first and last blocks are allied and have the same block type, the last skips its separate round-one activation and joins the first at the start of round two.</p></details>
+</header>
+<section class="card card-body" data-role="setup">
+  <div><h3 class="h5 mb-1">Set up the encounter</h3><div class="bi-muted">Players and enemies are separated so you do not need to assign a side on every row.</div></div>
+  <div class="bi-sides mt-3">
+    <section class="bi-side"><div class="bi-side-head"><div><strong>Players</strong><div class="bi-muted">Player characters and allies</div></div><button class="btn btn-sm btn-outline-primary" data-action="add-player">+ Player</button></div><div class="bi-side-body" data-role="players"></div></section>
+    <section class="bi-side"><div class="bi-side-head"><div><strong>Enemies</strong><div class="bi-muted">Standard enemies or Kaiju</div></div><div class="bi-badges"><button class="btn btn-sm btn-outline-secondary" data-action="add-enemy">+ Enemy</button><button class="btn btn-sm btn-outline-secondary" data-action="add-kaiju">+ Kaiju</button></div></div><div class="bi-side-body" data-role="enemies"></div></section>
+  </div>
+  <details><summary>Other sides</summary><div class="bi-row mt-2"><span class="bi-muted">Neutral factions or encounters with more than two sides</span><button class="btn btn-sm btn-outline-secondary" data-action="add-other">+ Other side</button></div><div class="bi-list mt-2" data-role="others"></div></details>
+  <div class="bi-row bi-primary"><div><strong data-role="setup-status">Enter at least two combatants.</strong><div class="bi-muted">You can edit and rebuild before starting combat.</div></div><button class="btn btn-primary" data-action="preview">Build initiative blocks</button></div>
+</section>
+<section data-role="message" hidden></section><section class="bi-grid" data-role="results"></section>`;
+root.append(shell);
 
-    <section class="card card-body">
-        <div class="bi-toolbar mb-2">
-            <strong>Combatants</strong>
-            <button type="button" data-action="add">Add combatant</button>
-            <button type="button" data-action="preview">Preview blocks</button>
-            <button type="button" data-action="override">Use current row order as DM override</button>
-        </div>
-        <div class="bi-table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Alliance</th>
-                        <th>Initiative</th>
-                        <th>Modifier</th>
-                        <th>Controller</th>
-                        <th>Tactical group</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody data-role="combatants"></tbody>
-            </table>
-        </div>
-        <datalist id="block-initiative-alliance-suggestions">
-            <option value="players"></option>
-            <option value="enemies"></option>
-        </datalist>
-    </section>
+const setup = q<HTMLElement>("[data-role='setup']"), players = q<HTMLElement>("[data-role='players']"), enemies = q<HTMLElement>("[data-role='enemies']"), others = q<HTMLElement>("[data-role='others']");
+const status = q<HTMLElement>("[data-role='setup-status']"), hostStatus = q<HTMLElement>("[data-role='host-status']"), message = q<HTMLElement>("[data-role='message']"), results = q<HTMLElement>("[data-role='results']"), previewButton = q<HTMLButtonElement>("[data-action='preview']");
+let previewUrl: string | null = null, stateUrl: string | null = null, busy = false;
 
-    <section data-role="message" hidden></section>
-    <section data-role="results" class="bi-grid"></section>
-`;
-root.append(container);
-
-const tbody = requireElement<HTMLTableSectionElement>("[data-role='combatants']");
-const hostStatus = requireElement<HTMLElement>("[data-role='host-status']");
-const message = requireElement<HTMLElement>("[data-role='message']");
-const results = requireElement<HTMLElement>("[data-role='results']");
-const addButton = requireElement<HTMLButtonElement>("[data-action='add']");
-const previewButton = requireElement<HTMLButtonElement>("[data-action='preview']");
-const overrideButton = requireElement<HTMLButtonElement>("[data-action='override']");
-
-let hostContext: ToolHostContext | null = null;
-let backendUrl: string | null = null;
-
-addButton.addEventListener("click", () => addCombatant());
-previewButton.addEventListener("click", () => void runPreview(false));
-overrideButton.addEventListener("click", () => void runPreview(true));
-
-addCombatant({ allianceId: "players" });
-addCombatant({ allianceId: "enemies" });
+q<HTMLButtonElement>("[data-action='add-player']").onclick = () => addCombatant("players");
+q<HTMLButtonElement>("[data-action='add-enemy']").onclick = () => addCombatant("enemies");
+q<HTMLButtonElement>("[data-action='add-kaiju']").onclick = () => addCombatant("enemies", "kaiju");
+q<HTMLButtonElement>("[data-action='add-other']").onclick = () => addCombatant("other");
+previewButton.onclick = () => void buildPreview();
+addCombatant("players", "standard", false); addCombatant("enemies", "standard", false); updateReady();
 
 const contextUrl = root.dataset.toolContextUrl;
-if (!contextUrl) {
-    hostStatus.textContent = "Standalone development mode.";
-    backendUrl = initiativePreviewUrl(null);
-} else {
-    setActionsDisabled(true);
-    hostStatus.textContent = "Loading Dorks & Dice host context…";
+if (!contextUrl) { previewUrl = initiativePreviewUrl(null); stateUrl = initiativeStateUrl(null); hostStatus.textContent = "Standalone development mode."; updateReady(); }
+else { hostStatus.textContent = "Connecting to Dorks & Dice…"; try { const context: ToolHostContext = await loadToolHostContext(contextUrl); previewUrl = initiativePreviewUrl(context); stateUrl = initiativeStateUrl(context); hostStatus.textContent = context.user ? `Signed in as ${context.user.displayName || context.user.id}.` : "No sign-in required for manual encounters."; updateReady(); } catch (error) { showError(error); } }
 
-    try {
-        hostContext = await loadToolHostContext(contextUrl);
-        backendUrl = initiativePreviewUrl(hostContext);
-        hostStatus.textContent = hostContext.user
-            ? `Connected to Dorks & Dice as ${hostContext.user.displayName || hostContext.user.id}.`
-            : "Connected to Dorks & Dice anonymously.";
-        setActionsDisabled(false);
-    } catch (error) {
-        console.error("Block Initiative host-context check failed.", error);
-        hostStatus.textContent = "Dorks & Dice host context could not be loaded.";
-        showMessage(error instanceof Error ? error.message : "Host context could not be loaded.", true);
-    }
+function q<T extends Element>(selector: string): T { const el = shell.querySelector(selector); if (!(el instanceof Element)) throw new Error(`Missing ${selector}`); return el as T; }
+function f<T extends HTMLElement>(card: HTMLElement, name: string): T { const el = card.querySelector(`[data-field='${name}']`); if (!(el instanceof HTMLElement)) throw new Error(`Missing ${name}`); return el as T; }
+
+function addCombatant(allianceId: string, blockType: TurnBlockType = "standard", focus = true): void {
+  const custom = allianceId !== "players" && allianceId !== "enemies", target = allianceId === "players" ? players : allianceId === "enemies" ? enemies : others;
+  const card = document.createElement("article"); card.className = "bi-entry"; card.dataset.id = crypto.randomUUID(); card.dataset.alliance = allianceId; card.dataset.custom = String(custom);
+  card.innerHTML = `<div class="bi-entry-main ${custom ? "custom" : ""}"><div class="bi-field"><label>Name</label><input data-field="name" placeholder="${blockType === "kaiju" ? "Kaiju name" : allianceId === "players" ? "Player name" : "Enemy name"}"></div>${custom ? '<div class="bi-field"><label>Side</label><input data-field="custom-side" placeholder="e.g. neutral guards"></div>' : ""}<div class="bi-field"><label>Initiative</label><input data-field="initiative" type="number" step="any" placeholder="e.g. 17"></div><button class="btn btn-sm btn-outline-danger" data-action="remove">Remove</button></div><div class="bi-badges mt-2" data-role="badges"></div><details><summary>Advanced options</summary><div class="bi-advanced"><div class="bi-field"><label>Special block type</label><select data-field="block-type"><option value="standard">Standard block</option><option value="kaiju">Kaiju block</option></select></div><div class="bi-field"><label>Acts with controller</label><select data-field="controller"><option value="">No controller</option></select></div><div class="bi-field"><label>Initiative modifier <span class="bi-muted">(record only)</span></label><input data-field="modifier" type="number" step="any" placeholder="Optional"></div><div class="bi-field"><label>Tactical group <span class="bi-muted">(record only)</span></label><input data-field="tactical" placeholder="Optional"></div></div></details>`;
+  f<HTMLSelectElement>(card,"block-type").value = blockType;
+  card.querySelector<HTMLButtonElement>("[data-action='remove']")!.onclick = () => { card.remove(); refreshControllers(); changed(); };
+  card.querySelectorAll("input,select").forEach(el => el.addEventListener("input", () => { if ((el as HTMLElement).dataset.field === "name") refreshControllers(); updateBadges(card); changed(); }));
+  target.append(card); updateBadges(card); refreshControllers(); changed(); if (focus) f<HTMLInputElement>(card,"name").focus();
 }
 
-function requireElement<T extends Element>(selector: string): T {
-    const element = container.querySelector(selector);
-    if (!(element instanceof Element)) {
-        throw new Error(`Block Initiative could not find ${selector}.`);
-    }
-    return element as T;
+function cards(): HTMLElement[] { return [players,enemies,others].flatMap(x => Array.from(x.querySelectorAll<HTMLElement>(".bi-entry"))); }
+function alliance(card: HTMLElement): string { return card.dataset.custom === "true" ? f<HTMLInputElement>(card,"custom-side").value.trim() : card.dataset.alliance ?? ""; }
+function type(card: HTMLElement): TurnBlockType { return f<HTMLSelectElement>(card,"block-type").value === "kaiju" ? "kaiju" : "standard"; }
+function updateBadges(card: HTMLElement): void { const box = card.querySelector<HTMLElement>("[data-role='badges']")!; box.replaceChildren(badge(friendly(alliance(card) || card.dataset.alliance || "Other side"))); if (type(card) === "kaiju") box.append(badge("Kaiju block", true)); }
+function refreshControllers(): void { const all = cards().map(c => ({id:c.dataset.id!,name:f<HTMLInputElement>(c,"name").value.trim()})); for (const card of cards()) { const select=f<HTMLSelectElement>(card,"controller"), old=select.value; select.replaceChildren(new Option("No controller","")); all.filter(x=>x.id!==card.dataset.id).forEach(x=>select.add(new Option(x.name||"(unnamed)",x.id))); if ([...select.options].some(o=>o.value===old)) select.value=old; } }
+function changed(): void { results.replaceChildren(); setup.hidden=false; clearMessage(); updateReady(); }
+function updateReady(): void { const all=cards(), ready=all.length>=2&&all.every(c=>f<HTMLInputElement>(c,"name").value.trim()&&f<HTMLInputElement>(c,"initiative").value.trim()&&alliance(c)); status.textContent=!previewUrl?"Connecting to the initiative service…":all.length<2?"Add at least two combatants.":!ready?"Finish the name and initiative fields above.":"Ready to build the initiative blocks."; previewButton.disabled=busy||!previewUrl||!ready; }
+
+function collect(): InitiativeCombatantInput[] { return cards().map((card,i)=>{ const name=f<HTMLInputElement>(card,"name").value.trim(), allianceId=alliance(card), raw=f<HTMLInputElement>(card,"initiative").value.trim(), mod=f<HTMLInputElement>(card,"modifier").value.trim(); if(!name)throw new Error(`Combatant ${i+1} needs a name.`); if(!allianceId)throw new Error(`${name} needs a side.`); if(!raw)throw new Error(`Enter initiative for ${name}.`); const initiativeTotal=Number(raw), initiativeModifier=mod?Number(mod):null; if(!Number.isFinite(initiativeTotal)||initiativeModifier!==null&&!Number.isFinite(initiativeModifier))throw new Error(`${name} has an invalid initiative value.`); return {id:card.dataset.id!,name,allianceId,initiativeTotal,initiativeModifier,controllerId:f<HTMLSelectElement>(card,"controller").value||null,tacticalGroupId:f<HTMLInputElement>(card,"tactical").value.trim()||null,blockType:type(card)}; }); }
+
+async function buildPreview(manualOrderOverride: string[]|null=null): Promise<void> { if(!previewUrl)return; busy=true; updateReady(); try { const request:InitiativePreviewRequest={combatants:collect(),manualOrderOverride}; const preview=await previewInitiative(previewUrl,request); renderPreview(preview,request); results.scrollIntoView({behavior:"smooth",block:"start"}); } catch(e){showError(e);} finally {busy=false;updateReady();} }
+
+function renderPreview(preview: InitiativePreviewResponse, request: InitiativePreviewRequest): void {
+  results.replaceChildren(); const summary=document.createElement("section"); summary.className="card card-body"; summary.innerHTML=`<div class="bi-row"><div><h3 class="h5 mb-1">${preview.requiresAdjudication?"One ruling is needed":"Initiative blocks are ready"}</h3><div class="bi-muted">${preview.requiresAdjudication?"Resolve the tie below before starting combat.":"Review the blocks, then start encounter tracking."}</div></div>${badge(`${preview.blocks.length} block${preview.blocks.length===1?"":"s"}`).outerHTML}</div>`; results.append(summary);
+  if(preview.issues.length)results.append(renderTie(preview)); if(preview.usesManualOrderOverride){const n=document.createElement("div");n.className="bi-message bi-success";n.textContent="DM tie order applied. Original initiative rolls are unchanged.";results.append(n);}
+  const byId=new Map(preview.orderedCombatants.map(x=>[x.id,x])); const section=document.createElement("section");section.className="card card-body";section.innerHTML='<h3 class="h5 mb-1">Block order</h3><p class="bi-muted">Each block completes before the next block begins.</p>'; const list=document.createElement("div");list.className="bi-blocks";
+  preview.blocks.forEach((b,i)=>{const el=document.createElement("article");el.className="bi-block";el.innerHTML=`<div class="bi-block-head"><strong>Block ${i+1}</strong></div><div class="bi-block-body"></div>`;el.querySelector(".bi-block-head")!.append(blockBadges(b.allianceId,b.blockType));const body=el.querySelector<HTMLElement>(".bi-block-body")!;b.memberOrder.forEach(id=>{const m=byId.get(id),row=document.createElement("div");row.className="bi-member";row.innerHTML=`<span>${escapeText(m?.name??id)}</span><span class="bi-muted">${m?`Initiative ${m.initiativeTotal}`:""}</span>`;body.append(row);}); if(b.allianceId==="players"&&b.memberOrder.length>1){const note=document.createElement("div");note.className="bi-muted mt-2";note.textContent="Players in this block may choose their order.";body.append(note);} list.append(el);}); section.append(list,roundBoundary(preview));
+  if(!preview.requiresAdjudication){const action=document.createElement("div");action.className="bi-row bi-primary";action.innerHTML='<div><strong>Ready?</strong><div class="bi-muted">Tracking starts on Block 1 in round 1.</div></div>';const start=document.createElement("button");start.className="btn btn-primary";start.textContent="Start encounter";start.onclick=()=>void startEncounter(request,preview);action.append(start);section.append(action);} results.append(section);
 }
 
-function addCombatant(seed: Partial<InitiativeCombatantInput> = {}): void {
-    const row = document.createElement("tr");
-    row.dataset.combatantId = seed.id ?? crypto.randomUUID();
-    row.innerHTML = `
-        <td><input class="bi-name" data-field="name" type="text" autocomplete="off" placeholder="Combatant"></td>
-        <td><input data-field="alliance" type="text" list="block-initiative-alliance-suggestions" autocomplete="off" placeholder="players"></td>
-        <td><input class="bi-small" data-field="initiative" type="number" step="any" inputmode="decimal"></td>
-        <td><input class="bi-small" data-field="modifier" type="number" step="any" inputmode="decimal" placeholder="optional"></td>
-        <td><select data-field="controller"><option value="">None</option></select></td>
-        <td><input data-field="tactical-group" type="text" autocomplete="off" placeholder="optional"></td>
-        <td><button type="button" data-action="remove" aria-label="Remove combatant">Remove</button></td>
-    `;
+function renderTie(preview: InitiativePreviewResponse): HTMLElement { const box=document.createElement("section");box.className="bi-message bi-warning";box.innerHTML='<strong>DM ruling needed</strong><p>Opposing combatants tied. Put each tie in the order you want.</p>'; for(const issue of preview.issues){const ol=document.createElement("ol");ol.className="bi-list";ol.dataset.tie="true"; issue.combatantIds.forEach(id=>{const c=preview.orderedCombatants.find(x=>x.id===id);if(!c)return;const li=document.createElement("li");li.className="bi-row";li.dataset.id=c.id;li.innerHTML=`<strong>${escapeText(c.name)} — ${friendly(c.allianceId)}</strong>`;const controls=document.createElement("span");controls.className="bi-badges";for(const [label,d] of [["Earlier",-1],["Later",1]] as const){const b=document.createElement("button");b.className="btn btn-sm btn-outline-secondary";b.textContent=label;b.onclick=()=>move(li,d);controls.append(b);}li.append(controls);ol.append(li);});box.append(ol);} const apply=document.createElement("button");apply.className="btn btn-outline-secondary mt-2";apply.textContent="Apply DM tie order";apply.onclick=()=>{const order=preview.orderedCombatants.map(x=>x.id);box.querySelectorAll<HTMLOListElement>("[data-tie='true']").forEach(ol=>{const ids=[...ol.querySelectorAll<HTMLElement>("[data-id]")].map(x=>x.dataset.id!);const pos=order.map((id,i)=>ids.includes(id)?i:-1).filter(i=>i>=0).sort((a,b)=>a-b);pos.forEach((p,i)=>order[p]=ids[i]);});void buildPreview(order);};box.append(apply);return box; }
+function move(el:HTMLElement,d:-1|1):void{const sibling=d<0?el.previousElementSibling:el.nextElementSibling;if(!sibling)return;if(d<0)el.parentElement?.insertBefore(el,sibling);else el.parentElement?.insertBefore(sibling,el);}
+function roundBoundary(p:InitiativePreviewResponse):HTMLElement{const d=document.createElement("div");d.className="bi-list mt-3";const title=document.createElement("strong");title.textContent="Round boundary";d.append(title);const note=document.createElement("div");note.className="bi-message bi-warning";if(!p.cyclicMerge)note.textContent=`After Block ${p.blocks.length}, return to Block 1 for the next round.`;else{const bottom=p.blocks.findIndex(x=>x.id===p.cyclicMerge!.bottomBlockId)+1,top=p.blocks.findIndex(x=>x.id===p.cyclicMerge!.topBlockId)+1;note.textContent=`Round 1: Block ${bottom} skips its separate activation. Round 2 onward: it joins Block ${top} across the round boundary.`;}d.append(note);return d;}
 
-    field<HTMLInputElement>(row, "name").value = seed.name ?? "";
-    field<HTMLInputElement>(row, "alliance").value = seed.allianceId ?? "players";
-    field<HTMLInputElement>(row, "initiative").value = seed.initiativeTotal === undefined
-        ? ""
-        : String(seed.initiativeTotal);
-    field<HTMLInputElement>(row, "modifier").value = seed.initiativeModifier === null || seed.initiativeModifier === undefined
-        ? ""
-        : String(seed.initiativeModifier);
-    field<HTMLInputElement>(row, "tactical-group").value = seed.tacticalGroupId ?? "";
-
-    field<HTMLButtonElement>(row, undefined, "[data-action='remove']").addEventListener("click", () => {
-        row.remove();
-        refreshControllerOptions();
-    });
-    field<HTMLInputElement>(row, "name").addEventListener("input", refreshControllerOptions);
-
-    tbody.append(row);
-    refreshControllerOptions();
+async function startEncounter(request:InitiativePreviewRequest,preview:InitiativePreviewResponse):Promise<void>{if(!stateUrl)return;setup.hidden=true;await renderRunner(request,preview,0);}
+async function renderRunner(request:InitiativePreviewRequest,preview:InitiativePreviewResponse,advanceCount:number):Promise<void>{if(!stateUrl)return;results.innerHTML='<section class="card card-body">Loading encounter…</section>';try{const state=await loadInitiativeTurnState(stateUrl,{...request,advanceCount});renderRunnerState(request,preview,state,advanceCount);}catch(e){setup.hidden=false;results.replaceChildren();showError(e);}}
+function renderRunnerState(request:InitiativePreviewRequest,preview:InitiativePreviewResponse,state:InitiativeTurnStateResponse,advanceCount:number):void{
+  results.replaceChildren();const byId=new Map(preview.orderedCombatants.map(x=>[x.id,x])),index=state.blocks.findIndex(x=>x.id===state.activeBlockId),active=index>=0?state.blocks[index]:null;const card=document.createElement("section");card.className="card card-body bi-grid";const top=document.createElement("div");top.className="bi-row";top.innerHTML=`<div><strong>Round ${state.round}</strong><h3 class="h5 mb-0">${active?`Block ${index+1} is active`:"Encounter"}</h3></div>`;const edit=document.createElement("button");edit.className="btn btn-sm btn-outline-secondary";edit.textContent="Edit encounter";edit.onclick=()=>{setup.hidden=false;results.replaceChildren();setup.scrollIntoView({behavior:"smooth"});};top.append(edit);card.append(top);
+  if(state.lastAdvance?.cyclicMergeCompleted){const n=document.createElement("div");n.className="bi-message bi-success";n.textContent="Round 1 complete. The lower allied block was skipped and has now merged with the top block for round 2 onward.";card.append(n);}else if(state.lastAdvance?.roundAdvanced){const n=document.createElement("div");n.className="bi-message bi-success";n.textContent=`Round ${state.round} started.`;card.append(n);}
+  if(active){const a=document.createElement("div");a.className="bi-active bi-grid";const head=document.createElement("div");head.className="bi-row";head.innerHTML=`<div><h4 class="h5 mb-0">${friendly(active.allianceId)} block</h4><div class="bi-muted">Finish this block before advancing.</div></div>`;head.append(blockBadges(active.allianceId,active.blockType));a.append(head);const members=document.createElement("div");members.className="bi-list";active.memberOrder.forEach(id=>{const m=document.createElement("div");m.className="bi-runner-member";m.textContent=byId.get(id)?.name??id;members.append(m);});a.append(members);if(active.allianceId==="players"&&active.memberOrder.length>1){const n=document.createElement("div");n.className="bi-muted";n.textContent="Players may act in any order within this block.";a.append(n);}if(active.blockType==="kaiju"){const n=document.createElement("div");n.className="bi-message bi-warning";n.textContent="Kaiju block active. Detailed Kaiju state tracking is not implemented yet.";a.append(n);}card.append(a);}
+  const seq=document.createElement("div");seq.className="bi-sequence";state.blocks.forEach((b,i)=>{const s=document.createElement("span");s.className=`bi-seq ${b.id===state.activeBlockId?"active":""}`;s.textContent=`${i+1}. ${friendly(b.allianceId)}${b.blockType==="kaiju"?" · Kaiju":""}`;seq.append(s);});card.append(seq);const actions=document.createElement("div");actions.className="bi-actions";const next=document.createElement("button");next.className="btn btn-primary";next.textContent="Next block";next.onclick=()=>void renderRunner(request,preview,advanceCount+1);actions.append(next);card.append(actions);const note=document.createElement("div");note.className="bi-muted";note.textContent="Running position is not saved yet; refreshing resets the encounter.";card.append(note);results.append(card);
 }
 
-function refreshControllerOptions(): void {
-    const rows = combatantRows();
-    const combatants = rows.map(row => ({
-        id: row.dataset.combatantId!,
-        name: field<HTMLInputElement>(row, "name").value.trim()
-    }));
-
-    for (const row of rows) {
-        const select = field<HTMLSelectElement>(row, "controller");
-        const previous = select.value;
-        select.replaceChildren(new Option("None", ""));
-
-        for (const combatant of combatants) {
-            if (combatant.id === row.dataset.combatantId) {
-                continue;
-            }
-            select.add(new Option(combatant.name || "(unnamed combatant)", combatant.id));
-        }
-
-        if (Array.from(select.options).some(option => option.value === previous)) {
-            select.value = previous;
-        }
-    }
-}
-
-async function runPreview(useManualOrder: boolean): Promise<void> {
-    if (!backendUrl) {
-        showMessage("The Block Initiative backend is not available.", true);
-        return;
-    }
-
-    clearMessage();
-    setActionsDisabled(true);
-
-    try {
-        const combatants = collectCombatants();
-        const rowOrder = combatantRows().map(row => row.dataset.combatantId!);
-        const preview = await previewInitiative(backendUrl, {
-            combatants,
-            manualOrderOverride: useManualOrder ? rowOrder : null
-        });
-        renderPreview(preview);
-    } catch (error) {
-        showMessage(error instanceof Error ? error.message : "Initiative preview failed.", true);
-    } finally {
-        setActionsDisabled(false);
-    }
-}
-
-function collectCombatants(): InitiativeCombatantInput[] {
-    return combatantRows().map((row, index) => {
-        const id = row.dataset.combatantId!;
-        const name = field<HTMLInputElement>(row, "name").value.trim();
-        const allianceId = field<HTMLInputElement>(row, "alliance").value.trim();
-        const initiativeText = field<HTMLInputElement>(row, "initiative").value.trim();
-        const modifierText = field<HTMLInputElement>(row, "modifier").value.trim();
-        const controllerId = field<HTMLSelectElement>(row, "controller").value || null;
-        const tacticalGroupId = field<HTMLInputElement>(row, "tactical-group").value.trim() || null;
-
-        if (!name) {
-            throw new Error(`Combatant ${index + 1} requires a name.`);
-        }
-        if (!allianceId) {
-            throw new Error(`${name} requires an alliance.`);
-        }
-        if (!initiativeText) {
-            throw new Error(`${name} requires an initiative value.`);
-        }
-
-        const initiativeTotal = Number(initiativeText);
-        if (!Number.isFinite(initiativeTotal)) {
-            throw new Error(`${name} has an invalid initiative value.`);
-        }
-
-        const initiativeModifier = modifierText ? Number(modifierText) : null;
-        if (initiativeModifier !== null && !Number.isFinite(initiativeModifier)) {
-            throw new Error(`${name} has an invalid initiative modifier.`);
-        }
-
-        return {
-            id,
-            name,
-            allianceId,
-            initiativeTotal,
-            initiativeModifier,
-            controllerId,
-            tacticalGroupId
-        };
-    });
-}
-
-function renderPreview(preview: InitiativePreviewResponse): void {
-    results.replaceChildren();
-
-    if (preview.issues.length > 0) {
-        const issueBox = document.createElement("div");
-        issueBox.className = "bi-warning";
-        const heading = document.createElement("strong");
-        heading.textContent = "DM adjudication required";
-        issueBox.append(heading);
-        const list = document.createElement("ul");
-        for (const issue of preview.issues) {
-            const item = document.createElement("li");
-            item.textContent = issue.message;
-            list.append(item);
-        }
-        issueBox.append(list);
-        results.append(issueBox);
-    }
-
-    if (preview.usesManualOrderOverride) {
-        const overrideNote = document.createElement("div");
-        overrideNote.className = "bi-warning";
-        overrideNote.textContent = "DM order override is active. Original initiative values remain unchanged.";
-        results.append(overrideNote);
-    }
-
-    const combatantById = new Map(preview.orderedCombatants.map(combatant => [combatant.id, combatant]));
-
-    const orderSection = document.createElement("section");
-    orderSection.className = "card card-body";
-    const orderHeading = document.createElement("h3");
-    orderHeading.className = "h5";
-    orderHeading.textContent = "Initiative order";
-    orderSection.append(orderHeading);
-
-    const orderList = document.createElement("ol");
-    for (const combatant of preview.orderedCombatants) {
-        const item = document.createElement("li");
-        const effective = combatant.effectiveInitiative === combatant.initiativeTotal
-            ? `${combatant.initiativeTotal}`
-            : `${combatant.effectiveInitiative} effective; original ${combatant.initiativeTotal}`;
-        item.textContent = `${combatant.name} — ${effective} — ${combatant.allianceId}`;
-        orderList.append(item);
-    }
-    orderSection.append(orderList);
-    results.append(orderSection);
-
-    const blockSection = document.createElement("section");
-    blockSection.className = "card card-body";
-    const blockHeading = document.createElement("h3");
-    blockHeading.className = "h5";
-    blockHeading.textContent = "Derived turn blocks";
-    blockSection.append(blockHeading);
-
-    const blockGrid = document.createElement("div");
-    blockGrid.className = "bi-blocks";
-    for (const block of preview.blocks) {
-        const card = document.createElement("article");
-        card.className = "bi-block";
-        const heading = document.createElement("strong");
-        heading.textContent = `${block.id}: ${block.allianceId}`;
-        card.append(heading);
-
-        const memberList = document.createElement("ol");
-        for (const memberId of block.memberOrder) {
-            const member = combatantById.get(memberId);
-            const item = document.createElement("li");
-            item.textContent = member
-                ? `${member.name} (${member.initiativeTotal})`
-                : memberId;
-            memberList.append(item);
-        }
-        card.append(memberList);
-        blockGrid.append(card);
-    }
-    blockSection.append(blockGrid);
-
-    if (preview.cyclicMerge) {
-        const merge = document.createElement("p");
-        merge.className = "bi-warning mt-2";
-        merge.textContent = `Cyclic merge pending: ${preview.cyclicMerge.bottomBlockId} skips its separate round-one activation and joins ${preview.cyclicMerge.topBlockId} at the top of round two.`;
-        blockSection.append(merge);
-    }
-
-    results.append(blockSection);
-}
-
-function combatantRows(): HTMLTableRowElement[] {
-    return Array.from(tbody.querySelectorAll("tr"));
-}
-
-function field<T extends HTMLElement>(
-    row: HTMLTableRowElement,
-    fieldName?: string,
-    selector?: string
-): T {
-    const actualSelector = selector ?? `[data-field='${fieldName}']`;
-    const element = row.querySelector(actualSelector);
-    if (!(element instanceof HTMLElement)) {
-        throw new Error(`Missing combatant field ${fieldName ?? actualSelector}.`);
-    }
-    return element as T;
-}
-
-function showMessage(text: string, isError: boolean): void {
-    message.hidden = false;
-    message.className = isError ? "bi-error" : "bi-warning";
-    message.textContent = text;
-}
-
-function clearMessage(): void {
-    message.hidden = true;
-    message.textContent = "";
-}
-
-function setActionsDisabled(disabled: boolean): void {
-    previewButton.disabled = disabled;
-    overrideButton.disabled = disabled;
-}
+function badge(text:string,kaiju=false):HTMLElement{const s=document.createElement("span");s.className=`bi-badge ${kaiju?"bi-kaiju":""}`;s.textContent=text;return s;}
+function blockBadges(side:string,blockType:TurnBlockType):HTMLElement{const b=document.createElement("span");b.className="bi-badges";b.append(badge(friendly(side)));if(blockType==="kaiju")b.append(badge("Kaiju",true));return b;}
+function friendly(side:string):string{return side==="players"?"Players":side==="enemies"?"Enemies":side||"Other side";}
+function escapeText(text:string):string{const d=document.createElement("div");d.textContent=text;return d.innerHTML;}
+function showError(error:unknown):void{message.hidden=false;message.className="bi-message bi-error";message.textContent=error instanceof Error?error.message:"Something went wrong.";}
+function clearMessage():void{message.hidden=true;message.textContent="";}
