@@ -6,13 +6,16 @@ export function initializeInitiativeRollUi(): void {
     const root = document.getElementById("tool-root");
     if (!(root instanceof HTMLElement)) return;
 
+    installStyles(root.ownerDocument);
     const observer = new MutationObserver(() => configure(root));
     observer.observe(root, { childList: true, subtree: true });
     configure(root);
 }
 
 function configure(root: HTMLElement): void {
-    installStyles(root);
+    for (const card of root.querySelectorAll<HTMLElement>(".bi-entry[data-id]")) {
+        enhanceCombatant(card);
+    }
 
     const method = root.querySelector<HTMLSelectElement>("[data-role='enemy-method']");
     const enemySide = method?.closest<HTMLElement>(".bi-side");
@@ -43,6 +46,9 @@ function configure(root: HTMLElement): void {
             rollAll.dataset.action = "roll-all-enemies";
             rollAll.onclick = () => rollAllEnemies(enemySide, method.value);
             cluster.append(rollAll);
+
+            const help = actionRow.querySelector<HTMLElement>(".bi-muted");
+            if (help) help.dataset.role = "enemy-roster-help";
         }
 
         addGroup.addEventListener("click", event => {
@@ -55,33 +61,39 @@ function configure(root: HTMLElement): void {
         method.addEventListener("change", () => queueMicrotask(() => refresh(enemySide, method)));
         root.addEventListener("input", event => {
             const target = event.target;
-            if (!(target instanceof HTMLInputElement) || target.dataset.field !== "modifier") return;
+            if (!(target instanceof HTMLInputElement)) return;
             const group = target.closest<HTMLElement>(".bi-tactical-group");
-            if (group && method.value === "shared") recalculateSharedGroup(group);
+            if (!group) return;
+            if (target.dataset.field === "modifier" && method.value === "shared") recalculateSharedGroup(group);
+            if (target.dataset.field === "initiative" || target.dataset.field === "modifier") refreshGroupSummary(group, method.value);
         });
     }
 
     refresh(enemySide, method);
 }
 
-function installStyles(root: HTMLElement): void {
-    if (root.querySelector("style[data-role='initiative-roll-ui-style']")) return;
-    const style = document.createElement("style");
+function installStyles(documentRef: Document): void {
+    if (documentRef.head.querySelector("style[data-role='initiative-roll-ui-style']")) return;
+    const style = documentRef.createElement("style");
     style.dataset.role = "initiative-roll-ui-style";
     style.textContent = `
 .block-initiative-app .bi-enemy-create-row{align-items:center}
 .block-initiative-app .bi-enemy-create-buttons{justify-content:flex-start}
 .block-initiative-app .bi-roll-line{display:flex;gap:.4rem;align-items:center;margin-top:.3rem;flex-wrap:wrap}
 .block-initiative-app .bi-roll-audit{font-size:.8rem;opacity:.75}
-.block-initiative-app .bi-shared-roll-control{display:grid;gap:.25rem;min-width:9rem;max-width:13rem}
-.block-initiative-app .bi-shared-roll-control label{font-size:.82rem;font-weight:600;opacity:.8}
+.block-initiative-app .bi-shared-roll-control{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap}
+.block-initiative-app .bi-shared-roll-control label{font-size:.82rem;font-weight:600;opacity:.8;margin:0}
+.block-initiative-app .bi-shared-roll-control input{width:4.5rem;max-width:4.5rem}
+.block-initiative-app .bi-shared-result{font-size:.82rem;font-weight:600;white-space:nowrap}
 .block-initiative-app .bi-individual-flat-group{border:0!important;border-radius:0!important;overflow:visible!important}
 .block-initiative-app .bi-individual-flat-group>.bi-group-head{display:none!important}
 .block-initiative-app .bi-individual-flat-group>.bi-group-body{padding:0!important}
 .block-initiative-app .bi-individual-flat-group [data-action='add-member']{display:none!important}
 .block-initiative-app .bi-shared-ui-active [data-role='shared-roll-wrap']{display:none!important}
+.block-initiative-app .bi-shared-ui-active [data-role='initiative-wrap'] .bi-roll-line{display:none!important}
+.block-initiative-app .bi-shared-ui-active [data-field='initiative']{cursor:default}
 `;
-    root.prepend(style);
+    documentRef.head.append(style);
 }
 
 function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
@@ -101,12 +113,21 @@ function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
         setTextIfChanged(help, helpText);
     }
 
+    const rosterHelp = enemySide.querySelector<HTMLElement>("[data-role='enemy-roster-help']");
+    if (rosterHelp) {
+        rosterHelp.hidden = method.value === "individual";
+        if (method.value !== "individual") {
+            setTextIfChanged(rosterHelp, "Tactical groups are DM-authored roster units; turn blocks are still derived from initiative placement.");
+        }
+    }
+
     for (const card of enemySide.querySelectorAll<HTMLElement>(".bi-entry[data-id]")) enhanceCombatant(card);
     for (const group of enemySide.querySelectorAll<HTMLElement>(".bi-tactical-group")) {
         enhanceGroup(group, method);
         group.classList.toggle("bi-individual-flat-group", method.value === "individual");
         group.classList.toggle("bi-shared-ui-active", method.value === "shared");
         updateGroupRollingUi(group, method.value);
+        refreshGroupSummary(group, method.value);
     }
 }
 
@@ -157,8 +178,13 @@ function enhanceGroup(group: HTMLElement, method: HTMLSelectElement): void {
     const shared = document.createElement("div");
     shared.className = "bi-shared-roll-control";
     shared.dataset.role = "shared-d20-control";
-    shared.innerHTML = `<label>Group d20 roll</label><input type="number" min="1" max="20" step="1" data-role="shared-d20" placeholder="1–20"><div class="bi-roll-audit" data-role="shared-audit"></div>`;
+    shared.innerHTML = `<label>Group d20</label><input type="number" min="1" max="20" step="1" data-role="shared-d20" placeholder="1–20"><button type="button" class="btn btn-sm btn-outline-primary" data-action="roll-shared-group">Roll</button><span class="bi-shared-result" data-role="shared-result">Initiative —</span><span class="bi-roll-audit" data-role="shared-audit" hidden></span>`;
     shared.querySelector<HTMLInputElement>("[data-role='shared-d20']")!.addEventListener("input", () => recalculateSharedGroup(group));
+    shared.querySelector<HTMLButtonElement>("[data-action='roll-shared-group']")!.onclick = () => {
+        const input = shared.querySelector<HTMLInputElement>("[data-role='shared-d20']")!;
+        input.value = String(rollD20());
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
 
     actions.insertBefore(roll, actions.firstChild);
     actions.insertBefore(shared, roll.nextSibling);
@@ -167,8 +193,19 @@ function enhanceGroup(group: HTMLElement, method: HTMLSelectElement): void {
 function updateGroupRollingUi(group: HTMLElement, mode: string): void {
     const roll = group.querySelector<HTMLButtonElement>("[data-action='roll-group']");
     const shared = group.querySelector<HTMLElement>("[data-role='shared-d20-control']");
-    if (roll) roll.hidden = mode === "individual";
+    if (roll) roll.hidden = mode !== "average";
     if (shared) shared.hidden = mode !== "shared";
+
+    for (const card of group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]")) {
+        const initiative = card.querySelector<HTMLInputElement>("[data-field='initiative']");
+        const rollLine = card.querySelector<HTMLElement>(".bi-roll-line");
+        if (initiative) {
+            initiative.readOnly = mode === "shared";
+            initiative.title = mode === "shared" ? "Calculated from the tactical group's d20 roll and this member's modifier." : "";
+        }
+        if (rollLine) rollLine.hidden = mode === "shared";
+    }
+
     if (mode === "shared") recalculateSharedGroup(group);
 }
 
@@ -191,11 +228,12 @@ function rollGroup(group: HTMLElement, mode: string): void {
     }
 
     for (const card of group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]")) rollCombatant(card);
+    refreshGroupSummary(group, mode);
 }
 
 function rollCombatant(card: HTMLElement): void {
     const initiative = card.querySelector<HTMLInputElement>("[data-field='initiative']");
-    if (!initiative) return;
+    if (!initiative || initiative.readOnly) return;
     const modifier = initiativeModifier(card);
     const raw = rollD20();
     const total = raw + modifier;
@@ -209,6 +247,7 @@ function recalculateSharedGroup(group: HTMLElement): void {
     const rawInput = group.querySelector<HTMLInputElement>("[data-role='shared-d20']");
     const internal = group.querySelector<HTMLInputElement>("[data-role='shared-roll']");
     const audit = group.querySelector<HTMLElement>("[data-role='shared-audit']");
+    const result = group.querySelector<HTMLElement>("[data-role='shared-result']");
     if (!rawInput || !internal) return;
 
     const rawText = rawInput.value.trim();
@@ -218,7 +257,9 @@ function recalculateSharedGroup(group: HTMLElement): void {
             internal.value = "";
             internal.dispatchEvent(new Event("input", { bubbles: true }));
         }
+        if (result) setTextIfChanged(result, "Initiative —");
         if (audit) setTextIfChanged(audit, "Enter or roll one d20; member modifiers are applied automatically.");
+        refreshGroupSummary(group, "shared");
         return;
     }
 
@@ -237,10 +278,49 @@ function recalculateSharedGroup(group: HTMLElement): void {
         internal.value = next;
         internal.dispatchEvent(new Event("input", { bubbles: true }));
     }
+    if (result) setTextIfChanged(result, `Initiative ${next}`);
     if (audit) {
         const detail = adjusted.length ? `Adjusted totals ${adjusted.map(formatNumber).join(", ")}` : "No members yet";
         setTextIfChanged(audit, `${detail}; group initiative ${next}.`);
     }
+    refreshGroupSummary(group, "shared");
+}
+
+function refreshGroupSummary(group: HTMLElement, mode: string): void {
+    const summary = group.querySelector<HTMLElement>("[data-role='group-summary']");
+    if (!summary) return;
+    const members = Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"));
+    const count = members.length;
+    const noun = count === 1 ? "enemy" : "enemies";
+
+    if (mode === "individual") {
+        setTextIfChanged(summary, `${count} ${noun} · individual placement`);
+        return;
+    }
+
+    if (mode === "shared") {
+        const groupInitiative = group.querySelector<HTMLInputElement>("[data-role='shared-roll']")?.value.trim() ?? "";
+        setTextIfChanged(summary, groupInitiative ? `${count} ${noun} · initiative ${groupInitiative}` : `${count} ${noun} · not rolled`);
+        return;
+    }
+
+    const totals = members
+        .map(member => member.querySelector<HTMLInputElement>("[data-field='initiative']")?.value.trim() ?? "")
+        .filter(value => value !== "")
+        .map(Number)
+        .filter(Number.isFinite);
+
+    if (totals.length === 0) {
+        setTextIfChanged(summary, `${count} ${noun} · not rolled`);
+        return;
+    }
+    if (totals.length < count) {
+        setTextIfChanged(summary, `${count} ${noun} · ${totals.length}/${count} rolled`);
+        return;
+    }
+
+    const average = totals.reduce((sum, value) => sum + value, 0) / totals.length;
+    setTextIfChanged(summary, `${count} ${noun} · average ${formatNumber(average)}`);
 }
 
 function initiativeModifier(card: HTMLElement): number {
