@@ -31,11 +31,21 @@ The TypeScript client owns the interactive encounter workspace. Complex browser-
 
 ## Raw facts and derived state
 
-The design document distinguishes underlying initiative facts from derived block/round state. The implementation should preserve that distinction. The exact domain types and state machine are intentionally not created in this scaffold so unresolved edge cases are not silently encoded as rules.
+The design document distinguishes underlying initiative facts from derived block/round state. The implementation preserves that distinction. Raw initiative values must not be rewritten merely because a controller, block order, or DM override changes how a turn is presented.
+
+## Alliances and block types
+
+Alliance and turn-block type are separate concepts.
+
+An alliance identifies which combatants are allied for initiative grouping and encounter logic. A block type identifies the rules that govern a derived turn block. Standard player/enemy blocks use the ordinary block rules. Kaiju use a dedicated Kaiju block type even when their alliance is `enemies`.
+
+This distinction prevents an adjacent Kaiju and ordinary enemy from collapsing into one ordinary enemy block solely because they share an alliance. It also leaves the model open to future special block types without encoding those mechanics as fake alliances.
+
+Kaiju-specific design is documented in [`kaiju-integration.md`](kaiju-integration.md).
 
 ## Persistence
 
-No persistence technology is selected by the scaffold. Encounter storage requirements need to be established before choosing PostgreSQL, another service, or a different persistence model.
+No persistence technology is selected yet. Encounter storage requirements need to be established before choosing PostgreSQL, another service, or a different persistence model.
 
 ## Real-time synchronization
 
