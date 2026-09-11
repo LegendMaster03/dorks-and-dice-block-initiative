@@ -51,6 +51,10 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Apply DM tie order", content, StringComparison.Ordinal);
         Assert.Contains("Start encounter", content, StringComparison.Ordinal);
         Assert.Contains("Next block", content, StringComparison.Ordinal);
+        Assert.Contains("Enemy health", content, StringComparison.Ordinal);
+        Assert.Contains("Chaos Threshold", content, StringComparison.Ordinal);
+        Assert.Contains("Vulnerable Areas", content, StringComparison.Ordinal);
+        Assert.Contains("Finishing Blow", content, StringComparison.Ordinal);
     }
 
     [Fact]
