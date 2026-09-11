@@ -73,7 +73,7 @@ public sealed class TacticalGroupInitiativeTests
     }
 
     [Fact]
-    public void KaijuAndStandardEnemyGroupsRemainSeparateBlockTypes()
+    public void KaijuAndStandardGroupsOnSameSideShareOneDerivedTurnBlock()
     {
         var layout = InitiativeEngine.Build(
         [
@@ -84,10 +84,10 @@ public sealed class TacticalGroupInitiativeTests
         ],
         tacticalGroupMode: TacticalGroupInitiativeMode.AverageMemberRolls);
 
-        Assert.Equal(3, layout.Blocks.Count);
-        Assert.Equal(TurnBlockType.Standard, layout.Blocks[0].BlockType);
-        Assert.Equal(TurnBlockType.Kaiju, layout.Blocks[1].BlockType);
-        Assert.Equal(TurnBlockType.Standard, layout.Blocks[2].BlockType);
+        var block = Assert.Single(layout.Blocks);
+        Assert.Equal("enemies", block.AllianceId);
+        Assert.Equal(TurnBlockType.Mixed, block.BlockType);
+        Assert.Equal(new[] { "goblin-1", "goblin-2", "kaiju", "orc-1" }, block.MemberIds);
     }
 
     private static CombatantInitiative Combatant(
