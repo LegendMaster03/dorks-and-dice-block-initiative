@@ -16,6 +16,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build frontend
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/tmp \
+            -v "$PWD:/src" \
+            -w /src/src/BlockInitiative.Web/Client \
+            node:24-alpine \
+            sh -lc 'npm install --no-audit --no-fund && npm run build'
+
       - name: Run tests
         run: |
           docker run --rm \
@@ -26,7 +36,7 @@ jobs:
             -v "$PWD:/src" \
             -w /src \
             mcr.microsoft.com/dotnet/sdk:10.0 \
-            dotnet test dorks-and-dice-block-initiative.slnx --configuration Release
+            dotnet test dorks-and-dice-block-initiative.slnx --configuration Release -p:BuildClient=false
 
       - name: Build image
         run: docker build -t dorks-and-dice-block-initiative:latest -f src/BlockInitiative.Web/Dockerfile .
