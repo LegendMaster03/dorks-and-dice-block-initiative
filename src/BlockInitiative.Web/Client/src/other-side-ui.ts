@@ -207,7 +207,7 @@ function spawnMember(
     if (!others || !members || !sourceButton.onclick) return null;
 
     const before = new Set(Array.from(others.querySelectorAll<HTMLElement>(".bi-entry[data-id]")).map(card => card.dataset.id));
-    sourceButton.onclick.call(sourceButton, new MouseEvent("click"));
+    sourceButton.onclick.call(sourceButton, new PointerEvent("click"));
     const card = Array.from(others.querySelectorAll<HTMLElement>(".bi-entry[data-id]"))
         .find(candidate => Boolean(candidate.dataset.id) && !before.has(candidate.dataset.id));
     if (!card) return null;
