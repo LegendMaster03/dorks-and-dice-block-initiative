@@ -1,30 +1,53 @@
+const initializedDocuments = new WeakSet<Document>();
+
 export function initializeHealthControlUi(): void {
     const root = document.getElementById("tool-root");
     if (!(root instanceof HTMLElement)) return;
 
-    installStyles(root);
+    installStyles(root.ownerDocument);
+    installDismissHandlers(root.ownerDocument);
     const observer = new MutationObserver(() => enhance(root));
     observer.observe(root, { childList: true, subtree: true });
     enhance(root);
 }
 
-function installStyles(root: HTMLElement): void {
-    if (root.querySelector("style[data-role='health-control-ui-style']")) return;
-    const style = document.createElement("style");
+function installStyles(documentRef: Document): void {
+    if (documentRef.head.querySelector("style[data-role='health-control-ui-style']")) return;
+    const style = documentRef.createElement("style");
     style.dataset.role = "health-control-ui-style";
     style.textContent = `
-.block-initiative-app .bi-hp-controls{display:flex;gap:.8rem;align-items:end;flex-wrap:wrap;margin-top:.45rem}
-.block-initiative-app .bi-hp-fraction,.block-initiative-app .bi-hp-adjust{display:flex;gap:.35rem;align-items:end;flex:0 0 auto}
-.block-initiative-app .bi-hp-fraction>.bi-field,.block-initiative-app .bi-hp-adjust>.bi-field{min-width:4.75rem;max-width:6.5rem;flex:0 0 6rem}
-.block-initiative-app .bi-hp-fraction input,.block-initiative-app .bi-hp-adjust input{width:100%;max-width:6.5rem}
-.block-initiative-app .bi-hp-slash{font-size:1.35rem;line-height:2.1rem;font-weight:600;opacity:.72;padding-bottom:.05rem}
-.block-initiative-app .bi-hp-adjust .btn{min-width:2.35rem;width:2.35rem;height:2.35rem;padding:.2rem;font-size:1.05rem;font-weight:700;line-height:1}
+.block-initiative-app .bi-hp-editor{position:relative;display:inline-flex;align-items:center;width:max-content;max-width:100%}
+.block-initiative-app .bi-hp-summary{min-width:5.6rem;padding:.28rem .48rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.block-initiative-app .bi-hp-popover{position:absolute;z-index:40;top:calc(100% + .3rem);left:0;display:grid;gap:.45rem;min-width:18rem;padding:.55rem;border:1px solid var(--bi-border);border-radius:.5rem;background:var(--bs-body-bg,#fff);box-shadow:0 .45rem 1.2rem rgba(0,0,0,.22)}
+.block-initiative-app .bi-hp-popover[hidden]{display:none!important}
+.block-initiative-app .bi-hp-direct{display:grid;grid-template-columns:minmax(5rem,1fr) auto minmax(5rem,1fr);gap:.3rem;align-items:end}
+.block-initiative-app .bi-hp-direct .bi-field,.block-initiative-app .bi-hp-adjust .bi-field{min-width:0}
+.block-initiative-app .bi-hp-direct input{width:5.5rem;max-width:5.5rem}
+.block-initiative-app .bi-hp-direct-slash{align-self:end;padding:0 .05rem .45rem;font-weight:700;opacity:.7}
+.block-initiative-app .bi-hp-adjust{display:flex;gap:.3rem;align-items:end}
+.block-initiative-app .bi-hp-adjust .bi-field{width:5.5rem;flex:0 0 5.5rem}
+.block-initiative-app .bi-hp-adjust input{width:5.5rem;max-width:5.5rem;text-align:center}
+.block-initiative-app .bi-hp-adjust .btn{min-width:2.15rem;width:2.15rem;height:2.15rem;padding:0;font-size:1rem;font-weight:700;line-height:1}
+.block-initiative-app .bi-hp-popover label{font-size:.72rem;font-weight:600;opacity:.78;margin:0}
 .block-initiative-app [data-combat-setup='standard']>.bi-combat-grid{display:block}
-.block-initiative-app .bi-combat-grid .bi-field input[type='number'],
-.block-initiative-app .bi-combat-controls .bi-field input[type='number']{max-width:8rem}
 .block-initiative-app .bi-combat-grid{justify-content:start}
 `;
-    root.prepend(style);
+    documentRef.head.append(style);
+}
+
+function installDismissHandlers(documentRef: Document): void {
+    if (initializedDocuments.has(documentRef)) return;
+    initializedDocuments.add(documentRef);
+
+    documentRef.addEventListener("pointerdown", event => {
+        const target = event.target;
+        if (target instanceof Node && target.parentElement?.closest(".bi-hp-editor")) return;
+        closeAllEditors(documentRef);
+    });
+
+    documentRef.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeAllEditors(documentRef);
+    });
 }
 
 function enhance(root: HTMLElement): void {
@@ -43,8 +66,7 @@ function enhanceSetupPanel(panel: HTMLElement): void {
     if (!current || !max) return;
 
     panel.dataset.compactHealthReady = "true";
-    const controls = buildCompactControls(current, max);
-    grid.replaceChildren(controls);
+    grid.replaceChildren(buildHealthEditor(current, max));
 }
 
 function enhanceHealthRow(row: HTMLElement): void {
@@ -58,56 +80,124 @@ function enhanceHealthRow(row: HTMLElement): void {
     if (!current || !max) return;
 
     row.dataset.compactHealthReady = "true";
-    const compact = buildCompactControls(current, max);
-    controls.replaceWith(compact);
+    controls.replaceWith(buildHealthEditor(current, max));
 }
 
-function buildCompactControls(current: HTMLElement, max: HTMLElement): HTMLElement {
-    renameLabel(current, "Current");
-    renameLabel(max, "Max");
+function buildHealthEditor(current: HTMLElement, max: HTMLElement): HTMLElement {
+    renameLabel(current, "Current HP");
+    renameLabel(max, "Max HP");
 
     const wrapper = document.createElement("div");
-    wrapper.className = "bi-hp-controls";
+    wrapper.className = "bi-hp-editor";
 
-    const fraction = document.createElement("div");
-    fraction.className = "bi-hp-fraction";
+    const summary = document.createElement("button");
+    summary.type = "button";
+    summary.className = "btn btn-sm btn-outline-secondary bi-hp-summary";
+    summary.dataset.role = "hp-summary";
+    summary.setAttribute("aria-haspopup", "dialog");
+    summary.setAttribute("aria-expanded", "false");
+    summary.title = "Edit or adjust hit points";
+
+    const popover = document.createElement("div");
+    popover.className = "bi-hp-popover";
+    popover.dataset.role = "hp-popover";
+    popover.setAttribute("role", "dialog");
+    popover.setAttribute("aria-label", "Edit hit points");
+    popover.hidden = true;
+
+    const direct = document.createElement("div");
+    direct.className = "bi-hp-direct";
     const slash = document.createElement("span");
-    slash.className = "bi-hp-slash";
+    slash.className = "bi-hp-direct-slash";
     slash.textContent = "/";
-    fraction.append(current, slash, max);
+    slash.setAttribute("aria-hidden", "true");
+    direct.append(current, slash, max);
 
     const amount = document.createElement("div");
     amount.className = "bi-field";
     const amountLabel = document.createElement("label");
-    amountLabel.textContent = "Adjust";
+    amountLabel.textContent = "Modify by";
     const amountInput = document.createElement("input");
     amountInput.type = "number";
     amountInput.min = "0";
     amountInput.step = "1";
     amountInput.placeholder = "0";
+    amountInput.inputMode = "numeric";
+    amountInput.title = "Amount to add to or subtract from current HP";
     amount.append(amountLabel, amountInput);
 
     const subtract = document.createElement("button");
     subtract.type = "button";
     subtract.className = "btn btn-sm btn-outline-secondary";
     subtract.textContent = "−";
-    subtract.title = "Subtract the adjustment from current HP";
+    subtract.title = "Subtract the modifier from current HP";
+    subtract.setAttribute("aria-label", "Subtract HP modifier");
 
     const add = document.createElement("button");
     add.type = "button";
     add.className = "btn btn-sm btn-outline-secondary";
     add.textContent = "+";
-    add.title = "Add the adjustment to current HP";
-
-    subtract.onclick = () => applyAdjustment(current, max, amountInput, -1);
-    add.onclick = () => applyAdjustment(current, max, amountInput, 1);
+    add.title = "Add the modifier to current HP";
+    add.setAttribute("aria-label", "Add HP modifier");
 
     const adjust = document.createElement("div");
     adjust.className = "bi-hp-adjust";
     adjust.append(amount, subtract, add);
+    popover.append(direct, adjust);
+    wrapper.append(summary, popover);
 
-    wrapper.append(fraction, adjust);
+    const currentInput = current.querySelector<HTMLInputElement>("input[type='number']");
+    const maxInput = max.querySelector<HTMLInputElement>("input[type='number']");
+    const updateSummary = () => setSummary(summary, currentInput, maxInput);
+    updateSummary();
+
+    currentInput?.addEventListener("input", updateSummary);
+    currentInput?.addEventListener("change", updateSummary);
+    maxInput?.addEventListener("input", updateSummary);
+    maxInput?.addEventListener("change", updateSummary);
+
+    summary.onclick = event => {
+        event.stopPropagation();
+        const shouldOpen = popover.hidden;
+        closeAllEditors(wrapper.ownerDocument);
+        popover.hidden = !shouldOpen;
+        summary.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+        if (shouldOpen) {
+            currentInput?.focus();
+            currentInput?.select();
+        }
+    };
+
+    popover.addEventListener("pointerdown", event => event.stopPropagation());
+    subtract.onclick = () => {
+        applyAdjustment(current, max, amountInput, -1);
+        updateSummary();
+    };
+    add.onclick = () => {
+        applyAdjustment(current, max, amountInput, 1);
+        updateSummary();
+    };
+
     return wrapper;
+}
+
+function closeAllEditors(documentRef: Document): void {
+    for (const popover of documentRef.querySelectorAll<HTMLElement>(".bi-hp-popover:not([hidden])")) {
+        popover.hidden = true;
+        popover.closest<HTMLElement>(".bi-hp-editor")?.querySelector<HTMLElement>("[data-role='hp-summary']")?.setAttribute("aria-expanded", "false");
+    }
+}
+
+function setSummary(summary: HTMLElement, currentInput: HTMLInputElement | null, maxInput: HTMLInputElement | null): void {
+    const current = displayValue(currentInput?.value ?? "");
+    const max = displayValue(maxInput?.value ?? "");
+    const next = `${current} / ${max}`;
+    if (summary.textContent !== next) summary.textContent = next;
+}
+
+function displayValue(value: string): string {
+    const trimmed = value.trim();
+    return trimmed === "" ? "—" : trimmed;
 }
 
 function applyAdjustment(currentField: HTMLElement, maxField: HTMLElement, amountInput: HTMLInputElement, direction: -1 | 1): void {
@@ -118,7 +208,11 @@ function applyAdjustment(currentField: HTMLElement, maxField: HTMLElement, amoun
     const amount = Math.max(0, Number(amountInput.value) || 0);
     const current = Number(currentInput.value);
     const fallbackMax = Number(maxInput?.value ?? "");
-    const base = Number.isFinite(current) ? current : Number.isFinite(fallbackMax) ? fallbackMax : 0;
+    const base = Number.isFinite(current) && currentInput.value.trim() !== ""
+        ? current
+        : Number.isFinite(fallbackMax) && (maxInput?.value ?? "").trim() !== ""
+            ? fallbackMax
+            : 0;
     let next = direction < 0 ? Math.max(0, base - amount) : base + amount;
 
     if (direction > 0 && Number.isFinite(fallbackMax) && (maxInput?.value ?? "").trim() !== "") {
@@ -126,6 +220,7 @@ function applyAdjustment(currentField: HTMLElement, maxField: HTMLElement, amoun
     }
 
     currentInput.value = String(next);
+    currentInput.dispatchEvent(new Event("input", { bubbles: true }));
     currentInput.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
