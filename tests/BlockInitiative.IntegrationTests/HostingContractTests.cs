@@ -82,6 +82,12 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("bi-enemy-roster-header", content, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns:minmax(16rem,34rem) 5rem 13rem 6rem auto", content, StringComparison.Ordinal);
         Assert.Contains("grid-column:4;grid-row:1", content, StringComparison.Ordinal);
+        Assert.Contains("bi-kaiju-basics-compact", content, StringComparison.Ordinal);
+        Assert.Contains("bi-kaiju-pool-editor", content, StringComparison.Ordinal);
+        Assert.Contains("Edit or adjust Chaos", content, StringComparison.Ordinal);
+        Assert.Contains("Edit or adjust vulnerable area HP", content, StringComparison.Ordinal);
+        Assert.Contains("bi-kaiju-area-header", content, StringComparison.Ordinal);
+        Assert.Contains("<span>Targetable</span>", content, StringComparison.Ordinal);
     }
 
     [Fact]
