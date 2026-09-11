@@ -1,4 +1,6 @@
 import { initializeCombatStateUi } from "./combat-state-ui";
+import { initializeHealthControlUi } from "./health-control-ui";
+import { initializeInitiativeRollUi } from "./initiative-roll-ui";
 
 export type TurnBlockType = "standard" | "kaiju";
 export type TacticalGroupInitiativeMode = "individual" | "average" | "shared";
@@ -136,3 +138,5 @@ async function postJson<T>(
 }
 
 initializeCombatStateUi();
+initializeInitiativeRollUi();
+initializeHealthControlUi();
