@@ -59,6 +59,11 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("+ Tactical group", content, StringComparison.Ordinal);
         Assert.Contains("+ Another", content, StringComparison.Ordinal);
         Assert.Contains("Rules Core", content, StringComparison.Ordinal);
+        Assert.Contains("Roll all enemies", content, StringComparison.Ordinal);
+        Assert.Contains("Group d20 roll", content, StringComparison.Ordinal);
+        Assert.Contains("there are no manual tactical groups in this mode", content, StringComparison.Ordinal);
+        Assert.Contains("Subtract the adjustment from current HP", content, StringComparison.Ordinal);
+        Assert.Contains("Add the adjustment to current HP", content, StringComparison.Ordinal);
     }
 
     [Fact]
