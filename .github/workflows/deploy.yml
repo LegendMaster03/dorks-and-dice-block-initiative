@@ -1,0 +1,119 @@
+name: Deploy Block Initiative
+run-name: Deploy ${{ github.ref_name }} at ${{ github.sha }}
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: dorks-and-dice-block-initiative
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, dorks-and-dice-block-initiative]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/tmp \
+            -e DOTNET_CLI_HOME=/tmp/dotnet \
+            -e NUGET_PACKAGES=/tmp/nuget \
+            -v "$PWD:/src" \
+            -w /src \
+            mcr.microsoft.com/dotnet/sdk:10.0 \
+            dotnet test dorks-and-dice-block-initiative.slnx --configuration Release
+
+      - name: Build image
+        run: docker build -t dorks-and-dice-block-initiative:latest -f src/BlockInitiative.Web/Dockerfile .
+
+      - name: Smoke test container
+        run: |
+          docker rm -f dorks-and-dice-block-initiative-smoketest 2>/dev/null || true
+          docker network create dorks-and-dice-block-initiative-test 2>/dev/null || true
+
+          docker run -d --name dorks-and-dice-block-initiative-smoketest \
+            --network dorks-and-dice-block-initiative-test \
+            dorks-and-dice-block-initiative:latest
+
+          ready=false
+          for i in {1..20}; do
+            health=$(docker run --rm \
+              --network dorks-and-dice-block-initiative-test \
+              curlimages/curl:8.12.1 \
+              -fsS http://dorks-and-dice-block-initiative-smoketest:8080/health 2>/dev/null || true)
+            readiness=$(docker run --rm \
+              --network dorks-and-dice-block-initiative-test \
+              curlimages/curl:8.12.1 \
+              -fsS http://dorks-and-dice-block-initiative-smoketest:8080/ready 2>/dev/null || true)
+            appjs=$(docker run --rm \
+              --network dorks-and-dice-block-initiative-test \
+              curlimages/curl:8.12.1 \
+              -fsS http://dorks-and-dice-block-initiative-smoketest:8080/app.js 2>/dev/null || true)
+
+            if [ "$health" = "Healthy" ] \
+              && echo "$readiness" | grep -q '"status":"ready"' \
+              && echo "$appjs" | grep -q 'Block Initiative'; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" != "true" ]; then
+            echo "Block Initiative smoke test failed."
+            docker logs dorks-and-dice-block-initiative-smoketest || true
+            exit 1
+          fi
+
+      - name: Cleanup smoke test infrastructure
+        if: always()
+        run: |
+          docker rm -f dorks-and-dice-block-initiative-smoketest 2>/dev/null || true
+          docker network rm dorks-and-dice-block-initiative-test 2>/dev/null || true
+
+      - name: Deploy
+        run: |
+          docker compose \
+            --project-name dorks-and-dice-block-initiative \
+            -f docker-compose.yml \
+            config >/dev/null
+
+          docker rm -f dorks-and-dice-block-initiative 2>/dev/null || true
+
+          docker compose \
+            --project-name dorks-and-dice-block-initiative \
+            -f docker-compose.yml \
+            up -d --force-recreate --remove-orphans
+
+      - name: Verify deployed service
+        run: |
+          ready=false
+          for i in {1..20}; do
+            readiness=$(docker run --rm \
+              --network dorks-and-dice-backend \
+              curlimages/curl:8.12.1 \
+              -fsS http://dorks-and-dice-block-initiative:8080/ready 2>/dev/null || true)
+            appjs=$(docker run --rm \
+              --network dorks-and-dice-backend \
+              curlimages/curl:8.12.1 \
+              -fsS http://dorks-and-dice-block-initiative:8080/app.js 2>/dev/null || true)
+
+            if echo "$readiness" | grep -q '"status":"ready"' \
+              && echo "$appjs" | grep -q 'Block Initiative'; then
+              echo "$readiness"
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" != "true" ]; then
+            echo "Deployed Block Initiative did not become ready."
+            docker logs dorks-and-dice-block-initiative || true
+            exit 1
+          fi
