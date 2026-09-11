@@ -60,8 +60,12 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("+ Another", content, StringComparison.Ordinal);
         Assert.Contains("Rules Core", content, StringComparison.Ordinal);
         Assert.Contains("Roll all enemies", content, StringComparison.Ordinal);
-        Assert.Contains("Group d20 roll", content, StringComparison.Ordinal);
+        Assert.Contains("Group d20", content, StringComparison.Ordinal);
+        Assert.Contains("Initiative —", content, StringComparison.Ordinal);
         Assert.Contains("there are no manual tactical groups in this mode", content, StringComparison.Ordinal);
+        Assert.Contains("Tactical groups are DM-authored roster units", content, StringComparison.Ordinal);
+        Assert.Contains("not rolled", content, StringComparison.Ordinal);
+        Assert.Contains("initiative.readOnly = mode === \"shared\"", content, StringComparison.Ordinal);
         Assert.Contains("Initiative modifier", content, StringComparison.Ordinal);
         Assert.Contains("internal-combatant-fields", content, StringComparison.Ordinal);
         Assert.Contains("bi-hp-fraction", content, StringComparison.Ordinal);
@@ -73,7 +77,8 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("bi-roster-header", content, StringComparison.Ordinal);
         Assert.Contains("HP / Adjust", content, StringComparison.Ordinal);
         Assert.Contains("bi-enemy-roster-header", content, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns:minmax(12rem,1fr) 5rem", content, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:minmax(16rem,32rem) 5rem 13rem 22rem auto", content, StringComparison.Ordinal);
+        Assert.Contains("grid-column:4;grid-row:1", content, StringComparison.Ordinal);
     }
 
     [Fact]
