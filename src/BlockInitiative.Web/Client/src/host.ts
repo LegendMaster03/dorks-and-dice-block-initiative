@@ -26,7 +26,15 @@ export async function loadToolHostContext(url: string): Promise<ToolHostContext>
 }
 
 export function initiativePreviewUrl(context: ToolHostContext | null): string {
+    return toolApiUrl(context, "/api/initiative/preview");
+}
+
+export function initiativeStateUrl(context: ToolHostContext | null): string {
+    return toolApiUrl(context, "/api/initiative/state");
+}
+
+function toolApiUrl(context: ToolHostContext | null, path: string): string {
     return context
-        ? `${context.apiBaseUrl}/upstream/api/initiative/preview`
-        : "/api/initiative/preview";
+        ? `${context.apiBaseUrl}/upstream${path}`
+        : path;
 }
