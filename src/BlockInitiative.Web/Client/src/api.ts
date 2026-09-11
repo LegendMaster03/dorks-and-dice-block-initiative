@@ -1,6 +1,7 @@
 import { initializeCombatStateUi } from "./combat-state-ui";
 
 export type TurnBlockType = "standard" | "kaiju";
+export type TacticalGroupInitiativeMode = "individual" | "average" | "shared";
 
 export interface InitiativeCombatantInput {
     id: string;
@@ -16,6 +17,7 @@ export interface InitiativeCombatantInput {
 export interface InitiativePreviewRequest {
     combatants: InitiativeCombatantInput[];
     manualOrderOverride?: string[] | null;
+    tacticalGroupMode?: TacticalGroupInitiativeMode;
 }
 
 export interface InitiativeTurnStateRequest extends InitiativePreviewRequest {

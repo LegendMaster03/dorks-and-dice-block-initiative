@@ -21,7 +21,11 @@ public static class InitiativePreviewEndpoints
         try
         {
             var combatants = ToCombatants(request.Combatants);
-            var layout = InitiativeEngine.Build(combatants, request.ManualOrderOverride);
+            var tacticalGroupMode = ParseTacticalGroupMode(request.TacticalGroupMode);
+            var layout = InitiativeEngine.Build(
+                combatants,
+                request.ManualOrderOverride,
+                tacticalGroupMode);
 
             return Results.Ok(ToPreviewResponse(layout));
         }
@@ -46,7 +50,11 @@ public static class InitiativePreviewEndpoints
         try
         {
             var combatants = ToCombatants(request.Combatants);
-            var layout = InitiativeEngine.Build(combatants, request.ManualOrderOverride);
+            var tacticalGroupMode = ParseTacticalGroupMode(request.TacticalGroupMode);
+            var layout = InitiativeEngine.Build(
+                combatants,
+                request.ManualOrderOverride,
+                tacticalGroupMode);
             var state = EncounterTurnState.Start(layout);
             TurnAdvanceResult? lastAdvance = null;
 
@@ -152,6 +160,31 @@ public static class InitiativePreviewEndpoints
             nameof(value));
     }
 
+    private static TacticalGroupInitiativeMode ParseTacticalGroupMode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || string.Equals(value, "individual", StringComparison.OrdinalIgnoreCase))
+        {
+            return TacticalGroupInitiativeMode.Individual;
+        }
+
+        if (string.Equals(value, "average", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "average-member-rolls", StringComparison.OrdinalIgnoreCase))
+        {
+            return TacticalGroupInitiativeMode.AverageMemberRolls;
+        }
+
+        if (string.Equals(value, "shared", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "shared-group-roll", StringComparison.OrdinalIgnoreCase))
+        {
+            return TacticalGroupInitiativeMode.SharedGroupRoll;
+        }
+
+        throw new ArgumentException(
+            $"Unknown tactical group initiative mode '{value}'. Expected 'individual', 'average', or 'shared'.",
+            nameof(value));
+    }
+
     private static string FormatBlockType(TurnBlockType blockType)
         => blockType switch
         {
@@ -163,11 +196,13 @@ public static class InitiativePreviewEndpoints
 
 public sealed record InitiativePreviewRequest(
     IReadOnlyList<InitiativeCombatantRequest>? Combatants,
-    IReadOnlyList<string>? ManualOrderOverride = null);
+    IReadOnlyList<string>? ManualOrderOverride = null,
+    string? TacticalGroupMode = null);
 
 public sealed record InitiativeTurnStateRequest(
     IReadOnlyList<InitiativeCombatantRequest>? Combatants,
     IReadOnlyList<string>? ManualOrderOverride = null,
+    string? TacticalGroupMode = null,
     int AdvanceCount = 0);
 
 public sealed record InitiativeCombatantRequest(

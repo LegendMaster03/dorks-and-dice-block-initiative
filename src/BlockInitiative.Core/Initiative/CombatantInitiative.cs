@@ -12,8 +12,20 @@ public enum TurnBlockType
 }
 
 /// <summary>
+/// Controls whether tactical-group membership affects placement in initiative.
+/// The raw initiative total on each combatant is always preserved.
+/// </summary>
+public enum TacticalGroupInitiativeMode
+{
+    Individual,
+    AverageMemberRolls,
+    SharedGroupRoll
+}
+
+/// <summary>
 /// Raw initiative facts for one combatant. These values are preserved even when
-/// controller relationships or DM overrides change the active turn placement.
+/// controller relationships, tactical-group placement, or DM overrides change
+/// the active turn placement.
 /// </summary>
 public sealed record CombatantInitiative(
     string Id,
