@@ -80,7 +80,7 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
     }
 
     [Fact]
-    public async Task PreviewKeepsKaijuInDedicatedBlockType()
+    public async Task PreviewMergesSameSideAcrossStandardAndKaijuMembers()
     {
         var request = new
         {
@@ -94,13 +94,15 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
 
         using var response = await _client.PostAsJsonAsync("/api/initiative/preview", request);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        var blocks = document.RootElement.GetProperty("blocks").EnumerateArray().ToArray();
+        var root = document.RootElement;
+        var blocks = root.GetProperty("blocks").EnumerateArray().ToArray();
+        var ordered = root.GetProperty("orderedCombatants").EnumerateArray().ToArray();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(3, blocks.Length);
-        Assert.Equal("standard", blocks[0].GetProperty("blockType").GetString());
-        Assert.Equal("kaiju", blocks[1].GetProperty("blockType").GetString());
-        Assert.Equal("standard", blocks[2].GetProperty("blockType").GetString());
+        var block = Assert.Single(blocks);
+        Assert.Equal("enemies", block.GetProperty("allianceId").GetString());
+        Assert.Equal("mixed", block.GetProperty("blockType").GetString());
+        Assert.Equal("kaiju", ordered.Single(item => item.GetProperty("id").GetString() == "kaiju").GetProperty("blockType").GetString());
     }
 
     [Fact]
@@ -125,6 +127,35 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
         Assert.Equal("block-1", root.GetProperty("activeBlockId").GetString());
         Assert.True(root.GetProperty("lastAdvance").GetProperty("roundAdvanced").GetBoolean());
         Assert.False(root.GetProperty("cyclicMergeCompleted").GetBoolean());
+    }
+
+    [Fact]
+    public async Task TurnStateCanResumeCurrentCombatantAfterANewSideIsInserted()
+    {
+        var request = new
+        {
+            combatants = new[]
+            {
+                Combatant("p", "Player", "players", 20m),
+                Combatant("n", "Neutral", "neutral guards", 15m),
+                Combatant("e", "Enemy", "enemies", 10m)
+            },
+            advanceCount = 0,
+            resumeRound = 1,
+            resumeActiveCombatantId = "e",
+            resumeCyclicMergeCompleted = false
+        };
+
+        using var response = await _client.PostAsJsonAsync("/api/initiative/state", request);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = document.RootElement;
+        var activeId = root.GetProperty("activeBlockId").GetString();
+        var active = root.GetProperty("blocks").EnumerateArray()
+            .Single(block => block.GetProperty("id").GetString() == activeId);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, root.GetProperty("round").GetInt32());
+        Assert.Equal("e", Assert.Single(active.GetProperty("memberIds").EnumerateArray()).GetString());
     }
 
     [Fact]
