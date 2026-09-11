@@ -89,34 +89,39 @@ public static class InitiativeEngine
         var blocks = new List<TurnBlock>();
         var memberIds = new List<string>();
         var allianceId = ordered[0].Combatant.AllianceId;
+        var blockType = ordered[0].Combatant.BlockType;
 
         foreach (var placement in ordered)
         {
             if (!string.Equals(
                     allianceId,
                     placement.Combatant.AllianceId,
-                    StringComparison.Ordinal))
+                    StringComparison.Ordinal)
+                || blockType != placement.Combatant.BlockType)
             {
-                blocks.Add(CreateBlock(blocks.Count, allianceId, memberIds));
+                blocks.Add(CreateBlock(blocks.Count, allianceId, blockType, memberIds));
                 memberIds = new List<string>();
                 allianceId = placement.Combatant.AllianceId;
+                blockType = placement.Combatant.BlockType;
             }
 
             memberIds.Add(placement.Combatant.Id);
         }
 
-        blocks.Add(CreateBlock(blocks.Count, allianceId, memberIds));
+        blocks.Add(CreateBlock(blocks.Count, allianceId, blockType, memberIds));
         return blocks;
     }
 
     private static TurnBlock CreateBlock(
         int zeroBasedIndex,
         string allianceId,
+        TurnBlockType blockType,
         IEnumerable<string> memberIds)
     {
         return new TurnBlock(
             $"block-{zeroBasedIndex + 1}",
             allianceId,
+            blockType,
             memberIds);
     }
 
@@ -132,7 +137,8 @@ public static class InitiativeEngine
         var bottom = blocks[^1];
 
         return string.Equals(top.AllianceId, bottom.AllianceId, StringComparison.Ordinal)
-            ? new CyclicMergePlan(top.Id, bottom.Id, top.AllianceId)
+            && top.BlockType == bottom.BlockType
+            ? new CyclicMergePlan(top.Id, bottom.Id, top.AllianceId, top.BlockType)
             : null;
     }
 
