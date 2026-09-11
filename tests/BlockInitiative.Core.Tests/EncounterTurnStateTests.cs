@@ -58,6 +58,55 @@ public sealed class EncounterTurnStateTests
     }
 
     [Fact]
+    public void Resume_ReanchorsCurrentTurnWhenANewSideChangesBlockIndexes()
+    {
+        var original = InitiativeEngine.Build(new[]
+        {
+            new CombatantInitiative("p1", "Player", "players", 20),
+            new CombatantInitiative("e1", "Enemy", "enemies", 10)
+        });
+        var running = EncounterTurnState.Start(original);
+        running.AdvanceBlock();
+        Assert.Equal("e1", Assert.Single(running.ActiveBlock!.MemberIds));
+
+        var rebuilt = InitiativeEngine.Build(new[]
+        {
+            new CombatantInitiative("p1", "Player", "players", 20),
+            new CombatantInitiative("n1", "Neutral", "neutral", 15),
+            new CombatantInitiative("e1", "Enemy", "enemies", 10)
+        });
+
+        var resumed = EncounterTurnState.Resume(
+            rebuilt,
+            running.Round,
+            "e1",
+            running.CyclicMergeCompleted);
+
+        Assert.Equal(1, resumed.Round);
+        Assert.Equal("e1", Assert.Single(resumed.ActiveBlock!.MemberIds));
+        Assert.Equal(3, resumed.Blocks.Count);
+    }
+
+    [Fact]
+    public void Resume_RoundTwoKeepsSameSideTopAndBottomMergedAcrossBlockTypes()
+    {
+        var rebuilt = InitiativeEngine.Build(new[]
+        {
+            new CombatantInitiative("e1", "Enemy", "enemies", 20),
+            new CombatantInitiative("p1", "Player", "players", 15),
+            new CombatantInitiative("k1", "Kaiju", "enemies", 10, BlockType: TurnBlockType.Kaiju)
+        });
+
+        var resumed = EncounterTurnState.Resume(rebuilt, 2, "e1", cyclicMergeCompleted: true);
+
+        Assert.Equal(2, resumed.Round);
+        Assert.Equal(2, resumed.Blocks.Count);
+        Assert.Equal(new[] { "e1", "k1" }, resumed.ActiveBlock!.MemberIds);
+        Assert.Equal(TurnBlockType.Mixed, resumed.ActiveBlock.BlockType);
+        Assert.True(resumed.CyclicMergeCompleted);
+    }
+
+    [Fact]
     public void SetBlockMemberOrder_DoesNotMutateInitiativeAndCarriesIntoMergedBlock()
     {
         var layout = InitiativeEngine.Build(InitiativeEngineTests.WorkedExample());

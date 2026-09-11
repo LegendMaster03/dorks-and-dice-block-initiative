@@ -4,9 +4,10 @@ import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
 import { initializeKaijuLayoutUi } from "./kaiju-layout-ui";
+import { initializeOtherSideUi } from "./other-side-ui";
 import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
 
-export type TurnBlockType = "standard" | "kaiju";
+export type TurnBlockType = "standard" | "kaiju" | "mixed";
 export type TacticalGroupInitiativeMode = "individual" | "average" | "shared";
 
 export interface InitiativeCombatantInput {
@@ -28,6 +29,9 @@ export interface InitiativePreviewRequest {
 
 export interface InitiativeTurnStateRequest extends InitiativePreviewRequest {
     advanceCount: number;
+    resumeRound?: number | null;
+    resumeActiveCombatantId?: string | null;
+    resumeCyclicMergeCompleted?: boolean;
 }
 
 export interface InitiativeCombatantPreview extends InitiativeCombatantInput {
@@ -160,6 +164,7 @@ initializeEnemyDuplicateUi();
 initializeInitiativeRollUi();
 initializeHealthControlUi();
 initializeKaijuLayoutUi();
+initializeOtherSideUi();
 initializeTrackerLayoutUi();
 
 // app.ts rebuilds #tool-root after imports execute. Keep helper styles outside

@@ -63,8 +63,7 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Roll average", content, StringComparison.Ordinal);
         Assert.Contains("Single roll", content, StringComparison.Ordinal);
         Assert.Contains("Group initiative", content, StringComparison.Ordinal);
-        Assert.Contains("Single d20:", content, StringComparison.Ordinal);
-        Assert.Contains("there are no manual tactical groups in this mode", content, StringComparison.Ordinal);
+        Assert.Contains("highest initiative modifier", content, StringComparison.Ordinal);
         Assert.Contains("Tactical groups are DM-authored roster units", content, StringComparison.Ordinal);
         Assert.Contains("not rolled", content, StringComparison.Ordinal);
         Assert.Contains("Initiative modifier", content, StringComparison.Ordinal);
@@ -72,6 +71,7 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("bi-hp-editor", content, StringComparison.Ordinal);
         Assert.Contains("bi-hp-popover", content, StringComparison.Ordinal);
         Assert.Contains("Edit or adjust hit points", content, StringComparison.Ordinal);
+        Assert.Contains("Current HP defaults to Max HP", content, StringComparison.Ordinal);
         Assert.Contains("Modify by", content, StringComparison.Ordinal);
         Assert.Contains("Subtract the modifier from current HP", content, StringComparison.Ordinal);
         Assert.Contains("Add the modifier to current HP", content, StringComparison.Ordinal);
@@ -95,6 +95,10 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Add another", content, StringComparison.Ordinal);
         Assert.Contains("manualDuplicateIndex", content, StringComparison.Ordinal);
         Assert.Contains("+ Different enemy", content, StringComparison.Ordinal);
+        Assert.Contains("+ Side", content, StringComparison.Ordinal);
+        Assert.Contains("+ Kaiju block", content, StringComparison.Ordinal);
+        Assert.Contains("Add / edit combatants", content, StringComparison.Ordinal);
+        Assert.Contains("Resume encounter", content, StringComparison.Ordinal);
     }
 
     [Fact]

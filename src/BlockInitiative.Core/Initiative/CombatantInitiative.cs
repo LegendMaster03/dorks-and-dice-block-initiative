@@ -1,14 +1,15 @@
 namespace BlockInitiative.Core.Initiative;
 
 /// <summary>
-/// The ruleset governing a derived turn block. Alliance and block type are
-/// deliberately separate: a Kaiju can belong to the enemies alliance while
-/// still occupying a Kaiju block rather than a standard enemy block.
+/// The ruleset represented inside a derived turn block. Alliance / side and
+/// member block type remain separate concepts. Mixed is derived only when a
+/// contiguous side turn contains both standard and Kaiju members.
 /// </summary>
 public enum TurnBlockType
 {
     Standard,
-    Kaiju
+    Kaiju,
+    Mixed
 }
 
 /// <summary>

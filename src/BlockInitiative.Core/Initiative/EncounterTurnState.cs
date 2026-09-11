@@ -43,16 +43,65 @@ public sealed class EncounterTurnState
 
     public static EncounterTurnState Start(InitiativeLayout layout)
     {
-        ArgumentNullException.ThrowIfNull(layout);
+        ValidateLayout(layout);
+        return new EncounterTurnState(layout);
+    }
 
-        if (layout.RequiresAdjudication)
+    /// <summary>
+    /// Rebuilds the operational turn state after the roster changes while an
+    /// encounter is already running. The active combatant acts as a stable
+    /// anchor even when the number or ids of derived blocks have changed.
+    /// </summary>
+    public static EncounterTurnState Resume(
+        InitiativeLayout layout,
+        int round,
+        string activeCombatantId,
+        bool cyclicMergeCompleted)
+    {
+        ValidateLayout(layout);
+
+        if (round < 1)
         {
-            throw new InvalidOperationException(
-                "The initiative layout contains unresolved adjudication issues. "
-                + "Resolve them with a DM order override before starting combat.");
+            throw new ArgumentOutOfRangeException(nameof(round), "Round must be at least 1.");
         }
 
-        return new EncounterTurnState(layout);
+        if (string.IsNullOrWhiteSpace(activeCombatantId))
+        {
+            throw new ArgumentException(
+                "An active combatant id is required when resuming an encounter.",
+                nameof(activeCombatantId));
+        }
+
+        var state = new EncounterTurnState(layout)
+        {
+            Round = round
+        };
+
+        if (layout.CyclicMerge is not null && (round > 1 || cyclicMergeCompleted))
+        {
+            state.MergeCyclicBlocksForResume();
+            state.CyclicMergePending = false;
+            state.CyclicMergeCompleted = true;
+            state.LowerCyclicBlockSkippedRoundOne = true;
+        }
+        else
+        {
+            state.CyclicMergePending = round == 1 && layout.CyclicMerge is not null;
+            state.CyclicMergeCompleted = false;
+            state.LowerCyclicBlockSkippedRoundOne = false;
+        }
+
+        var activeIndex = state._blocks.FindIndex(block =>
+            block.MemberIds.Contains(activeCombatantId, StringComparer.Ordinal));
+        if (activeIndex < 0)
+        {
+            throw new ArgumentException(
+                $"Active combatant '{activeCombatantId}' is not present in the rebuilt encounter.",
+                nameof(activeCombatantId));
+        }
+
+        state._activeBlockIndex = activeIndex;
+        return state;
     }
 
     /// <summary>
@@ -125,6 +174,18 @@ public sealed class EncounterTurnState
             null);
     }
 
+    private static void ValidateLayout(InitiativeLayout layout)
+    {
+        ArgumentNullException.ThrowIfNull(layout);
+
+        if (layout.RequiresAdjudication)
+        {
+            throw new InvalidOperationException(
+                "The initiative layout contains unresolved adjudication issues. "
+                + "Resolve them with a DM order override before starting combat.");
+        }
+    }
+
     private bool ShouldCompletePendingCyclicMerge()
     {
         if (!CyclicMergePending
@@ -145,11 +206,27 @@ public sealed class EncounterTurnState
 
     private void CompleteCyclicMerge()
     {
+        var bottom = _blocks[^1];
+        MergeCyclicBlocksForResume();
+
+        LowerCyclicBlockSkippedRoundOne = true;
+        CyclicMergePending = false;
+        CyclicMergeCompleted = true;
+        Round = 2;
+        _activeBlockIndex = 0;
+    }
+
+    private void MergeCyclicBlocksForResume()
+    {
+        if (_layout.CyclicMerge is null || _blocks.Count < 2)
+        {
+            return;
+        }
+
         var top = _blocks[0];
         var bottom = _blocks[^1];
 
-        if (_layout.CyclicMerge is null
-            || !string.Equals(top.Id, _layout.CyclicMerge.TopBlockId, StringComparison.Ordinal)
+        if (!string.Equals(top.Id, _layout.CyclicMerge.TopBlockId, StringComparison.Ordinal)
             || !string.Equals(bottom.Id, _layout.CyclicMerge.BottomBlockId, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
@@ -159,11 +236,5 @@ public sealed class EncounterTurnState
         var merged = top.MergeWith(bottom);
         var middle = _blocks.Skip(1).Take(_blocks.Count - 2);
         _blocks = new[] { merged }.Concat(middle).ToList();
-
-        LowerCyclicBlockSkippedRoundOne = true;
-        CyclicMergePending = false;
-        CyclicMergeCompleted = true;
-        Round = 2;
-        _activeBlockIndex = 0;
     }
 }
