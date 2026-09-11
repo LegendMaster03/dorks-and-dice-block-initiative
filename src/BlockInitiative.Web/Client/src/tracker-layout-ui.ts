@@ -78,14 +78,14 @@ function installStyles(documentRef: Document): void {
   font-size:.76rem;font-weight:700;letter-spacing:.02em;opacity:.68;text-transform:uppercase
 }
 .block-initiative-app.bi-dense-tracker .bi-player-roster-header{grid-template-columns:minmax(16rem,36rem) 5rem 13rem auto}
-.block-initiative-app.bi-dense-tracker .bi-enemy-roster-header{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 16.5rem auto}
+.block-initiative-app.bi-dense-tracker .bi-enemy-roster-header{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 6rem auto}
 
 .block-initiative-app.bi-dense-tracker .bi-roster-entry{
   display:grid;gap:.45rem;align-items:center;justify-content:start;padding:.42rem .15rem!important;
   border:0!important;border-bottom:1px solid var(--bi-border)!important;border-radius:0!important
 }
 .block-initiative-app.bi-dense-tracker .bi-player-entry{grid-template-columns:minmax(16rem,36rem) 5rem 13rem auto}
-.block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 16.5rem auto}
+.block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 6rem auto}
 .block-initiative-app.bi-dense-tracker .bi-roster-entry>.bi-entry-main{display:contents!important}
 .block-initiative-app.bi-dense-tracker .bi-roster-entry [data-role='name-field']{grid-column:1;grid-row:1}
 .block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-initiative-modifier{grid-column:2;grid-row:1}
@@ -98,8 +98,7 @@ function installStyles(documentRef: Document): void {
 }
 
 .block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-entry-main>.bi-field>label,
-.block-initiative-app.bi-dense-tracker .bi-roster-entry [data-role='initiative-wrap']>label,
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-controls label{
+.block-initiative-app.bi-dense-tracker .bi-roster-entry [data-role='initiative-wrap']>label{
   position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;
   overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important
 }
@@ -121,21 +120,11 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app.bi-dense-tracker .bi-roster-entry>.bi-template-actions .btn{padding:.18rem .42rem}
 
 .block-initiative-app.bi-dense-tracker .bi-roster-entry>[data-combat-setup='standard']{
-  border:0!important;margin:0!important;padding:0!important;min-width:0;width:max-content
+  border:0!important;margin:0!important;padding:0!important;min-width:0;width:max-content;overflow:visible
 }
 .block-initiative-app.bi-dense-tracker .bi-roster-entry>[data-combat-setup='standard']>strong,
 .block-initiative-app.bi-dense-tracker .bi-roster-entry>[data-combat-setup='standard']>.bi-note{display:none!important}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-controls{
-  display:inline-flex!important;flex-wrap:nowrap!important;gap:.3rem!important;align-items:center!important;margin:0!important;width:max-content
-}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-fraction,
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-adjust{display:inline-flex;flex-wrap:nowrap;gap:.2rem;align-items:center}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-fraction>.bi-field{min-width:3.5rem!important;max-width:3.5rem!important;flex:0 0 3.5rem!important}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-adjust>.bi-field{min-width:3.25rem!important;max-width:3.25rem!important;flex:0 0 3.25rem!important}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-fraction input{width:3.5rem!important;max-width:3.5rem!important}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-adjust input{width:3.25rem!important;max-width:3.25rem!important}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-slash{line-height:1;font-size:1rem;padding:0 .05rem}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-adjust .btn{width:1.9rem!important;min-width:1.9rem!important;height:1.9rem!important;padding:0!important}
+.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-hp-editor{width:max-content}
 
 .block-initiative-app.bi-dense-tracker .bi-tactical-group{border:0!important;border-top:1px solid var(--bi-border)!important;border-radius:0!important}
 .block-initiative-app.bi-dense-tracker .bi-group-head{padding:.45rem .15rem!important;background:transparent!important;border-bottom:0!important;align-items:center;gap:.75rem}
@@ -150,7 +139,7 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app.bi-dense-tracker .bi-group-body>[data-action='add-member']{justify-self:start;width:auto!important;padding:.22rem .5rem}
 .block-initiative-app.bi-dense-tracker .bi-enemy-create-buttons .btn{padding:.25rem .5rem}
 
-@media(max-width:1040px){
+@media(max-width:880px){
   .block-initiative-app.bi-dense-tracker .bi-enemy-roster-header{display:none}
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(14rem,1fr) 5rem 13rem auto}
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry>[data-combat-setup='standard']{grid-column:1/4;grid-row:2;width:max-content}
