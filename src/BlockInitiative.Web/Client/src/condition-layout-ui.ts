@@ -35,21 +35,21 @@ function installStyles(documentRef: Document): void {
     style.dataset.role = "condition-layout-ui-style";
     style.textContent = `
 .block-initiative-app .bi-health-row.bi-condition-merged{display:grid;grid-template-columns:max-content minmax(12rem,1fr);gap:.45rem .75rem;align-items:center}
-.block-initiative-app .bi-health-row.bi-condition-merged>:scope>.bi-row{grid-column:1/-1}
-.block-initiative-app .bi-health-row.bi-condition-merged>:scope>.bi-hp-editor,
-.block-initiative-app .bi-health-row.bi-condition-merged>:scope>.bi-combat-controls{grid-column:1}
-.block-initiative-app .bi-health-row.bi-condition-merged>:scope>.bi-combat-condition-control{grid-column:2}
+.block-initiative-app .bi-health-row.bi-condition-merged > .bi-row{grid-column:1/-1}
+.block-initiative-app .bi-health-row.bi-condition-merged > .bi-hp-editor,
+.block-initiative-app .bi-health-row.bi-condition-merged > .bi-combat-controls{grid-column:1}
+.block-initiative-app .bi-health-row.bi-condition-merged > .bi-combat-condition-control{grid-column:2}
 .block-initiative-app .bi-combat-condition-control{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.45rem;align-items:center;min-width:0}
 .block-initiative-app .bi-combat-condition-label{font-size:.78rem;font-weight:600;opacity:.78;white-space:nowrap}
-.block-initiative-app .bi-kaiju-panel>.bi-combat-condition-control{border-top:1px solid var(--bi-border);padding-top:.55rem}
+.block-initiative-app .bi-kaiju-panel > .bi-combat-condition-control{border-top:1px solid var(--bi-border);padding-top:.55rem}
 .block-initiative-app .bi-condition-only-list{display:grid;gap:.4rem}
 .block-initiative-app .bi-condition-only-row{margin:0}
 @media(max-width:700px){
   .block-initiative-app .bi-health-row.bi-condition-merged{grid-template-columns:1fr}
-  .block-initiative-app .bi-health-row.bi-condition-merged>:scope>.bi-row,
-  .block-initiative-app .bi-health-row.bi-condition-merged>:scope>.bi-hp-editor,
-  .block-initiative-app .bi-health-row.bi-condition-merged>:scope>.bi-combat-controls,
-  .block-initiative-app .bi-health-row.bi-condition-merged>:scope>.bi-combat-condition-control{grid-column:1}
+  .block-initiative-app .bi-health-row.bi-condition-merged > .bi-row,
+  .block-initiative-app .bi-health-row.bi-condition-merged > .bi-hp-editor,
+  .block-initiative-app .bi-health-row.bi-condition-merged > .bi-combat-controls,
+  .block-initiative-app .bi-health-row.bi-condition-merged > .bi-combat-condition-control{grid-column:1}
   .block-initiative-app .bi-combat-condition-control{grid-template-columns:1fr}
 }
 `;
