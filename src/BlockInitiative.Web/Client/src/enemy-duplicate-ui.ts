@@ -1,15 +1,16 @@
-let scheduled = false;
+import { afterNextEnhancement, registerAfterRender, requestEnhancement } from "./render-lifecycle";
+
+let initialized = false;
 
 export function initializeEnemyDuplicateUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement)) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root.ownerDocument);
-    const observer = new MutationObserver(() => schedule(root));
-    observer.observe(root, { childList: true, subtree: true });
-    root.addEventListener("input", () => schedule(root));
-    root.addEventListener("change", () => schedule(root));
-    schedule(root);
+    root.addEventListener("input", () => requestEnhancement());
+    root.addEventListener("change", () => requestEnhancement());
+    registerAfterRender("enemy-duplicate", 70, () => enhance(root));
 }
 
 function installStyles(documentRef: Document): void {
@@ -27,18 +28,12 @@ function installStyles(documentRef: Document): void {
     documentRef.head.append(style);
 }
 
-function schedule(root: HTMLElement): void {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(() => {
-        scheduled = false;
-        enhance(root);
-    });
+function schedule(_root: HTMLElement): void {
+    requestEnhancement();
 }
 
 function scheduleToolRoot(): void {
-    const root = document.getElementById("tool-root");
-    if (root instanceof HTMLElement) schedule(root);
+    requestEnhancement();
 }
 
 function enhance(root: HTMLElement): void {
@@ -46,7 +41,8 @@ function enhance(root: HTMLElement): void {
     const grouped = method?.value !== "individual";
 
     for (const group of root.querySelectorAll<HTMLElement>(".bi-tactical-group")) {
-        group.querySelector<HTMLButtonElement>("[data-action='clone-primary']")?.setAttribute("hidden", "");
+        const clonePrimary = group.querySelector<HTMLButtonElement>("[data-action='clone-primary']");
+        if (clonePrimary && !clonePrimary.hidden) clonePrimary.hidden = true;
 
         const body = group.querySelector<HTMLElement>(":scope > .bi-group-body");
         const addDifferent = body?.querySelector<HTMLButtonElement>("[data-action='add-member']");
@@ -71,12 +67,13 @@ function enhance(root: HTMLElement): void {
             }
         }
 
-        actions.hidden = !grouped;
+        const shouldHideActions = !grouped;
+        if (actions.hidden !== shouldHideActions) actions.hidden = shouldHideActions;
         if (grouped) renderDuplicateButtons(group, duplicateActions);
 
         for (const card of group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]")) {
             const templateActions = card.querySelector<HTMLElement>("[data-role='template-actions']");
-            if (templateActions) templateActions.hidden = true;
+            if (templateActions && !templateActions.hidden) templateActions.hidden = true;
         }
     }
 }
@@ -183,11 +180,11 @@ function duplicateManualEnemy(group: HTMLElement, source: HTMLElement): void {
     const targetModifier = target.querySelector<HTMLInputElement>("[data-field='modifier']");
     if (sourceModifier && targetModifier) setInputValue(targetModifier, sourceModifier.value);
 
-    copyHealthWhenReady(group, source, target);
+    copyHealthWhenReady(source, target);
     scheduleToolRoot();
 }
 
-function copyHealthWhenReady(group: HTMLElement, source: HTMLElement, target: HTMLElement): void {
+function copyHealthWhenReady(source: HTMLElement, target: HTMLElement): void {
     const copy = (): boolean => {
         const sourceCurrent = inputByLabel(source, "Current HP");
         const sourceMax = inputByLabel(source, "Max HP");
@@ -200,11 +197,7 @@ function copyHealthWhenReady(group: HTMLElement, source: HTMLElement, target: HT
     };
 
     if (copy()) return;
-    const observer = new MutationObserver(() => {
-        if (copy()) observer.disconnect();
-    });
-    observer.observe(group, { childList: true, subtree: true });
-    window.setTimeout(() => observer.disconnect(), 2000);
+    afterNextEnhancement(() => { copy(); });
 }
 
 function inputByLabel(scope: HTMLElement, labelText: string): HTMLInputElement | null {

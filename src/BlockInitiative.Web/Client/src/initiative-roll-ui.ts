@@ -1,15 +1,18 @@
+import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
+
 const D20_SIDES = 20;
 
 type ClickHandler = HTMLButtonElement["onclick"];
 
+let initialized = false;
+
 export function initializeInitiativeRollUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement)) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root.ownerDocument);
-    const observer = new MutationObserver(() => configure(root));
-    observer.observe(root, { childList: true, subtree: true });
-    configure(root);
+    registerAfterRender("initiative-roll", 40, () => configure(root));
 }
 
 function configure(root: HTMLElement): void {
@@ -61,10 +64,7 @@ function configure(root: HTMLElement): void {
             addIndividualEnemy(enemySide, addGroup, originalAddGroup);
         }, true);
 
-        method.addEventListener("change", () => queueMicrotask(() => {
-            refresh(enemySide, method);
-            refreshAdditionalSideGroups(root, method);
-        }));
+        method.addEventListener("change", () => requestEnhancement());
         root.addEventListener("input", event => {
             const target = event.target;
             if (!(target instanceof HTMLInputElement)) return;
@@ -87,7 +87,7 @@ function simplifyMethodSelection(method: HTMLSelectElement): void {
     if (grouped && grouped.textContent !== "Tactical groups") grouped.textContent = "Tactical groups";
     const individual = method.querySelector<HTMLOptionElement>("option[value='individual']");
     if (individual && individual.textContent !== "Individual placement") individual.textContent = "Individual placement";
-    if (method.value !== "individual") method.value = "average";
+    if (method.value !== "individual" && method.value !== "average") method.value = "average";
 
     const label = method.closest<HTMLElement>(".bi-field")?.querySelector("label");
     if (label && label.textContent !== "Non-player initiative method") {
@@ -133,7 +133,8 @@ function refresh(enemySide: HTMLElement, method: HTMLSelectElement): void {
 
     const rosterHelp = enemySide.querySelector<HTMLElement>("[data-role='enemy-roster-help']");
     if (rosterHelp) {
-        rosterHelp.hidden = !grouped;
+        const shouldHide = !grouped;
+        if (rosterHelp.hidden !== shouldHide) rosterHelp.hidden = shouldHide;
         if (grouped) {
             setTextIfChanged(rosterHelp, "Tactical groups are DM-authored roster units. Roll average averages modified member totals; Single roll uses the group's highest modifier.");
         }
@@ -228,16 +229,16 @@ function enhanceGroup(group: HTMLElement): void {
 
 function updateGroupRollingUi(group: HTMLElement, grouped: boolean): void {
     const controls = group.querySelector<HTMLElement>("[data-role='group-roll-actions']");
-    if (controls) controls.hidden = !grouped;
+    if (controls && controls.hidden === grouped) controls.hidden = !grouped;
 
     for (const card of group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]")) {
         const initiative = card.querySelector<HTMLInputElement>("[data-field='initiative']");
         const rollLine = card.querySelector<HTMLElement>(".bi-roll-line");
         if (initiative) {
-            initiative.readOnly = false;
-            initiative.title = "";
+            if (initiative.readOnly) initiative.readOnly = false;
+            if (initiative.title) initiative.title = "";
         }
-        if (rollLine) rollLine.hidden = false;
+        if (rollLine?.hidden) rollLine.hidden = false;
     }
 }
 

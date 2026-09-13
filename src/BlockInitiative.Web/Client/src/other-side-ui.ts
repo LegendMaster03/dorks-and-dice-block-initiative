@@ -1,15 +1,16 @@
-let scheduled = false;
+import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
+
+let initialized = false;
 let clickInstalled = false;
 
 export function initializeOtherSideUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement)) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root.ownerDocument);
     installClickHandler(root);
-    const observer = new MutationObserver(() => schedule(root));
-    observer.observe(root, { childList: true, subtree: true });
-    schedule(root);
+    registerAfterRender("other-side-controls", 10, () => enhance(root));
 }
 
 function installStyles(documentRef: Document): void {
@@ -45,6 +46,7 @@ function installClickHandler(root: HTMLElement): void {
             event.preventDefault();
             event.stopImmediatePropagation();
             createSide(root, addSide);
+            requestEnhancement();
             return;
         }
 
@@ -77,16 +79,12 @@ function installClickHandler(root: HTMLElement): void {
                 side.remove();
                 break;
         }
+        requestEnhancement();
     }, true);
 }
 
-function schedule(root: HTMLElement): void {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(() => {
-        scheduled = false;
-        enhance(root);
-    });
+function schedule(_root: HTMLElement): void {
+    requestEnhancement();
 }
 
 function enhance(root: HTMLElement): void {
@@ -95,7 +93,8 @@ function enhance(root: HTMLElement): void {
     if (!addSide || !others) return;
 
     if (addSide.textContent !== "+ Side") addSide.textContent = "+ Side";
-    addSide.title = "Add another initiative side with its own blocks.";
+    const title = "Add another initiative side with its own blocks.";
+    if (addSide.title !== title) addSide.title = title;
     others.classList.add("bi-other-sides");
 
     const details = addSide.closest("details");
