@@ -160,8 +160,12 @@ function paintInlineConditions(row: HTMLElement, combatantId: string): void {
         return;
     }
 
+    const signature = JSON.stringify(conditions.map(condition => [condition.id, condition.name, condition.note]));
+    if (existing?.dataset.conditionSignature === signature) return;
+
     const container = existing ?? document.createElement("span");
     container.className = "bi-condition-inline";
+    container.dataset.conditionSignature = signature;
     container.replaceChildren(...conditions.map(condition => {
         const chip = document.createElement("span");
         chip.className = "bi-condition-summary-chip";
