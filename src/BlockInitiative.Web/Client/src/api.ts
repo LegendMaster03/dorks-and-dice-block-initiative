@@ -1,5 +1,6 @@
 import { initializeCombatStateUi } from "./combat-state-ui";
 import { initializeCombatantFieldUi } from "./combatant-field-ui";
+import { initializeConditionTrackingUi } from "./condition-tracking-ui";
 import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
@@ -161,6 +162,7 @@ function preserveHelperStylesOutsideToolRoot(): void {
 
 initializeCombatStateUi();
 initializeCombatantFieldUi();
+initializeConditionTrackingUi();
 initializeEnemyDuplicateUi();
 initializeInitiativeRollUi();
 initializeHealthControlUi();
