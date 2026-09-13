@@ -5,6 +5,7 @@ import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
 import { initializeKaijuLayoutUi } from "./kaiju-layout-ui";
 import { initializeOtherSideUi } from "./other-side-ui";
+import { initializeRulesCoreLinkUi } from "./rules-core-link-ui";
 import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
 
 export type TurnBlockType = "standard" | "kaiju" | "mixed";
@@ -165,6 +166,7 @@ initializeInitiativeRollUi();
 initializeHealthControlUi();
 initializeKaijuLayoutUi();
 initializeOtherSideUi();
+initializeRulesCoreLinkUi();
 initializeTrackerLayoutUi();
 
 // app.ts rebuilds #tool-root after imports execute. Keep helper styles outside
