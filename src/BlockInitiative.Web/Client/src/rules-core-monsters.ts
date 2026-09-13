@@ -1,5 +1,11 @@
 export type MonsterMatchKind = "resolved" | "source";
 
+export interface RuleBrowserLink {
+    toolSlug: string;
+    toolRelativePath: string;
+    routeIdentity: string;
+}
+
 export interface MonsterSearchMatch {
     kind: MonsterMatchKind;
     id: string;
@@ -9,6 +15,7 @@ export interface MonsterSearchMatch {
     sourceCode: string;
     packageDisplayName: string;
     editionDisplayName: string;
+    browserLink: RuleBrowserLink | null;
 }
 
 export interface MonsterTemplate {
@@ -19,6 +26,7 @@ export interface MonsterTemplate {
     armorClass: string | null;
     challengeRating: string | null;
     document: Record<string, unknown>;
+    browserLink: RuleBrowserLink | null;
 }
 
 interface ResolvedCatalogResponse {
@@ -30,6 +38,7 @@ interface ResolvedCatalogResponse {
         sourceCode: string;
         packageDisplayName: string;
         editionDisplayName: string;
+        browserLink?: RuleBrowserLink | null;
     }>;
 }
 
@@ -50,6 +59,7 @@ interface ResolvedRuleDetail {
     packageDisplayName: string;
     editionDisplayName: string;
     document: Record<string, unknown>;
+    browserLink?: RuleBrowserLink | null;
 }
 
 interface SourceEntityDetail {
@@ -96,7 +106,8 @@ export async function searchRulesCoreMonsters(query: string, limit = 8): Promise
                 displayName: rule.displayName,
                 sourceCode: rule.sourceCode,
                 packageDisplayName: rule.packageDisplayName,
-                editionDisplayName: rule.editionDisplayName
+                editionDisplayName: rule.editionDisplayName,
+                browserLink: rule.browserLink ?? null
             });
             seenSourceIds.add(rule.sourceEntityId);
             if (matches.length >= limit) return matches;
@@ -114,7 +125,8 @@ export async function searchRulesCoreMonsters(query: string, limit = 8): Promise
                 displayName: entity.name,
                 sourceCode: entity.sourceCode,
                 packageDisplayName: entity.packageDisplayName,
-                editionDisplayName: entity.editionDisplayName
+                editionDisplayName: entity.editionDisplayName,
+                browserLink: null
             });
             if (matches.length >= limit) break;
         }
@@ -124,21 +136,31 @@ export async function searchRulesCoreMonsters(query: string, limit = 8): Promise
 }
 
 export async function loadMonsterTemplate(match: MonsterSearchMatch): Promise<MonsterTemplate> {
+    let template: MonsterTemplate;
+
     if (match.kind === "resolved" && match.conceptKey) {
         const detail = await getJson<ResolvedRuleDetail>(
             `${gateway}/api/rules/${encodeURIComponent(match.conceptKey)}`);
-        return templateFromDocument(match, detail.displayName, detail.document);
+        template = templateFromDocument(
+            match,
+            detail.displayName,
+            detail.document,
+            detail.browserLink ?? match.browserLink);
+    } else {
+        const detail = await getJson<SourceEntityDetail>(
+            `${gateway}/api/sources/entities/${encodeURIComponent(match.sourceEntityId)}`);
+        template = templateFromDocument(match, detail.name, detail.document, null);
     }
 
-    const detail = await getJson<SourceEntityDetail>(
-        `${gateway}/api/sources/entities/${encodeURIComponent(match.sourceEntityId)}`);
-    return templateFromDocument(match, detail.name, detail.document);
+    announceTemplateLink(template);
+    return template;
 }
 
 function templateFromDocument(
     match: MonsterSearchMatch,
     fallbackName: string,
-    document: Record<string, unknown>
+    document: Record<string, unknown>,
+    browserLink: RuleBrowserLink | null
 ): MonsterTemplate {
     const name = typeof document.name === "string" && document.name.trim()
         ? document.name.trim()
@@ -151,8 +173,19 @@ function templateFromDocument(
         initiativeModifier: readInitiativeModifier(document),
         armorClass: readArmorClass(document.ac),
         challengeRating: readChallengeRating(document.cr),
-        document
+        document,
+        browserLink
     };
+}
+
+function announceTemplateLink(template: MonsterTemplate): void {
+    if (!template.browserLink) return;
+    window.dispatchEvent(new CustomEvent("block-initiative:rules-core-template-link", {
+        detail: {
+            templateId: template.match.id,
+            browserLink: template.browserLink
+        }
+    }));
 }
 
 function readHitPoints(value: unknown): number | null {
