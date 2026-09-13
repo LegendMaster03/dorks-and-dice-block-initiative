@@ -29,6 +29,34 @@ BlockInitiative.Core
 
 The TypeScript client owns the interactive encounter workspace. Complex browser-side state is expected; the Embedded Module choice is a hosting decision and does not limit the frontend to a single-file widget.
 
+## Frontend render lifecycle
+
+Block Initiative owns the DOM inside `#tool-root`, so application-owned mutations are coordinated explicitly rather than rediscovered with `MutationObserver`.
+
+`render-lifecycle.ts` provides one coalesced enhancement queue. Feature modules register idempotent after-render hooks with numeric ordering, and state or UI events request an enhancement pass through the shared coordinator. Requests made while a pass is already scheduled are coalesced. Requests made synchronously from inside an executing hook are ignored so a hook can not recursively schedule itself because of its own DOM writes.
+
+The current hook order is intentionally structural:
+
+1. other-side structure;
+2. combatant primary fields;
+3. combat-state setup/dashboard creation;
+4. initiative-roll controls;
+5. compact health controls;
+6. Kaiju layout;
+7. duplicate-enemy controls;
+8. dense tracker layout;
+9. condition tracking;
+10. condition placement into combat-state rows;
+11. Rules Core link decoration.
+
+The runtime installs stable event handlers once and requests a pass after application input/change/click events. Preview and turn-state API events also request passes. Asynchronous stateful work, such as Kaiju evaluation, explicitly requests a pass when it replaces application-owned DOM.
+
+Enhancement functions must be idempotent: running a pass again with unchanged application state must not add duplicate controls, reinstall handlers, or rewrite equivalent DOM. State maps and application request/response objects remain authoritative; DOM is presentation, not state storage.
+
+No `MutationObserver` is currently required by Block Initiative. If a future integration has a genuinely external DOM boundary, observer ownership must be centralized and guarded against reacting to Block Initiative's own mutations rather than added to an individual feature module.
+
+The runtime bootstrap is deferred by one browser task because `api.ts` is evaluated as a dependency before `app.ts` mounts the initial workspace. This preserves the currently deployed Embedded Module host contract while avoiding DOM observation as a mounting signal.
+
 ## Raw facts and derived state
 
 The design document distinguishes underlying initiative facts from derived block/round state. The implementation preserves that distinction. Raw initiative values must not be rewritten merely because a controller, block order, or DM override changes how a turn is presented.

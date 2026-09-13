@@ -1,3 +1,5 @@
+import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
+
 type RuleBrowserLink = {
     toolSlug: string;
     toolRelativePath: string;
@@ -35,9 +37,12 @@ type StateEvent = CustomEvent<{
 const templateLinks = new Map<string, string>();
 let lastPreview: PreviewResponse | null = null;
 let lastState: TurnStateResponse | null = null;
-let scheduled = false;
+let initialized = false;
 
 export function initializeRulesCoreLinkUi(): void {
+    if (initialized) return;
+    initialized = true;
+
     window.addEventListener("block-initiative:rules-core-template-link", event => {
         const detail = (event as TemplateLinkEvent).detail;
         const templateId = detail?.templateId;
@@ -52,31 +57,20 @@ export function initializeRulesCoreLinkUi(): void {
             // and clear any stale link remembered for this template.
             templateLinks.delete(templateId);
         }
-        scheduleDecorate();
+        requestEnhancement();
     });
 
     window.addEventListener("block-initiative:preview", event => {
         lastPreview = (event as PreviewEvent).detail?.response ?? null;
-        scheduleDecorate();
+        requestEnhancement();
     });
 
     window.addEventListener("block-initiative:state", event => {
         lastState = (event as StateEvent).detail?.response ?? null;
-        scheduleDecorate();
+        requestEnhancement();
     });
 
-    const observer = new MutationObserver(() => scheduleDecorate());
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    scheduleDecorate();
-}
-
-function scheduleDecorate(): void {
-    if (scheduled) return;
-    scheduled = true;
-    window.requestAnimationFrame(() => {
-        scheduled = false;
-        decorateCombatantNames();
-    });
+    registerAfterRender("rules-core-links", 110, decorateCombatantNames);
 }
 
 function decorateCombatantNames(): void {
@@ -135,7 +129,7 @@ function decorateName(container: HTMLElement, href: string | undefined): void {
     }
 
     if (existing) {
-        existing.href = href;
+        if (existing.getAttribute("href") !== href) existing.setAttribute("href", href);
         return;
     }
 

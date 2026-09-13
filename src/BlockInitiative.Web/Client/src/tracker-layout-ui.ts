@@ -1,22 +1,14 @@
+import { registerAfterRender } from "./render-lifecycle";
+
+let initialized = false;
+
 export function initializeTrackerLayoutUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement)) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root.ownerDocument);
-    const observer = new MutationObserver(() => schedule(root));
-    observer.observe(root, { childList: true, subtree: true });
-    schedule(root);
-}
-
-let scheduled = false;
-
-function schedule(root: HTMLElement): void {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(() => {
-        scheduled = false;
-        enhance(root);
-    });
+    registerAfterRender("tracker-layout", 80, () => enhance(root));
 }
 
 function enhance(root: HTMLElement): void {
@@ -39,8 +31,8 @@ function enhance(root: HTMLElement): void {
 
         const remove = card.querySelector<HTMLButtonElement>("[data-action='remove']");
         if (remove) {
-            remove.title = "Remove combatant";
-            remove.setAttribute("aria-label", "Remove combatant");
+            if (remove.title !== "Remove combatant") remove.title = "Remove combatant";
+            if (remove.getAttribute("aria-label") !== "Remove combatant") remove.setAttribute("aria-label", "Remove combatant");
         }
     }
 }

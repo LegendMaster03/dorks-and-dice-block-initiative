@@ -1,25 +1,16 @@
+import { registerAfterRender } from "./render-lifecycle";
+
 const initializedDocuments = new WeakSet<Document>();
-let scheduled = false;
+let initialized = false;
 
 export function initializeKaijuLayoutUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement)) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root.ownerDocument);
     installDismissHandlers(root.ownerDocument);
-
-    const observer = new MutationObserver(() => schedule(root));
-    observer.observe(root, { childList: true, subtree: true });
-    schedule(root);
-}
-
-function schedule(root: HTMLElement): void {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(() => {
-        scheduled = false;
-        enhance(root);
-    });
+    registerAfterRender("kaiju-layout", 60, () => enhance(root));
 }
 
 function enhance(root: HTMLElement): void {

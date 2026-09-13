@@ -85,8 +85,9 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("bi-combat-condition-control", content, StringComparison.Ordinal);
         Assert.Contains("Combatants without health tracking", content, StringComparison.Ordinal);
         Assert.Contains("Health, conditions, and Kaiju state remain editable", content, StringComparison.Ordinal);
-        Assert.Contains("ownerDocument.head", content, StringComparison.Ordinal);
-        Assert.Contains(":scope > style[data-role]", content, StringComparison.Ordinal);
+        Assert.Contains("condition-layout", content, StringComparison.Ordinal);
+        Assert.Contains("combat-state", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("MutationObserver", content, StringComparison.Ordinal);
         Assert.Contains("bi-dense-tracker", content, StringComparison.Ordinal);
         Assert.Contains("bi-roster-header", content, StringComparison.Ordinal);
         Assert.Contains("<span>HP</span>", content, StringComparison.Ordinal);

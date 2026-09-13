@@ -1,3 +1,5 @@
+import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
+
 type PreviewDetail = {
     response: {
         orderedCombatants: Array<{
@@ -10,22 +12,20 @@ type PreviewDetail = {
 };
 
 let lastPreview: PreviewDetail | null = null;
-let observer: MutationObserver | null = null;
-let scheduled = false;
+let initialized = false;
 
 export function initializeConditionLayoutUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement) || observer) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root.ownerDocument);
     window.addEventListener("block-initiative:preview", event => {
         lastPreview = (event as CustomEvent<PreviewDetail>).detail ?? null;
-        schedule(root);
+        requestEnhancement();
     });
 
-    observer = new MutationObserver(() => schedule(root));
-    observer.observe(root, { childList: true, subtree: true });
-    schedule(root);
+    registerAfterRender("condition-layout", 100, () => enhance(root));
 }
 
 function installStyles(documentRef: Document): void {
@@ -56,15 +56,6 @@ function installStyles(documentRef: Document): void {
     documentRef.head.append(style);
 }
 
-function schedule(root: HTMLElement): void {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(() => {
-        scheduled = false;
-        enhance(root);
-    });
-}
-
 function enhance(root: HTMLElement): void {
     if (!lastPreview) return;
 
@@ -75,7 +66,7 @@ function enhance(root: HTMLElement): void {
     if (!conditionSection || conditionSection.dataset.conditionLayoutPlaceholder === "true") return;
 
     const subtitle = dashboard.querySelector<HTMLElement>(":scope > div:first-child > .bi-muted");
-    if (subtitle) {
+    if (subtitle && subtitle.textContent !== "Health, conditions, and Kaiju state remain editable even when another block is active.") {
         subtitle.textContent = "Health, conditions, and Kaiju state remain editable even when another block is active.";
     }
 

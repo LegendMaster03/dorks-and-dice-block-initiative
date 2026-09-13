@@ -1,3 +1,4 @@
+import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
 import { searchRulesCoreConditions, toHostedToolHref } from "./rules-core-conditions";
 import type { ConditionSearchMatch, RuleBrowserLink } from "./rules-core-conditions";
 
@@ -27,28 +28,31 @@ const trackedConditions = new Map<string, TrackedCondition[]>();
 const initializedDocuments = new WeakSet<Document>();
 let lastPreview: PreviewDetail | null = null;
 let lastTurnState: TurnStateDetail | null = null;
-let observer: MutationObserver | null = null;
-let scheduled = false;
+let initialized = false;
 
 export function initializeConditionTrackingUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement) || observer) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root.ownerDocument);
     installDismissHandlers(root.ownerDocument);
 
     window.addEventListener("block-initiative:preview", event => {
         lastPreview = (event as CustomEvent<PreviewDetail>).detail ?? null;
-        schedule(root);
+        requestEnhancement();
     });
     window.addEventListener("block-initiative:state", event => {
         lastTurnState = (event as CustomEvent<TurnStateDetail>).detail ?? null;
-        schedule(root);
+        requestEnhancement();
     });
 
-    observer = new MutationObserver(() => schedule(root));
-    observer.observe(root, { childList: true, subtree: true });
-    schedule(root);
+    registerAfterRender("condition-tracking", 90, () => {
+        enhanceSetup(root);
+        enhancePreview(root);
+        enhanceRunner(root);
+        ensureConditionDashboard(root);
+    });
 }
 
 function installStyles(documentRef: Document): void {
@@ -95,18 +99,6 @@ function installDismissHandlers(documentRef: Document): void {
     });
     documentRef.addEventListener("keydown", event => {
         if (event.key === "Escape") closeAllConditionPopovers(documentRef);
-    });
-}
-
-function schedule(root: HTMLElement): void {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(() => {
-        scheduled = false;
-        enhanceSetup(root);
-        enhancePreview(root);
-        enhanceRunner(root);
-        ensureConditionDashboard(root);
     });
 }
 
@@ -476,6 +468,7 @@ function refreshConditionUi(root: HTMLElement): void {
     }
     enhancePreview(root);
     enhanceRunner(root);
+    requestEnhancement();
 }
 
 function closeAllConditionPopovers(documentRef: Document): void {

@@ -1,14 +1,4 @@
-import { initializeCombatStateUi } from "./combat-state-ui";
-import { initializeCombatantFieldUi } from "./combatant-field-ui";
-import { initializeConditionLayoutUi } from "./condition-layout-ui";
-import { initializeConditionTrackingUi } from "./condition-tracking-ui";
-import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
-import { initializeHealthControlUi } from "./health-control-ui";
-import { initializeInitiativeRollUi } from "./initiative-roll-ui";
-import { initializeKaijuLayoutUi } from "./kaiju-layout-ui";
-import { initializeOtherSideUi } from "./other-side-ui";
-import { initializeRulesCoreLinkUi } from "./rules-core-link-ui";
-import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
+import { initializeFrontendRuntime } from "./frontend-runtime";
 
 export type TurnBlockType = "standard" | "kaiju" | "mixed";
 export type TacticalGroupInitiativeMode = "individual" | "average" | "shared";
@@ -148,31 +138,9 @@ async function postJson<T>(
     return await response.json() as T;
 }
 
-function preserveHelperStylesOutsideToolRoot(): void {
-    const root = document.getElementById("tool-root");
-    const head = root?.ownerDocument.head;
-    if (!(root instanceof HTMLElement) || !head) return;
-
-    const styles = root.querySelectorAll<HTMLStyleElement>(
-        ":scope > style[data-role], :scope > style[data-combat-state-style]"
-    );
-    for (const style of styles) {
-        head.append(style);
-    }
-}
-
-initializeCombatStateUi();
-initializeCombatantFieldUi();
-initializeConditionTrackingUi();
-initializeConditionLayoutUi();
-initializeEnemyDuplicateUi();
-initializeInitiativeRollUi();
-initializeHealthControlUi();
-initializeKaijuLayoutUi();
-initializeOtherSideUi();
-initializeRulesCoreLinkUi();
-initializeTrackerLayoutUi();
-
-// app.ts rebuilds #tool-root after imports execute. Keep helper styles outside
-// that replaceable subtree so compact controls and tracker layout survive mount.
-preserveHelperStylesOutsideToolRoot();
+// api.ts is evaluated as an app.ts dependency before the encounter workspace is
+// mounted. Defer the one-time runtime bootstrap to the next task so app.ts can
+// synchronously create its initial application-owned DOM first. This preserves
+// the current Embedded Module host contract without using DOM mutation as the
+// mounting signal.
+window.setTimeout(initializeFrontendRuntime, 0);

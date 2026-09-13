@@ -1,14 +1,16 @@
+import { registerAfterRender } from "./render-lifecycle";
+
 const initializedDocuments = new WeakSet<Document>();
+let initialized = false;
 
 export function initializeHealthControlUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement)) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root.ownerDocument);
     installDismissHandlers(root.ownerDocument);
-    const observer = new MutationObserver(() => enhance(root));
-    observer.observe(root, { childList: true, subtree: true });
-    enhance(root);
+    registerAfterRender("health-controls", 50, () => enhance(root));
 }
 
 function installStyles(documentRef: Document): void {

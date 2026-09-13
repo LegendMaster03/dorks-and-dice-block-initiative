@@ -5,6 +5,7 @@ COPY ["src/BlockInitiative.Web/Client/package.json", "./"]
 COPY ["src/BlockInitiative.Web/Client/tsconfig.json", "./"]
 COPY ["src/BlockInitiative.Web/Client/vite.config.ts", "./"]
 COPY ["src/BlockInitiative.Web/Client/src", "./src"]
+COPY ["src/BlockInitiative.Web/Client/test", "./test"]
 RUN npm install --no-audit --no-fund && npm run build
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build

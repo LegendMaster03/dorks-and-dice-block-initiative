@@ -1,3 +1,5 @@
+import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
+
 type OverrideValue = "auto" | "on" | "off";
 
 type StandardState = { maxHp: number | null; currentHp: number | null };
@@ -54,28 +56,29 @@ const evaluating = new Set<string>();
 let lastPreview: PreviewDetail | null = null;
 let lastTurnState: TurnStateDetail | null = null;
 let evaluateUrl: Promise<string> | null = null;
-let observer: MutationObserver | null = null;
-let scheduled = false;
+let initialized = false;
 
 export function initializeCombatStateUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement) || observer) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root);
     evaluateUrl = resolveEvaluateUrl(root);
 
     window.addEventListener("block-initiative:preview", event => {
         lastPreview = (event as CustomEvent<PreviewDetail>).detail;
-        schedule(root);
+        requestEnhancement();
     });
     window.addEventListener("block-initiative:state", event => {
         lastTurnState = (event as CustomEvent<TurnStateDetail>).detail;
-        schedule(root);
+        requestEnhancement();
     });
 
-    observer = new MutationObserver(() => schedule(root));
-    observer.observe(root, { childList: true, subtree: true });
-    schedule(root);
+    registerAfterRender("combat-state", 30, () => {
+        enhanceSetup(root);
+        ensureDashboard(root);
+    });
 }
 
 function installStyles(root: HTMLElement): void {
@@ -96,14 +99,8 @@ function installStyles(root: HTMLElement): void {
     root.prepend(style);
 }
 
-function schedule(root: HTMLElement): void {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(() => {
-        scheduled = false;
-        enhanceSetup(root);
-        ensureDashboard(root);
-    });
+function schedule(_root: HTMLElement): void {
+    requestEnhancement();
 }
 
 function enhanceSetup(root: HTMLElement): void {
@@ -235,6 +232,7 @@ function renderSetupAreas(list: HTMLElement, state: KaijuState, kaijuId: string,
         );
         list.append(row);
     }
+    requestEnhancement();
 }
 
 function ensureDashboard(root: HTMLElement): void {

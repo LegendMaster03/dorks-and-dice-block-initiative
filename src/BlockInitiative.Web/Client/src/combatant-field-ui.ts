@@ -1,11 +1,14 @@
+import { registerAfterRender } from "./render-lifecycle";
+
+let initialized = false;
+
 export function initializeCombatantFieldUi(): void {
     const root = document.getElementById("tool-root");
-    if (!(root instanceof HTMLElement)) return;
+    if (!(root instanceof HTMLElement) || initialized) return;
+    initialized = true;
 
     installStyles(root);
-    const observer = new MutationObserver(() => enhance(root));
-    observer.observe(root, { childList: true, subtree: true });
-    enhance(root);
+    registerAfterRender("combatant-fields", 20, () => enhance(root));
 }
 
 function installStyles(root: HTMLElement): void {
