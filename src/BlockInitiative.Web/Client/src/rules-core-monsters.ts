@@ -145,7 +145,7 @@ export async function loadMonsterTemplate(match: MonsterSearchMatch): Promise<Mo
             match,
             detail.displayName,
             detail.document,
-            detail.browserLink ?? match.browserLink);
+            detail.browserLink ?? match.browserLink ?? null);
     } else {
         const detail = await getJson<SourceEntityDetail>(
             `${gateway}/api/sources/entities/${encodeURIComponent(match.sourceEntityId)}`);
@@ -179,7 +179,9 @@ function templateFromDocument(
 }
 
 function announceTemplateLink(template: MonsterTemplate): void {
-    if (!template.browserLink) return;
+    // The browser link is an optional enhancement. Always announce the current
+    // link state so the UI can clear a stale link when Rules Core does not yet
+    // provide browserLink while retaining all existing monster functionality.
     window.dispatchEvent(new CustomEvent("block-initiative:rules-core-template-link", {
         detail: {
             templateId: template.match.id,
