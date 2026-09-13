@@ -19,7 +19,7 @@ export interface ConditionSearchMatch {
 }
 
 interface ResolvedCatalogResponse {
-    rules: Array<{
+    rules?: Array<{
         conceptKey: string;
         entityType: string;
         displayName: string;
@@ -51,31 +51,31 @@ export async function searchRulesCoreConditions(query: string, limit = 10): Prom
     const sourceUrl = `${gateway}/api/sources/entities?entityType=condition&q=${encoded}&limit=${limit}`;
 
     const [resolvedResult, sourceResult] = await Promise.allSettled([
-        getJson<ResolvedCatalogResponse>(resolvedUrl),
-        getJson<SourceEntitySummary[]>(sourceUrl)
+        getJson<ResolvedCatalogResponse>(resolvedUrl, "Rules Core resolved condition search"),
+        getJson<SourceEntitySummary[]>(sourceUrl, "Rules Core source condition search")
     ]);
 
     if (resolvedResult.status === "rejected" && sourceResult.status === "rejected") {
-        throw resolvedResult.reason instanceof Error
-            ? resolvedResult.reason
-            : new Error("Rules Core condition search is unavailable.");
+        throw new Error("Rules Core condition lookup is not available right now. You can still add the condition manually.");
     }
 
     const matches: ConditionSearchMatch[] = [];
     const seenSourceIds = new Set<string>();
 
     if (resolvedResult.status === "fulfilled") {
-        for (const rule of resolvedResult.value.rules ?? []) {
-            if (rule.entityType.toLowerCase() !== "condition") continue;
+        const rules = Array.isArray(resolvedResult.value?.rules) ? resolvedResult.value.rules : [];
+        for (const rule of rules) {
+            if (typeof rule?.entityType !== "string" || rule.entityType.toLowerCase() !== "condition") continue;
+            if (!rule.conceptKey || !rule.sourceEntityId || !rule.displayName) continue;
             matches.push({
                 kind: "resolved",
                 id: `rule:${rule.conceptKey}`,
                 conceptKey: rule.conceptKey,
                 sourceEntityId: rule.sourceEntityId,
                 displayName: rule.displayName,
-                sourceCode: rule.sourceCode,
-                packageDisplayName: rule.packageDisplayName,
-                editionDisplayName: rule.editionDisplayName,
+                sourceCode: rule.sourceCode ?? "",
+                packageDisplayName: rule.packageDisplayName ?? "",
+                editionDisplayName: rule.editionDisplayName ?? "",
                 browserLink: rule.browserLink ?? null
             });
             seenSourceIds.add(rule.sourceEntityId);
@@ -84,17 +84,19 @@ export async function searchRulesCoreConditions(query: string, limit = 10): Prom
     }
 
     if (sourceResult.status === "fulfilled") {
-        for (const entity of sourceResult.value ?? []) {
-            if (entity.entityType.toLowerCase() !== "condition" || seenSourceIds.has(entity.entityId)) continue;
+        const entities = Array.isArray(sourceResult.value) ? sourceResult.value : [];
+        for (const entity of entities) {
+            if (typeof entity?.entityType !== "string" || entity.entityType.toLowerCase() !== "condition") continue;
+            if (!entity.entityId || !entity.name || seenSourceIds.has(entity.entityId)) continue;
             matches.push({
                 kind: "source",
                 id: `source:${entity.entityId}`,
                 conceptKey: null,
                 sourceEntityId: entity.entityId,
                 displayName: entity.name,
-                sourceCode: entity.sourceCode,
-                packageDisplayName: entity.packageDisplayName,
-                editionDisplayName: entity.editionDisplayName,
+                sourceCode: entity.sourceCode ?? "",
+                packageDisplayName: entity.packageDisplayName ?? "",
+                editionDisplayName: entity.editionDisplayName ?? "",
                 browserLink: null
             });
             if (matches.length >= limit) break;
@@ -111,18 +113,29 @@ export function toHostedToolHref(link: RuleBrowserLink | null | undefined): stri
     return `/tools/${encodeURIComponent(slug)}${relativePath}`;
 }
 
-async function getJson<T>(url: string): Promise<T> {
-    const response = await fetch(url, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" }
-    });
+async function getJson<T>(url: string, label: string): Promise<T> {
+    let response: Response;
+    try {
+        response = await fetch(url, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" }
+        });
+    } catch {
+        throw new Error(`${label} is not available right now.`);
+    }
 
     if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-            throw new Error("Rules Core condition search requires access to the Rules Core tool or source package.");
+            throw new Error("Rules Core condition lookup requires access to the Rules Core tool or source package.");
         }
-        throw new Error(`Rules Core returned HTTP ${response.status}.`);
+        throw new Error(`${label} returned HTTP ${response.status}.`);
     }
 
-    return await response.json() as T;
+    const body = await response.text();
+    if (!body.trim()) throw new Error(`${label} returned an empty response.`);
+    try {
+        return JSON.parse(body) as T;
+    } catch {
+        throw new Error(`${label} returned an unreadable response.`);
+    }
 }
