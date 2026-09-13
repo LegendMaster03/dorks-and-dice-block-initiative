@@ -247,6 +247,7 @@ function buildConditionChip(condition: TrackedCondition, combatantId: string, ro
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "bi-condition-chip";
+    chip.dataset.conditionId = condition.id;
     chip.textContent = conditionLabel(condition);
     chip.title = `Manage ${condition.name}`;
     chip.setAttribute("aria-haspopup", "dialog");
@@ -267,9 +268,9 @@ function buildConditionChip(condition: TrackedCondition, combatantId: string, ro
     const note = document.createElement("input");
     note.value = condition.note;
     note.placeholder = "e.g. 2r or until save";
-    note.addEventListener("change", () => {
+    note.addEventListener("input", () => {
         condition.note = note.value.trim();
-        refreshConditionUi(root);
+        refreshConditionLabels(root, condition);
     });
     noteField.append(noteLabel, note);
 
@@ -454,6 +455,14 @@ function conditionsFor(combatantId: string): TrackedCondition[] {
 
 function conditionLabel(condition: TrackedCondition): string {
     return condition.note ? `${condition.name} · ${condition.note}` : condition.name;
+}
+
+function refreshConditionLabels(root: HTMLElement, condition: TrackedCondition): void {
+    for (const chip of root.querySelectorAll<HTMLButtonElement>(".bi-condition-chip[data-condition-id]")) {
+        if (chip.dataset.conditionId === condition.id) chip.textContent = conditionLabel(condition);
+    }
+    enhancePreview(root);
+    enhanceRunner(root);
 }
 
 function refreshConditionUi(root: HTMLElement): void {

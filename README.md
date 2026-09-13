@@ -16,9 +16,11 @@ The current implementation establishes the initiative engine and a manual encoun
 - resolve opposing-side initiative ties explicitly without inventing a house rule;
 - start the encounter after reviewing the derived blocks;
 - track the current round and active block with a single **Next block** action;
-- automatically apply the special round-one cyclic merge through the Core turn-state engine.
+- automatically apply the special round-one cyclic merge through the Core turn-state engine;
+- track Rules Core-backed or manual conditions on any combatant, including an optional duration/note, without automatically enforcing condition effects;
+- open Rules Core-backed combatants and conditions in their associated Rules Core page when browser links are available.
 
-The UI deliberately separates ordinary encounter setup from advanced mechanics. Character sheets are not required for manual use. The current running position is browser-session state and is not persisted yet.
+The UI deliberately separates ordinary encounter setup from advanced mechanics. Character sheets are not required for manual use. The current running position and encounter state are browser-session state and are not persisted yet.
 
 Kaiju-specific turn-state mechanics such as Chaos Threshold, Vulnerable Areas, behaviours, Death Throes, and Finishing Blow are not yet implemented. The `kaiju` block type exists so those mechanics can attach to a real special block instead of being folded into a standard enemy block.
 

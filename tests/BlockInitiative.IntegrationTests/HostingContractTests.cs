@@ -75,6 +75,12 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Modify by", content, StringComparison.Ordinal);
         Assert.Contains("Subtract the modifier from current HP", content, StringComparison.Ordinal);
         Assert.Contains("Add the modifier to current HP", content, StringComparison.Ordinal);
+        Assert.Contains("+ Condition", content, StringComparison.Ordinal);
+        Assert.Contains("Duration / note", content, StringComparison.Ordinal);
+        Assert.Contains("Add manually", content, StringComparison.Ordinal);
+        Assert.Contains("View rule", content, StringComparison.Ordinal);
+        Assert.Contains("entityType=condition", content, StringComparison.Ordinal);
+        Assert.Contains("does not enforce condition effects", content, StringComparison.Ordinal);
         Assert.Contains("ownerDocument.head", content, StringComparison.Ordinal);
         Assert.Contains(":scope > style[data-role]", content, StringComparison.Ordinal);
         Assert.Contains("bi-dense-tracker", content, StringComparison.Ordinal);
