@@ -30,7 +30,7 @@ export interface MonsterTemplate {
 }
 
 interface ResolvedCatalogResponse {
-    rules: Array<{
+    rules?: Array<{
         conceptKey: string;
         entityType: string;
         displayName: string;
@@ -52,23 +52,23 @@ interface SourceEntitySummary {
 }
 
 interface ResolvedRuleDetail {
-    conceptKey: string;
-    displayName: string;
-    sourceEntityId: string;
-    sourceCode: string;
-    packageDisplayName: string;
-    editionDisplayName: string;
-    document: Record<string, unknown>;
+    conceptKey?: string;
+    displayName?: string;
+    sourceEntityId?: string;
+    sourceCode?: string;
+    packageDisplayName?: string;
+    editionDisplayName?: string;
+    document?: unknown;
     browserLink?: RuleBrowserLink | null;
 }
 
 interface SourceEntityDetail {
-    entityId: string;
-    name: string;
-    sourceCode: string;
-    packageDisplayName: string;
-    editionDisplayName: string;
-    document: Record<string, unknown>;
+    entityId?: string;
+    name?: string;
+    sourceCode?: string;
+    packageDisplayName?: string;
+    editionDisplayName?: string;
+    document?: unknown;
 }
 
 const gateway = "/tool-host/rules-core/api/upstream";
@@ -82,31 +82,31 @@ export async function searchRulesCoreMonsters(query: string, limit = 8): Promise
     const sourceUrl = `${gateway}/api/sources/entities?entityType=monster&q=${encoded}&limit=${limit}`;
 
     const [resolvedResult, sourceResult] = await Promise.allSettled([
-        getJson<ResolvedCatalogResponse>(resolvedUrl),
-        getJson<SourceEntitySummary[]>(sourceUrl)
+        getJson<ResolvedCatalogResponse>(resolvedUrl, "Rules Core resolved monster search"),
+        getJson<SourceEntitySummary[]>(sourceUrl, "Rules Core source monster search")
     ]);
 
     if (resolvedResult.status === "rejected" && sourceResult.status === "rejected") {
-        throw resolvedResult.reason instanceof Error
-            ? resolvedResult.reason
-            : new Error("Rules Core monster search is unavailable.");
+        throw new Error("Rules Core monster lookup is not available right now. You can keep using a manual monster name.");
     }
 
     const matches: MonsterSearchMatch[] = [];
     const seenSourceIds = new Set<string>();
 
     if (resolvedResult.status === "fulfilled") {
-        for (const rule of resolvedResult.value.rules ?? []) {
-            if (rule.entityType.toLowerCase() !== "monster") continue;
+        const rules = Array.isArray(resolvedResult.value?.rules) ? resolvedResult.value.rules : [];
+        for (const rule of rules) {
+            if (typeof rule?.entityType !== "string" || rule.entityType.toLowerCase() !== "monster") continue;
+            if (!rule.conceptKey || !rule.sourceEntityId || !rule.displayName) continue;
             matches.push({
                 kind: "resolved",
                 id: `rule:${rule.conceptKey}`,
                 conceptKey: rule.conceptKey,
                 sourceEntityId: rule.sourceEntityId,
                 displayName: rule.displayName,
-                sourceCode: rule.sourceCode,
-                packageDisplayName: rule.packageDisplayName,
-                editionDisplayName: rule.editionDisplayName,
+                sourceCode: rule.sourceCode ?? "",
+                packageDisplayName: rule.packageDisplayName ?? "",
+                editionDisplayName: rule.editionDisplayName ?? "",
                 browserLink: rule.browserLink ?? null
             });
             seenSourceIds.add(rule.sourceEntityId);
@@ -115,17 +115,19 @@ export async function searchRulesCoreMonsters(query: string, limit = 8): Promise
     }
 
     if (sourceResult.status === "fulfilled") {
-        for (const entity of sourceResult.value ?? []) {
-            if (entity.entityType.toLowerCase() !== "monster" || seenSourceIds.has(entity.entityId)) continue;
+        const entities = Array.isArray(sourceResult.value) ? sourceResult.value : [];
+        for (const entity of entities) {
+            if (typeof entity?.entityType !== "string" || entity.entityType.toLowerCase() !== "monster") continue;
+            if (!entity.entityId || !entity.name || seenSourceIds.has(entity.entityId)) continue;
             matches.push({
                 kind: "source",
                 id: `source:${entity.entityId}`,
                 conceptKey: null,
                 sourceEntityId: entity.entityId,
                 displayName: entity.name,
-                sourceCode: entity.sourceCode,
-                packageDisplayName: entity.packageDisplayName,
-                editionDisplayName: entity.editionDisplayName,
+                sourceCode: entity.sourceCode ?? "",
+                packageDisplayName: entity.packageDisplayName ?? "",
+                editionDisplayName: entity.editionDisplayName ?? "",
                 browserLink: null
             });
             if (matches.length >= limit) break;
@@ -140,16 +142,22 @@ export async function loadMonsterTemplate(match: MonsterSearchMatch): Promise<Mo
 
     if (match.kind === "resolved" && match.conceptKey) {
         const detail = await getJson<ResolvedRuleDetail>(
-            `${gateway}/api/rules/${encodeURIComponent(match.conceptKey)}`);
+            `${gateway}/api/rules/${encodeURIComponent(match.conceptKey)}`,
+            "Rules Core monster details");
         template = templateFromDocument(
             match,
-            detail.displayName,
-            detail.document,
+            typeof detail.displayName === "string" && detail.displayName.trim() ? detail.displayName : match.displayName,
+            isRecord(detail.document) ? detail.document : {},
             detail.browserLink ?? match.browserLink ?? null);
     } else {
         const detail = await getJson<SourceEntityDetail>(
-            `${gateway}/api/sources/entities/${encodeURIComponent(match.sourceEntityId)}`);
-        template = templateFromDocument(match, detail.name, detail.document, null);
+            `${gateway}/api/sources/entities/${encodeURIComponent(match.sourceEntityId)}`,
+            "Rules Core monster details");
+        template = templateFromDocument(
+            match,
+            typeof detail.name === "string" && detail.name.trim() ? detail.name : match.displayName,
+            isRecord(detail.document) ? detail.document : {},
+            null);
     }
 
     announceTemplateLink(template);
@@ -179,9 +187,9 @@ function templateFromDocument(
 }
 
 function announceTemplateLink(template: MonsterTemplate): void {
-    // The browser link is an optional enhancement. Always announce the current
-    // link state so the UI can clear a stale link when Rules Core does not yet
-    // provide browserLink while retaining all existing monster functionality.
+    // browserLink is intentionally optional. Current Rules Core deployments can
+    // continue supplying the existing monster payload; newer deployments add
+    // navigation without changing the monster-loading contract.
     window.dispatchEvent(new CustomEvent("block-initiative:rules-core-template-link", {
         detail: {
             templateId: template.match.id,
@@ -255,18 +263,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function getJson<T>(url: string): Promise<T> {
-    const response = await fetch(url, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" }
-    });
+async function getJson<T>(url: string, label: string): Promise<T> {
+    let response: Response;
+    try {
+        response = await fetch(url, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" }
+        });
+    } catch {
+        throw new Error(`${label} is not available right now.`);
+    }
 
     if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-            throw new Error("Rules Core search requires access to the Rules Core tool or source package.");
+            throw new Error("Rules Core monster lookup requires access to the Rules Core tool or source package.");
         }
-        throw new Error(`Rules Core returned HTTP ${response.status}.`);
+        throw new Error(`${label} returned HTTP ${response.status}.`);
     }
 
-    return await response.json() as T;
+    const body = await response.text();
+    if (!body.trim()) throw new Error(`${label} returned an empty response.`);
+    try {
+        return JSON.parse(body) as T;
+    } catch {
+        throw new Error(`${label} returned an unreadable response.`);
+    }
 }
