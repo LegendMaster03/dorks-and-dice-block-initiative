@@ -21,7 +21,7 @@ type TurnStateResponse = {
 
 type TemplateLinkEvent = CustomEvent<{
     templateId: string;
-    browserLink: RuleBrowserLink;
+    browserLink?: RuleBrowserLink | null;
 }>;
 
 type PreviewEvent = CustomEvent<{
@@ -40,9 +40,18 @@ let scheduled = false;
 export function initializeRulesCoreLinkUi(): void {
     window.addEventListener("block-initiative:rules-core-template-link", event => {
         const detail = (event as TemplateLinkEvent).detail;
-        const href = toHostedToolHref(detail?.browserLink);
-        if (!detail?.templateId || !href) return;
-        templateLinks.set(detail.templateId, href);
+        const templateId = detail?.templateId;
+        if (!templateId) return;
+
+        const href = toHostedToolHref(detail.browserLink);
+        if (href) {
+            templateLinks.set(templateId, href);
+        } else {
+            // Older/current Rules Core responses may not provide browserLink.
+            // Treat that as "no navigation enhancement" rather than an error,
+            // and clear any stale link remembered for this template.
+            templateLinks.delete(templateId);
+        }
         scheduleDecorate();
     });
 
@@ -72,8 +81,6 @@ function scheduleDecorate(): void {
 
 function decorateCombatantNames(): void {
     const linksByCombatant = collectCombatantLinks();
-    if (!linksByCombatant.size) return;
-
     decoratePreviewNames(linksByCombatant);
     decorateRunnerNames(linksByCombatant);
 }
@@ -121,9 +128,12 @@ function decorateRunnerNames(linksByCombatant: Map<string, string>): void {
 }
 
 function decorateName(container: HTMLElement, href: string | undefined): void {
-    if (!href) return;
-
     const existing = container.querySelector<HTMLAnchorElement>(":scope > a[data-rules-core-link]");
+    if (!href) {
+        if (existing) container.replaceChildren(document.createTextNode(existing.textContent ?? ""));
+        return;
+    }
+
     if (existing) {
         existing.href = href;
         return;

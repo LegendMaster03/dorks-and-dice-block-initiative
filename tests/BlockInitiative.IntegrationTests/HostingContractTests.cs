@@ -81,6 +81,10 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("View rule", content, StringComparison.Ordinal);
         Assert.Contains("entityType=condition", content, StringComparison.Ordinal);
         Assert.Contains("does not enforce condition effects", content, StringComparison.Ordinal);
+        Assert.Contains("bi-condition-merged", content, StringComparison.Ordinal);
+        Assert.Contains("bi-combat-condition-control", content, StringComparison.Ordinal);
+        Assert.Contains("Combatants without health tracking", content, StringComparison.Ordinal);
+        Assert.Contains("Health, conditions, and Kaiju state remain editable", content, StringComparison.Ordinal);
         Assert.Contains("ownerDocument.head", content, StringComparison.Ordinal);
         Assert.Contains(":scope > style[data-role]", content, StringComparison.Ordinal);
         Assert.Contains("bi-dense-tracker", content, StringComparison.Ordinal);
