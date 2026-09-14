@@ -11,6 +11,11 @@ export function initializeEncounterRunnerPolishUi(): void {
     const documentRef = root.ownerDocument;
     installStyles(documentRef);
 
+    // Runner blocks are disposable presentation DOM. Return the real health
+    // controls to the stable combat-state dashboard before a block rebuild can
+    // destroy the card that currently hosts them.
+    registerAfterRender("preserve-runner-health-controls", 15, () => preserveHealthControls(root));
+
     // The context-menu trigger stops bubbling in its own handler. Listen in
     // capture phase, then position after that handler has opened the menu.
     documentRef.addEventListener("click", event => {
@@ -56,6 +61,27 @@ export function initializeEncounterRunnerPolishUi(): void {
             if (trigger) positionContextMenu(trigger, menu);
         }
     });
+}
+
+function preserveHealthControls(root: HTMLElement): void {
+    const dashboard = root.querySelector<HTMLElement>("[data-combat-dashboard]");
+    if (!dashboard) return;
+    const healthList = dashboard.querySelector<HTMLElement>(".bi-health-list");
+
+    for (const card of root.querySelectorAll<HTMLElement>(".bi-runner-member[data-combatant-id]")) {
+        const healthRow = card.querySelector<HTMLElement>(".bi-integrated-health[data-combatant-id]");
+        if (!healthRow) continue;
+
+        const ownedHealthEditor = card.querySelector<HTMLElement>(
+            ":scope > .bi-card-secondary-statline > .bi-card-secondary-right > .bi-card-secondary-health > .bi-hp-editor"
+        );
+        if (ownedHealthEditor && ownedHealthEditor.parentElement !== healthRow) {
+            healthRow.append(ownedHealthEditor);
+        }
+
+        healthRow.hidden = false;
+        (healthList ?? dashboard).append(healthRow);
+    }
 }
 
 function highlightActiveNavigation(root: HTMLElement): void {

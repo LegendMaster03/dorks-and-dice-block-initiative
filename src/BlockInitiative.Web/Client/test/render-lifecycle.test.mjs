@@ -111,7 +111,7 @@ test("condition changes and initiative advancement settle without duplicate UI o
     assert.equal(view.handlerInstallations, 1);
 });
 
-test("card-owned HP editor survives later enhancement passes", async () => {
+test("card-owned HP editor survives later enhancement passes and runner rebuilds", async () => {
     const firstEditor = { id: "first-hp-editor" };
     const replacementEditor = { id: "replacement-hp-editor" };
 
@@ -121,7 +121,19 @@ test("card-owned HP editor survives later enhancement passes", async () => {
 
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
     const polishSource = await readFile(path.resolve(testDirectory, "../src/encounter-runner-polish-ui.ts"), "utf8");
+    assert.match(polishSource, /registerAfterRender\("preserve-runner-health-controls",\s*15/);
+    assert.match(polishSource, /healthRow\.append\(ownedHealthEditor\)/);
     assert.match(polishSource, /chooseHealthEditor\(rowHealthEditor, ownedHealthEditor\)/);
+});
+
+test("initiative modifier stays in combat quick stats instead of the rolled-initiative header", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const affordancesSource = await readFile(path.resolve(testDirectory, "../src/encounter-card-affordances-ui.ts"), "utf8");
+    const quickStatsSource = await readFile(path.resolve(testDirectory, "../src/combatant-quick-stats-ui.ts"), "utf8");
+
+    assert.doesNotMatch(affordancesSource, /bi-card-initiative-modifier/);
+    assert.doesNotMatch(affordancesSource, /suppressDuplicateInitiativeFact/);
+    assert.match(quickStatsSource, /appendFact\(facts,\s*"Init",\s*initiative/);
 });
 
 test("enemy duplication does not reschedule enhancement for every input or change event", async () => {
