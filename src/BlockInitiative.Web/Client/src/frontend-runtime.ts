@@ -1,4 +1,5 @@
 import { initializeCombatStateUi } from "./combat-state-ui";
+import { initializeCombatantDragReorderUi } from "./combatant-drag-reorder-ui";
 import { initializeCombatantFieldUi } from "./combatant-field-ui";
 import { initializeCombatantQuickStatsUi } from "./combatant-quick-stats-ui";
 import { initializeConditionLayoutUi } from "./condition-layout-ui";
@@ -37,6 +38,7 @@ export function initializeFrontendRuntime(): void {
     initializeConditionLayoutUi();
     initializeRulesCoreLinkUi();
     initializeCombatantQuickStatsUi();
+    initializeCombatantDragReorderUi();
     initializeIntegratedRunnerCleanupUi();
     initializePlayerDisplayOverrides();
 
