@@ -146,6 +146,41 @@ test("setup initiative modifier is restored to the primary Mod column after comb
     assert.doesNotMatch(source, /primaryFieldsReady === "true"\) continue/);
 });
 
+test("setup AC is shown between initiative and HP without moving the combat-stats source field", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const source = await readFile(path.resolve(testDirectory, "../src/encounter-setup-polish-ui.ts"), "utf8");
+
+    assert.match(source, /registerAfterRender\("encounter-setup-polish",\s*135/);
+    assert.match(source, /data-quick-stat='armor-class'/);
+    assert.match(source, /sourceWrap\.hidden = true/);
+    assert.match(source, /initiativeWrap\.after\(field\)/);
+    assert.match(source, /setup-ac-header/);
+    assert.match(source, /grid-template-columns:minmax\(16rem,34rem\) 5rem 13rem 4\.5rem 6rem auto/);
+    assert.match(source, /\[data-combat-setup='standard'\]\{grid-column:5;grid-row:1\}/);
+});
+
+test("encounter AC metric is visually larger than the generic secondary metric", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const source = await readFile(path.resolve(testDirectory, "../src/encounter-runner-polish-ui.ts"), "utf8");
+
+    assert.match(source, /bi-card-secondary-stat>strong\{font-size:1\.05rem/);
+    assert.match(source, /bi-card-secondary-stat\[data-stat='ac'\]>strong\{font-size:1\.45rem\}/);
+});
+
+test("one setup action builds blocks and continues into start or resume", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const source = await readFile(path.resolve(testDirectory, "../src/encounter-setup-polish-ui.ts"), "utf8");
+
+    assert.match(source, /\[data-action='preview'\]/);
+    assert.match(source, /block-initiative:preview/);
+    assert.match(source, /requiresAdjudication/);
+    assert.match(source, /registerAfterRender\("encounter-start-flow",\s*170/);
+    assert.match(source, /\^\(Start encounter\|Resume encounter\)\$/);
+    assert.match(source, /action\.click\(\)/);
+    assert.match(source, /button\.textContent = "Start encounter"/);
+    assert.match(source, /button\.textContent = "Apply changes & resume"/);
+});
+
 test("encounter initiative header shows the modifier and suppresses the duplicate quick fact", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
     const affordancesSource = await readFile(path.resolve(testDirectory, "../src/encounter-card-affordances-ui.ts"), "utf8");

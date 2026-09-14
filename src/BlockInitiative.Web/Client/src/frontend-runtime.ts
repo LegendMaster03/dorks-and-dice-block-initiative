@@ -8,6 +8,7 @@ import { initializeConditionTrackingUi } from "./condition-tracking-ui";
 import { initializeEncounterCardAffordancesUi } from "./encounter-card-affordances-ui";
 import { initializeEncounterCardLayoutUi } from "./encounter-card-layout-ui";
 import { initializeEncounterRunnerPolishUi } from "./encounter-runner-polish-ui";
+import { initializeEncounterSetupPolishUi } from "./encounter-setup-polish-ui";
 import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
@@ -44,6 +45,7 @@ export function initializeFrontendRuntime(): void {
     initializeConditionLayoutUi();
     initializeRulesCoreLinkUi();
     initializeCombatantQuickStatsUi();
+    initializeEncounterSetupPolishUi();
     initializeCombatStatsCollapseUi();
     initializeEncounterCardLayoutUi();
     initializeCombatantDragReorderUi();
