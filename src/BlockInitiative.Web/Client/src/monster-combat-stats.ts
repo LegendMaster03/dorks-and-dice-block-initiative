@@ -41,6 +41,7 @@ export function projectMonsterCombatStats(
     }
 
     const hitDice = firstValue(formatPrimitive(document.hp), legacy.get("Hit Dice"));
+    const specialQualities = legacy.get("Special Qualities");
     return {
         armorClass: readArmorClass(document.ac) ?? leadingNumber(legacy.get("Armor Class") ?? legacy.get("AC")),
         maxHp: readHitPoints(document.hp) ?? readNumber(legacy.get("Hit Points")) ?? hitPointsFromHitDice(hitDice),
@@ -48,39 +49,97 @@ export function projectMonsterCombatStats(
         initiativeModifier: readInitiativeModifier(document, abilities.DEX.modifier, legacy),
         abilities,
         vulnerabilities: firstFormatted([
-            document.vulnerable,
-            document.vulnerabilities,
-            document.damageVulnerabilities,
+            ...defenseCandidates(document, [
+                "vulnerable", "vulnerability", "vulnerabilities",
+                "damageVulnerability", "damageVulnerabilities",
+                "weakness", "weaknesses"
+            ]),
             legacy.get("Damage Vulnerabilities"),
-            legacy.get("Vulnerabilities")
+            legacy.get("Vulnerabilities"),
+            legacy.get("Weaknesses"),
+            extractLegacySpecialQuality(specialQualities, "vulnerability")
         ]),
         resistances: firstFormatted([
-            document.resist,
-            document.resistance,
-            document.resistances,
-            document.damageResistances,
+            ...defenseCandidates(document, [
+                "resist", "resistance", "resistances",
+                "damageResistance", "damageResistances"
+            ]),
             legacy.get("Damage Resistances"),
-            legacy.get("Resistances")
+            legacy.get("Resistances"),
+            extractLegacySpecialQuality(specialQualities, "resistance")
         ]),
         immunities: firstFormatted([
-            document.immune,
-            document.immunities,
-            document.damageImmunities,
+            ...defenseCandidates(document, [
+                "immune", "immunity", "immunities",
+                "damageImmunity", "damageImmunities"
+            ]),
             legacy.get("Damage Immunities"),
-            legacy.get("Immunities")
+            legacy.get("Immunities"),
+            extractLegacySpecialQuality(specialQualities, "immunity")
         ]),
         conditionImmunities: firstFormatted([
-            document.conditionImmune,
-            document.conditionImmunities,
+            ...defenseCandidates(document, [
+                "conditionImmune", "conditionImmunity", "conditionImmunities"
+            ]),
             legacy.get("Condition Immunities")
         ]),
         damageReduction: firstFormatted([
-            document.damageReduction,
-            document.dr,
+            ...defenseCandidates(document, ["damageReduction", "dr"]),
             legacy.get("Damage Reduction"),
-            legacy.get("DR")
+            legacy.get("DR"),
+            extractLegacySpecialQuality(specialQualities, "damage reduction")
         ])
     };
+}
+
+function defenseCandidates(document: Record<string, unknown>, names: string[]): unknown[] {
+    const wanted = new Set(names.map(normalizeFieldName));
+    const sources: Record<string, unknown>[] = [document];
+    for (const containerName of [
+        "defense", "defenses", "defence", "defences",
+        "combatStats", "combatStatistics", "statistics", "stats", "statblock", "attributes"
+    ]) {
+        const container = document[containerName];
+        if (isRecord(container)) sources.push(container);
+    }
+
+    const matches: unknown[] = [];
+    for (const source of sources) {
+        for (const [key, value] of Object.entries(source)) {
+            if (wanted.has(normalizeFieldName(key))) matches.push(value);
+        }
+    }
+    return matches;
+}
+
+function normalizeFieldName(value: string): string {
+    return value.replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+function extractLegacySpecialQuality(
+    value: string | undefined,
+    kind: "vulnerability" | "resistance" | "immunity" | "damage reduction"
+): string | null {
+    if (!value) return null;
+    const clauses = value
+        .split(/\s*[;,]\s*/)
+        .map(clause => clause.trim())
+        .filter(Boolean);
+
+    const expressions: Record<typeof kind, RegExp> = {
+        vulnerability: /\bvulnerab(?:ility|le)\s+(?:to\s+)?(.+)/i,
+        resistance: /\bresistan(?:ce|t)\s+(?:to\s+)?(.+)/i,
+        immunity: /\bimmun(?:ity|e)\s+(?:to\s+)?(.+)/i,
+        "damage reduction": /\bdamage\s+reduction\s+(.+)/i
+    };
+
+    const values: string[] = [];
+    for (const clause of clauses) {
+        const match = clause.match(expressions[kind]);
+        const candidate = match?.[1]?.trim();
+        if (candidate) values.push(candidate);
+    }
+    return values.length ? values.join(", ") : null;
 }
 
 function readAbilitySaves(document: Record<string, unknown>): Map<string, number> {
