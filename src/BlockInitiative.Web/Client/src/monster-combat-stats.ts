@@ -41,7 +41,6 @@ export function projectMonsterCombatStats(
     }
 
     const hitDice = firstValue(formatPrimitive(document.hp), legacy.get("Hit Dice"));
-    const specialQualities = legacy.get("Special Qualities");
     return {
         armorClass: readArmorClass(document.ac) ?? leadingNumber(legacy.get("Armor Class") ?? legacy.get("AC")),
         maxHp: readHitPoints(document.hp) ?? readNumber(legacy.get("Hit Points")) ?? hitPointsFromHitDice(hitDice),
@@ -56,8 +55,7 @@ export function projectMonsterCombatStats(
             ]),
             legacy.get("Damage Vulnerabilities"),
             legacy.get("Vulnerabilities"),
-            legacy.get("Weaknesses"),
-            extractLegacySpecialQuality(specialQualities, "vulnerability")
+            legacy.get("Weaknesses")
         ]),
         resistances: firstFormatted([
             ...defenseCandidates(document, [
@@ -65,8 +63,7 @@ export function projectMonsterCombatStats(
                 "damageResistance", "damageResistances"
             ]),
             legacy.get("Damage Resistances"),
-            legacy.get("Resistances"),
-            extractLegacySpecialQuality(specialQualities, "resistance")
+            legacy.get("Resistances")
         ]),
         immunities: firstFormatted([
             ...defenseCandidates(document, [
@@ -74,8 +71,7 @@ export function projectMonsterCombatStats(
                 "damageImmunity", "damageImmunities"
             ]),
             legacy.get("Damage Immunities"),
-            legacy.get("Immunities"),
-            extractLegacySpecialQuality(specialQualities, "immunity")
+            legacy.get("Immunities")
         ]),
         conditionImmunities: firstFormatted([
             ...defenseCandidates(document, [
@@ -86,8 +82,7 @@ export function projectMonsterCombatStats(
         damageReduction: firstFormatted([
             ...defenseCandidates(document, ["damageReduction", "dr"]),
             legacy.get("Damage Reduction"),
-            legacy.get("DR"),
-            extractLegacySpecialQuality(specialQualities, "damage reduction")
+            legacy.get("DR")
         ])
     };
 }
@@ -114,32 +109,6 @@ function defenseCandidates(document: Record<string, unknown>, names: string[]): 
 
 function normalizeFieldName(value: string): string {
     return value.replace(/[^a-z0-9]/gi, "").toLowerCase();
-}
-
-function extractLegacySpecialQuality(
-    value: string | undefined,
-    kind: "vulnerability" | "resistance" | "immunity" | "damage reduction"
-): string | null {
-    if (!value) return null;
-    const clauses = value
-        .split(/\s*[;,]\s*/)
-        .map(clause => clause.trim())
-        .filter(Boolean);
-
-    const expressions: Record<typeof kind, RegExp> = {
-        vulnerability: /\bvulnerab(?:ility|le)\s+(?:to\s+)?(.+)/i,
-        resistance: /\bresistan(?:ce|t)\s+(?:to\s+)?(.+)/i,
-        immunity: /\bimmun(?:ity|e)\s+(?:to\s+)?(.+)/i,
-        "damage reduction": /\bdamage\s+reduction\s+(.+)/i
-    };
-
-    const values: string[] = [];
-    for (const clause of clauses) {
-        const match = clause.match(expressions[kind]);
-        const candidate = match?.[1]?.trim();
-        if (candidate) values.push(candidate);
-    }
-    return values.length ? values.join(", ") : null;
 }
 
 function readAbilitySaves(document: Record<string, unknown>): Map<string, number> {
