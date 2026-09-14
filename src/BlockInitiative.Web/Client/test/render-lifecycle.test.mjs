@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { chooseHealthEditor } from "../.test-dist/encounter-card-model.js";
 import { createRenderLifecycle } from "../.test-dist/render-lifecycle.js";
 
 function controlledLifecycle() {
@@ -108,6 +109,27 @@ test("condition changes and initiative advancement settle without duplicate UI o
     assert.equal(queue.length, 0, "advancing with visible conditions must settle after one pass");
     assert.equal(view.controls.size, 1);
     assert.equal(view.handlerInstallations, 1);
+});
+
+test("card-owned HP editor survives later enhancement passes", async () => {
+    const firstEditor = { id: "first-hp-editor" };
+    const replacementEditor = { id: "replacement-hp-editor" };
+
+    assert.equal(chooseHealthEditor(firstEditor, null), firstEditor, "first pass should take the editor from the health row");
+    assert.equal(chooseHealthEditor(null, firstEditor), firstEditor, "later passes should preserve the card-owned editor");
+    assert.equal(chooseHealthEditor(replacementEditor, firstEditor), replacementEditor, "a newly rendered health editor should replace stale ownership");
+
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const polishSource = await readFile(path.resolve(testDirectory, "../src/encounter-runner-polish-ui.ts"), "utf8");
+    assert.match(polishSource, /chooseHealthEditor\(rowHealthEditor, ownedHealthEditor\)/);
+});
+
+test("enemy duplication does not reschedule enhancement for every input or change event", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const source = await readFile(path.resolve(testDirectory, "../src/enemy-duplicate-ui.ts"), "utf8");
+
+    assert.doesNotMatch(source, /root\.addEventListener\(\s*["']input["']/);
+    assert.doesNotMatch(source, /root\.addEventListener\(\s*["']change["']/);
 });
 
 test("application frontend does not use MutationObserver as a render lifecycle", async () => {

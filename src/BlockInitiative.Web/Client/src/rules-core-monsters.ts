@@ -1,4 +1,5 @@
 import { projectMonsterCombatStats } from "./monster-combat-stats";
+import type { MonsterCombatStats } from "./monster-combat-stats";
 
 export type MonsterMatchKind = "resolved" | "source";
 
@@ -27,6 +28,7 @@ export interface MonsterTemplate {
     initiativeModifier: number | null;
     armorClass: string | null;
     challengeRating: string | null;
+    combatStats: MonsterCombatStats;
     document: Record<string, unknown>;
     browserLink: RuleBrowserLink | null;
 }
@@ -187,19 +189,21 @@ function templateFromDocument(
         initiativeModifier: combatStats.initiativeModifier,
         armorClass: combatStats.armorClass,
         challengeRating: readChallengeRating(document.cr),
+        combatStats,
         document,
         browserLink
     };
 }
 
 function announceTemplateLink(template: MonsterTemplate): void {
-    // browserLink is intentionally optional. Current Rules Core deployments can
-    // continue supplying the existing monster payload; newer deployments add
-    // navigation without changing the monster-loading contract.
+    // The detail event is the existing handoff from the successful Rules Core
+    // load. Pass the already projected combat stats with the browser link so
+    // encounter-card rendering does not depend on a second API request.
     window.dispatchEvent(new CustomEvent("block-initiative:rules-core-template-link", {
         detail: {
             templateId: template.match.id,
-            browserLink: template.browserLink
+            browserLink: template.browserLink,
+            combatStats: template.combatStats
         }
     }));
 }

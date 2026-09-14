@@ -1,3 +1,4 @@
+import { defenseRows, mergeMonsterCombatStats } from "./encounter-card-model";
 import { abilityKeys, projectMonsterCombatStats } from "./monster-combat-stats";
 import type { AbilityKey, MonsterCombatStats } from "./monster-combat-stats";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
@@ -41,6 +42,11 @@ type RulesCoreDetail = {
     editionDisplayName?: string;
 };
 
+type RulesCoreTemplateStatsDetail = {
+    templateId?: string;
+    combatStats?: MonsterCombatStats | null;
+};
+
 type HealthSnapshot = {
     current: number | null;
     max: number | null;
@@ -65,6 +71,14 @@ export function initializeCombatantQuickStatsUi(): void {
 
     window.addEventListener("block-initiative:preview", event => {
         lastPreview = (event as CustomEvent<PreviewDetail>).detail ?? null;
+        requestEnhancement();
+    });
+
+    window.addEventListener("block-initiative:rules-core-template-link", event => {
+        const detail = (event as CustomEvent<RulesCoreTemplateStatsDetail>).detail;
+        const templateId = detail?.templateId?.trim();
+        if (!templateId || !detail.combatStats) return;
+        templateStats.set(templateId, detail.combatStats);
         requestEnhancement();
     });
 
@@ -300,7 +314,7 @@ function enhance(root: HTMLElement): void {
         const templateId = templateByCombatant.get(combatantId);
         const imported = templateId ? templateStats.get(templateId) ?? null : null;
         const manual = card ? readManualStats(card) : null;
-        const stats = mergeStats(imported, manual);
+        const stats = mergeMonsterCombatStats(imported, manual);
         paintQuickStats(row, combatant, stats, healthByCombatant.get(combatantId) ?? null);
     }
 }
@@ -602,35 +616,6 @@ function readInputNumber(panel: HTMLElement, key: string): number | null {
     return Number.isFinite(value) ? value : null;
 }
 
-function mergeStats(base: MonsterCombatStats | null, override: MonsterCombatStats | null): MonsterCombatStats | null {
-    if (!base) return override;
-    if (!override) return base;
-
-    const abilities = {} as MonsterCombatStats["abilities"];
-    for (const key of abilityKeys) {
-        const baseAbility = base.abilities[key];
-        const overrideAbility = override.abilities[key];
-        abilities[key] = {
-            score: overrideAbility.score ?? baseAbility.score,
-            modifier: overrideAbility.score !== null ? overrideAbility.modifier : baseAbility.modifier,
-            save: overrideAbility.save ?? baseAbility.save
-        };
-    }
-
-    return {
-        armorClass: override.armorClass ?? base.armorClass,
-        maxHp: override.maxHp ?? base.maxHp,
-        speed: override.speed ?? base.speed,
-        initiativeModifier: override.initiativeModifier ?? base.initiativeModifier,
-        abilities,
-        vulnerabilities: override.vulnerabilities ?? base.vulnerabilities,
-        resistances: override.resistances ?? base.resistances,
-        immunities: override.immunities ?? base.immunities,
-        conditionImmunities: override.conditionImmunities ?? base.conditionImmunities,
-        damageReduction: override.damageReduction ?? base.damageReduction
-    };
-}
-
 function updateStatsToggle(button: HTMLButtonElement): void {
     button.textContent = statsHidden ? "Show stats" : "Hide stats";
     button.setAttribute("aria-pressed", statsHidden ? "true" : "false");
@@ -721,11 +706,7 @@ function paintQuickStats(
     if (stats) {
         const defenses = document.createElement("div");
         defenses.className = "bi-quick-defenses";
-        appendDefense(defenses, "Vulnerable", stats.vulnerabilities);
-        appendDefense(defenses, "Resistant", stats.resistances);
-        appendDefense(defenses, "Immune", stats.immunities);
-        appendDefense(defenses, "Condition Immune", stats.conditionImmunities);
-        appendDefense(defenses, "Damage Reduction", stats.damageReduction);
+        for (const defense of defenseRows(stats)) appendDefense(defenses, defense.label, defense.value);
         if (defenses.childElementCount) panel.append(defenses);
     }
 
@@ -770,7 +751,10 @@ function queueMissingTemplateStats(root: HTMLElement): void {
         if (templateStats.has(templateId) || pendingTemplates.has(templateId)) continue;
         pendingTemplates.add(templateId);
         void loadTemplateStats(templateId).then(stats => {
-            templateStats.set(templateId, stats);
+            // A successful template-load event is authoritative. Do not let a
+            // slower fallback request overwrite combat stats that already came
+            // from the Rules Core detail used to create the combatant.
+            if (!templateStats.has(templateId)) templateStats.set(templateId, stats);
         }).finally(() => {
             pendingTemplates.delete(templateId);
             requestEnhancement();
