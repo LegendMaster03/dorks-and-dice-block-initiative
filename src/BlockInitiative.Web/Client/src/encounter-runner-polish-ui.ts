@@ -143,7 +143,7 @@ function ensureSecondaryStatline(card: HTMLElement): void {
         if (healthEditor.parentElement !== healthWrap) {
             caption ? healthWrap.insertBefore(healthEditor, caption) : healthWrap.prepend(healthEditor);
         }
-        healthRow.hidden = true;
+        if (healthRow) healthRow.hidden = true;
     } else {
         healthWrap?.remove();
     }
