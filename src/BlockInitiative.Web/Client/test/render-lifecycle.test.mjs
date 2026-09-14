@@ -126,13 +126,34 @@ test("card-owned HP editor survives later enhancement passes and runner rebuilds
     assert.match(polishSource, /chooseHealthEditor\(rowHealthEditor, ownedHealthEditor\)/);
 });
 
-test("initiative modifier stays in combat quick stats instead of the rolled-initiative header", async () => {
+test("combat dashboard uses a direct runner action row as its insertion reference", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const source = await readFile(path.resolve(testDirectory, "../src/combat-state-ui.ts"), "utf8");
+
+    assert.match(source, /runner\.querySelector<HTMLElement>\(":scope > \.bi-actions"\)/);
+    assert.doesNotMatch(source, /runner\.querySelector\("\.bi-actions"\)/);
+});
+
+test("setup initiative modifier is restored to the primary Mod column after combat-stats enhancement", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const source = await readFile(path.resolve(testDirectory, "../src/combatant-field-ui.ts"), "utf8");
+
+    assert.match(source, /registerAfterRender\("combatant-fields",\s*20/);
+    assert.match(source, /registerAfterRender\("combatant-field-placement",\s*130/);
+    assert.match(source, /const details = blockTypeInput\?\.closest\("details"\)/);
+    assert.match(source, /modifierField\.parentElement !== main/);
+    assert.match(source, /initiativeWrap\.before\(modifierField\)/);
+    assert.doesNotMatch(source, /primaryFieldsReady === "true"\) continue/);
+});
+
+test("encounter initiative header shows the modifier and suppresses the duplicate quick fact", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
     const affordancesSource = await readFile(path.resolve(testDirectory, "../src/encounter-card-affordances-ui.ts"), "utf8");
     const quickStatsSource = await readFile(path.resolve(testDirectory, "../src/combatant-quick-stats-ui.ts"), "utf8");
 
-    assert.doesNotMatch(affordancesSource, /bi-card-initiative-modifier/);
-    assert.doesNotMatch(affordancesSource, /suppressDuplicateInitiativeFact/);
+    assert.match(affordancesSource, /bi-card-initiative-modifier/);
+    assert.match(affordancesSource, /suppressDuplicateInitiativeFact\(card\)/);
+    assert.match(affordancesSource, /\$\{signed\(combatant\.initiativeModifier\)\} mod/);
     assert.match(quickStatsSource, /appendFact\(facts,\s*"Init",\s*initiative/);
 });
 
