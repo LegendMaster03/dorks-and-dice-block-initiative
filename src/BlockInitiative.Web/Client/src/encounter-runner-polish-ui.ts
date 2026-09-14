@@ -255,6 +255,7 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-card-secondary-right{display:flex;gap:.8rem;align-items:flex-end;margin-left:auto}
 .block-initiative-app .bi-card-secondary-stat{display:grid;justify-items:center;line-height:1;min-width:2.6rem}
 .block-initiative-app .bi-card-secondary-stat>strong{font-size:1.05rem;font-weight:800}
+.block-initiative-app .bi-card-secondary-stat[data-stat='ac']>strong{font-size:1.45rem}
 .block-initiative-app .bi-card-secondary-stat>span,.block-initiative-app .bi-card-secondary-health-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;opacity:.62;margin-top:.18rem}
 .block-initiative-app .bi-card-secondary-health{display:grid;justify-items:center;line-height:1;min-width:5.6rem}
 .block-initiative-app .bi-card-secondary-health>.bi-hp-editor{margin:0}
