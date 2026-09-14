@@ -5,6 +5,7 @@ import { initializeCombatantFieldUi } from "./combatant-field-ui";
 import { initializeCombatantQuickStatsUi } from "./combatant-quick-stats-ui";
 import { initializeConditionLayoutUi } from "./condition-layout-ui";
 import { initializeConditionTrackingUi } from "./condition-tracking-ui";
+import { initializeEncounterCardAffordancesUi } from "./encounter-card-affordances-ui";
 import { initializeEncounterCardLayoutUi } from "./encounter-card-layout-ui";
 import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
@@ -46,6 +47,7 @@ export function initializeFrontendRuntime(): void {
     initializeEncounterCardLayoutUi();
     initializeCombatantDragReorderUi();
     initializeIntegratedRunnerCleanupUi();
+    initializeEncounterCardAffordancesUi();
     initializePlayerDisplayOverrides();
 
     // App-level form events are authoritative render/enhancement boundaries.
