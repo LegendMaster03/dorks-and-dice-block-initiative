@@ -1,5 +1,6 @@
 import { initializeCombatStateUi } from "./combat-state-ui";
 import { initializeCombatantFieldUi } from "./combatant-field-ui";
+import { initializeCombatantQuickStatsUi } from "./combatant-quick-stats-ui";
 import { initializeConditionLayoutUi } from "./condition-layout-ui";
 import { initializeConditionTrackingUi } from "./condition-tracking-ui";
 import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
@@ -33,6 +34,7 @@ export function initializeFrontendRuntime(): void {
     initializeConditionTrackingUi();
     initializeConditionLayoutUi();
     initializeRulesCoreLinkUi();
+    initializeCombatantQuickStatsUi();
 
     // App-level form events are authoritative render/enhancement boundaries.
     // Several app handlers create/remove DOM synchronously in response to these
