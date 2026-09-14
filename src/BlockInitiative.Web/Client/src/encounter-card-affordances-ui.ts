@@ -43,7 +43,6 @@ function enhance(root: HTMLElement): void {
         const combatant = byId.get(combatantId);
         if (combatant) ensureInitiativeDisplay(card, combatant);
         ensureContextMenu(root, card, combatantId);
-        suppressDuplicateInitiativeFact(card);
         refreshConditionPresentation(card);
     }
 }
@@ -62,13 +61,7 @@ function ensureInitiativeDisplay(card: HTMLElement, combatant: CombatantPreview)
     total.className = "bi-card-initiative-total";
     total.textContent = formatNumber(combatant.initiativeTotal);
 
-    const modifier = document.createElement("span");
-    modifier.className = "bi-card-initiative-modifier";
-    modifier.textContent = combatant.initiativeModifier === null
-        ? "no modifier"
-        : `${signed(combatant.initiativeModifier)} mod`;
-
-    display.append(total, modifier);
+    display.append(total);
     display.title = combatant.effectiveInitiative !== combatant.initiativeTotal
         ? `Rolled initiative ${formatNumber(combatant.initiativeTotal)}; tactical-group position ${formatNumber(combatant.effectiveInitiative)}.`
         : `Rolled initiative ${formatNumber(combatant.initiativeTotal)}.`;
@@ -176,12 +169,6 @@ function refreshConditionPresentation(card: HTMLElement): void {
     }));
 }
 
-function suppressDuplicateInitiativeFact(card: HTMLElement): void {
-    for (const fact of card.querySelectorAll<HTMLElement>(".bi-quick-fact")) {
-        if (/^Init\s/i.test(fact.textContent?.trim() ?? "")) fact.hidden = true;
-    }
-}
-
 function conditionTone(label: string): "danger" | "warning" | "info" | "positive" | "neutral" {
     const value = label.toLowerCase();
     if (/(unconscious|paraly|petrif|stunn|poison|dying|dead)/.test(value)) return "danger";
@@ -219,7 +206,6 @@ function installStyles(documentRef: Document): void {
     style.textContent = `
 .block-initiative-app .bi-card-initiative{display:grid;justify-items:end;align-content:start;min-width:3.2rem;margin-left:auto;font-variant-numeric:tabular-nums}
 .block-initiative-app .bi-card-initiative-total{font-size:1.45rem;line-height:1;font-weight:800}
-.block-initiative-app .bi-card-initiative-modifier{font-size:.68rem;line-height:1.1;opacity:.64;margin-top:.18rem;white-space:nowrap}
 .block-initiative-app .bi-acted-toggle{margin-left:.3rem}
 .block-initiative-app .bi-card-context-wrap{position:relative;flex:0 0 auto;align-self:flex-start}
 .block-initiative-app .bi-card-context-trigger{border:0;background:transparent;color:inherit;font-size:1.35rem;line-height:1;padding:.05rem .25rem;border-radius:.3rem;opacity:.68}
@@ -248,10 +234,6 @@ function installStyles(documentRef: Document): void {
 
 function formatNumber(value: number): string {
     return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
-}
-
-function signed(value: number): string {
-    return `${value >= 0 ? "+" : ""}${formatNumber(value)}`;
 }
 
 function cssEscape(value: string): string {
