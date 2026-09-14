@@ -7,6 +7,7 @@ type CombatantPreview = {
     name: string;
     allianceId: string;
     initiativeModifier: number | null;
+    tacticalGroupId?: string | null;
     blockType: "standard" | "kaiju" | "mixed";
 };
 
@@ -14,6 +15,13 @@ type PreviewDetail = {
     response: {
         orderedCombatants: CombatantPreview[];
     };
+};
+
+type StateBlock = {
+    id: string;
+    allianceId: string;
+    blockType: "standard" | "kaiju" | "mixed";
+    memberOrder: string[];
 };
 
 type StateDetail = {
@@ -24,10 +32,7 @@ type StateDetail = {
     response: {
         round: number;
         activeBlockId: string | null;
-        blocks: Array<{
-            id: string;
-            memberOrder: string[];
-        }>;
+        blocks: StateBlock[];
     };
 };
 
@@ -48,6 +53,7 @@ const actedRoundByCombatant = new Map<string, number>();
 let lastPreview: PreviewDetail | null = null;
 let lastState: StateDetail | null = null;
 let statsHidden = false;
+let showActiveBlock = false;
 let initialized = false;
 
 export function initializeCombatantQuickStatsUi(): void {
@@ -71,7 +77,196 @@ export function initializeCombatantQuickStatsUi(): void {
         requestEnhancement();
     });
 
+    // The base application still owns encounter state and progression. This
+    // early hook only changes the presentation from an active-block-only view
+    // into one scrollable block list so each combatant appears exactly once.
+    registerAfterRender("all-block-runner-layout", 20, () => ensureAllBlocksRunner(root));
     registerAfterRender("combatant-quick-stats", 120, () => enhance(root));
+}
+
+function ensureAllBlocksRunner(root: HTMLElement): void {
+    const state = lastState?.response;
+    const preview = lastPreview?.response;
+    if (!state || !preview?.orderedCombatants.length || !state.blocks.length) return;
+
+    const runner = root.querySelector<HTMLElement>("[data-role='results'] > section.card.card-body.bi-grid")
+        ?? root.querySelector<HTMLElement>(".bi-active")?.closest<HTMLElement>("section.card.card-body.bi-grid");
+    if (!runner) return;
+
+    ensureRunnerControls(runner, root);
+
+    const signature = JSON.stringify({
+        round: state.round,
+        activeBlockId: state.activeBlockId,
+        blocks: state.blocks.map(block => [block.id, block.allianceId, block.blockType, block.memberOrder])
+    });
+    let stack = runner.querySelector<HTMLElement>(":scope > [data-runner-blocks]");
+    if (stack?.dataset.runnerSignature === signature) {
+        applyActivePresentation(root);
+        return;
+    }
+
+    const originalActive = runner.querySelector<HTMLElement>(":scope > .bi-active:not([data-runner-block])");
+    originalActive?.remove();
+
+    if (!stack) {
+        stack = document.createElement("div");
+        stack.className = "bi-runner-blocks";
+        stack.dataset.runnerBlocks = "true";
+        const sequence = runner.querySelector<HTMLElement>(":scope > .bi-sequence");
+        const actions = runner.querySelector<HTMLElement>(":scope > .bi-actions");
+        if (sequence) runner.insertBefore(stack, sequence);
+        else if (actions) runner.insertBefore(stack, actions);
+        else runner.append(stack);
+    }
+
+    stack.dataset.runnerSignature = signature;
+    stack.replaceChildren();
+    const byId = new Map(preview.orderedCombatants.map(combatant => [combatant.id, combatant]));
+
+    state.blocks.forEach((block, blockIndex) => {
+        const section = document.createElement("section");
+        section.className = `bi-runner-block bi-grid${block.id === state.activeBlockId ? " bi-active" : ""}`;
+        section.dataset.runnerBlock = "true";
+        section.dataset.blockId = block.id;
+        section.dataset.blockIndex = String(blockIndex);
+
+        const head = document.createElement("div");
+        head.className = "bi-runner-block-head bi-row";
+        const headingWrap = document.createElement("div");
+        const eyebrow = document.createElement("div");
+        eyebrow.className = "bi-runner-block-number";
+        eyebrow.textContent = `Block ${blockIndex + 1}`;
+        const heading = document.createElement("h4");
+        heading.className = "h5 mb-0";
+        heading.textContent = `${friendly(block.allianceId)} block`;
+        headingWrap.append(eyebrow, heading);
+        head.append(headingWrap, blockBadges(block.allianceId, block.blockType));
+        section.append(head);
+
+        const members = document.createElement("div");
+        members.className = "bi-list bi-runner-members";
+        for (const combatantId of block.memberOrder) {
+            const combatant = byId.get(combatantId);
+            const member = document.createElement("article");
+            member.className = "bi-runner-member bi-row";
+            member.dataset.combatantId = combatantId;
+
+            const identity = document.createElement("div");
+            identity.className = "bi-runner-member-identity";
+            const name = document.createElement("strong");
+            name.textContent = combatant?.name ?? combatantId;
+            identity.append(name);
+
+            const labels = [
+                combatant?.tacticalGroupId ? groupName(root, combatant.tacticalGroupId) : "",
+                combatant?.blockType === "kaiju" ? "Kaiju" : ""
+            ].filter(Boolean);
+            if (labels.length) {
+                const meta = document.createElement("span");
+                meta.className = "bi-muted";
+                meta.textContent = labels.join(" · ");
+                identity.append(meta);
+            }
+
+            member.append(identity);
+            members.append(member);
+        }
+        section.append(members);
+
+        if (block.allianceId === "players" && block.memberOrder.length > 1) {
+            const note = document.createElement("div");
+            note.className = "bi-muted bi-runner-block-note";
+            note.textContent = "Players may act in any order within this block.";
+            section.append(note);
+        }
+
+        stack.append(section);
+    });
+
+    rebuildBlockNavigation(runner, state.blocks, state.activeBlockId);
+    applyActivePresentation(root);
+}
+
+function ensureRunnerControls(runner: HTMLElement, root: HTMLElement): void {
+    const top = runner.querySelector<HTMLElement>(":scope > .bi-row");
+    if (!top) return;
+
+    let cluster = top.querySelector<HTMLElement>("[data-role='runner-view-controls']");
+    if (!cluster) {
+        cluster = document.createElement("div");
+        cluster.className = "bi-actions bi-runner-view-controls";
+        cluster.dataset.role = "runner-view-controls";
+
+        const activeButton = document.createElement("button");
+        activeButton.type = "button";
+        activeButton.className = "btn btn-sm btn-outline-secondary";
+        activeButton.dataset.action = "toggle-active-block-highlight";
+        activeButton.onclick = () => {
+            showActiveBlock = !showActiveBlock;
+            updateActiveToggle(activeButton);
+            applyActivePresentation(root);
+        };
+
+        const statsButton = document.createElement("button");
+        statsButton.type = "button";
+        statsButton.className = "btn btn-sm btn-outline-secondary";
+        statsButton.dataset.action = "toggle-combat-stats";
+        statsButton.onclick = () => {
+            statsHidden = !statsHidden;
+            root.classList.toggle("bi-stats-hidden", statsHidden);
+            updateStatsToggle(statsButton);
+        };
+
+        cluster.append(activeButton, statsButton);
+        const edit = top.querySelector<HTMLButtonElement>(":scope > button");
+        if (edit) cluster.append(edit);
+        top.append(cluster);
+    }
+
+    const activeButton = cluster.querySelector<HTMLButtonElement>("[data-action='toggle-active-block-highlight']");
+    const statsButton = cluster.querySelector<HTMLButtonElement>("[data-action='toggle-combat-stats']");
+    if (activeButton) updateActiveToggle(activeButton);
+    if (statsButton) updateStatsToggle(statsButton);
+}
+
+function rebuildBlockNavigation(runner: HTMLElement, blocks: StateBlock[], activeBlockId: string | null): void {
+    const navigation = runner.querySelector<HTMLElement>(":scope > .bi-sequence");
+    if (!navigation) return;
+    navigation.replaceChildren();
+
+    blocks.forEach((block, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `bi-seq bi-block-jump${showActiveBlock && block.id === activeBlockId ? " active" : ""}`;
+        button.dataset.blockId = block.id;
+        const suffix = block.blockType === "kaiju" ? " · Kaiju" : block.blockType === "mixed" ? " · mixed" : "";
+        button.textContent = `${index + 1}. ${friendly(block.allianceId)}${suffix}`;
+        button.onclick = () => {
+            const target = runner.querySelector<HTMLElement>(`[data-runner-block][data-block-id='${cssEscape(block.id)}']`);
+            target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        };
+        navigation.append(button);
+    });
+}
+
+function applyActivePresentation(root: HTMLElement): void {
+    root.classList.toggle("bi-show-active-block", showActiveBlock);
+    const activeId = lastState?.response.activeBlockId ?? null;
+    for (const block of root.querySelectorAll<HTMLElement>("[data-runner-block]")) {
+        block.classList.toggle("bi-active", block.dataset.blockId === activeId);
+    }
+    for (const chip of root.querySelectorAll<HTMLElement>(".bi-block-jump[data-block-id]")) {
+        chip.classList.toggle("active", showActiveBlock && chip.dataset.blockId === activeId);
+    }
+}
+
+function updateActiveToggle(button: HTMLButtonElement): void {
+    button.textContent = showActiveBlock ? "Hide active block" : "Show active block";
+    button.setAttribute("aria-pressed", showActiveBlock ? "true" : "false");
+    button.title = showActiveBlock
+        ? "Remove active-block highlighting while keeping encounter progression available"
+        : "Highlight the internally active block for DMs who want guided block progression";
 }
 
 function enhance(root: HTMLElement): void {
@@ -81,24 +276,23 @@ function enhance(root: HTMLElement): void {
 
     const state = lastState?.response;
     const preview = lastPreview?.response;
-    if (!state || !preview?.orderedCombatants.length || !state.activeBlockId) return;
+    if (!state || !preview?.orderedCombatants.length) return;
 
-    const active = state.blocks.find(block => block.id === state.activeBlockId);
-    if (!active) return;
-
-    const runner = root.querySelector<HTMLElement>(".bi-active")?.closest<HTMLElement>("section.card.card-body.bi-grid");
+    const runner = root.querySelector<HTMLElement>("[data-role='results'] > section.card.card-body.bi-grid")
+        ?? root.querySelector<HTMLElement>("[data-runner-block]")?.closest<HTMLElement>("section.card.card-body.bi-grid");
     if (!runner) return;
-    ensureStatsToggle(runner, root);
+    ensureRunnerControls(runner, root);
+
+    integrateCombatState(root, runner, preview.orderedCombatants);
+    integrateConditions(root, runner);
 
     const byId = new Map(preview.orderedCombatants.map(combatant => [combatant.id, combatant]));
     const templateByCombatant = collectTemplateIds(root);
     const healthByCombatant = collectHealth(root, preview.orderedCombatants);
-    const rows = Array.from(runner.querySelectorAll<HTMLElement>(".bi-runner-member"));
 
-    active.memberOrder.forEach((combatantId, index) => {
-        const row = rows[index];
-        if (!row) return;
-        row.dataset.combatantId = combatantId;
+    for (const row of runner.querySelectorAll<HTMLElement>(".bi-runner-member[data-combatant-id]")) {
+        const combatantId = row.dataset.combatantId;
+        if (!combatantId) continue;
         const combatant = byId.get(combatantId);
         ensureActedControl(row, combatantId, state.round);
 
@@ -108,7 +302,85 @@ function enhance(root: HTMLElement): void {
         const manual = card ? readManualStats(card) : null;
         const stats = mergeStats(imported, manual);
         paintQuickStats(row, combatant, stats, healthByCombatant.get(combatantId) ?? null);
+    }
+}
+
+function integrateCombatState(root: HTMLElement, runner: HTMLElement, combatants: CombatantPreview[]): void {
+    const dashboard = runner.querySelector<HTMLElement>("[data-combat-dashboard]");
+    if (!dashboard) return;
+
+    const guidance = dashboard.firstElementChild instanceof HTMLElement ? dashboard.firstElementChild : null;
+    const guidanceText = guidance?.querySelector<HTMLElement>(".bi-muted");
+    if (guidanceText) {
+        guidanceText.textContent = "Health, conditions, and Kaiju state remain editable from each combatant card.";
+    }
+
+    const standardCombatants = combatants.filter(combatant => combatant.allianceId !== "players" && combatant.blockType === "standard");
+    const unassignedHealthRows = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-health-row:not([data-combatant-id])"));
+    standardCombatants.forEach((combatant, index) => {
+        const row = unassignedHealthRows[index]
+            ?? root.querySelector<HTMLElement>(`.bi-health-row[data-combatant-id='${cssEscape(combatant.id)}']`);
+        const member = runner.querySelector<HTMLElement>(`.bi-runner-member[data-combatant-id='${cssEscape(combatant.id)}']`);
+        if (!row || !member) return;
+        row.dataset.combatantId = combatant.id;
+        row.classList.add("bi-integrated-health");
+        ensureStateSlot(member).append(row);
     });
+
+    const kaijuCombatants = combatants.filter(combatant => combatant.blockType === "kaiju");
+    const unassignedKaijuPanels = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-kaiju-panel:not([data-combatant-id])"));
+    kaijuCombatants.forEach((combatant, index) => {
+        const panel = unassignedKaijuPanels[index]
+            ?? root.querySelector<HTMLElement>(`.bi-kaiju-panel[data-combatant-id='${cssEscape(combatant.id)}']`);
+        const member = runner.querySelector<HTMLElement>(`.bi-runner-member[data-combatant-id='${cssEscape(combatant.id)}']`);
+        if (!panel || !member) return;
+        panel.dataset.combatantId = combatant.id;
+        panel.classList.add("bi-integrated-kaiju");
+        ensureStateSlot(member).append(panel);
+    });
+
+    for (const child of Array.from(dashboard.children)) {
+        if (child === guidance) continue;
+        if (child instanceof HTMLElement) child.hidden = true;
+    }
+}
+
+function integrateConditions(root: HTMLElement, runner: HTMLElement): void {
+    for (const row of runner.querySelectorAll<HTMLElement>(".bi-runner-member")) {
+        row.querySelectorAll(":scope > .bi-condition-inline").forEach(element => element.remove());
+    }
+
+    const dashboard = runner.querySelector<HTMLElement>("[data-condition-dashboard]");
+    if (!dashboard) return;
+
+    for (const editor of Array.from(dashboard.querySelectorAll<HTMLElement>("[data-condition-editor-for]"))) {
+        const combatantId = editor.dataset.conditionEditorFor;
+        if (!combatantId) continue;
+        const member = runner.querySelector<HTMLElement>(`.bi-runner-member[data-combatant-id='${cssEscape(combatantId)}']`);
+        if (!member) continue;
+
+        let section = member.querySelector<HTMLElement>(":scope > .bi-integrated-conditions");
+        if (!section) {
+            section = document.createElement("section");
+            section.className = "bi-integrated-conditions";
+            const label = document.createElement("strong");
+            label.textContent = "Conditions";
+            section.append(label);
+            member.append(section);
+        }
+        section.append(editor);
+    }
+    dashboard.hidden = true;
+}
+
+function ensureStateSlot(member: HTMLElement): HTMLElement {
+    let slot = member.querySelector<HTMLElement>(":scope > .bi-integrated-state");
+    if (!slot) {
+        slot = document.createElement("section");
+        slot.className = "bi-integrated-state";
+        member.append(slot);
+    }
+    return slot;
 }
 
 function enhanceSetup(root: HTMLElement): void {
@@ -359,25 +631,6 @@ function mergeStats(base: MonsterCombatStats | null, override: MonsterCombatStat
     };
 }
 
-function ensureStatsToggle(runner: HTMLElement, root: HTMLElement): void {
-    const top = runner.querySelector<HTMLElement>(":scope > .bi-row");
-    if (!top) return;
-    let button = top.querySelector<HTMLButtonElement>("[data-action='toggle-combat-stats']");
-    if (!button) {
-        button = document.createElement("button");
-        button.type = "button";
-        button.className = "btn btn-sm btn-outline-secondary";
-        button.dataset.action = "toggle-combat-stats";
-        button.onclick = () => {
-            statsHidden = !statsHidden;
-            root.classList.toggle("bi-stats-hidden", statsHidden);
-            updateStatsToggle(button!);
-        };
-        top.append(button);
-    }
-    updateStatsToggle(button);
-}
-
 function updateStatsToggle(button: HTMLButtonElement): void {
     button.textContent = statsHidden ? "Show stats" : "Hide stats";
     button.setAttribute("aria-pressed", statsHidden ? "true" : "false");
@@ -422,16 +675,13 @@ function paintQuickStats(
     health: HealthSnapshot | null
 ): void {
     const existing = row.querySelector<HTMLElement>(":scope > .bi-quick-stats");
-    const hp = health?.current !== null && health?.current !== undefined
-        ? health.max !== null ? `${health.current} / ${health.max}` : String(health.current)
-        : stats?.maxHp !== null && stats?.maxHp !== undefined ? String(stats.maxHp) : null;
     const initiative = combatant?.initiativeModifier ?? stats?.initiativeModifier ?? null;
-    if (!stats && !hp && initiative === null) {
+    if (!stats && initiative === null) {
         existing?.remove();
         return;
     }
 
-    const signature = JSON.stringify({ stats, hp, initiative });
+    const signature = JSON.stringify({ stats, initiative, health });
     if (existing?.dataset.quickStatsSignature === signature) return;
 
     const panel = existing ?? document.createElement("section");
@@ -442,7 +692,6 @@ function paintQuickStats(
     const facts = document.createElement("div");
     facts.className = "bi-quick-facts";
     appendFact(facts, "AC", stats?.armorClass ?? null);
-    appendFact(facts, "HP", hp);
     appendFact(facts, "Speed", stats?.speed ?? null);
     appendFact(facts, "Init", initiative === null ? null : signed(initiative));
     if (facts.childElementCount) panel.append(facts);
@@ -480,7 +729,11 @@ function paintQuickStats(
         if (defenses.childElementCount) panel.append(defenses);
     }
 
-    if (!existing) row.append(panel);
+    const stateSlot = row.querySelector<HTMLElement>(":scope > .bi-integrated-state");
+    const conditions = row.querySelector<HTMLElement>(":scope > .bi-integrated-conditions");
+    if (stateSlot) row.insertBefore(panel, stateSlot);
+    else if (conditions) row.insertBefore(panel, conditions);
+    else if (!existing) row.append(panel);
 }
 
 function appendFact(container: HTMLElement, label: string, value: string | null): void {
@@ -555,20 +808,18 @@ async function loadTemplateStats(templateId: string): Promise<MonsterCombatStats
 
 function collectHealth(root: HTMLElement, combatants: CombatantPreview[]): Map<string, HealthSnapshot> {
     const result = new Map<string, HealthSnapshot>();
-    const standards = combatants.filter(combatant => combatant.allianceId !== "players" && combatant.blockType === "standard");
-    const rows = Array.from(root.querySelectorAll<HTMLElement>("[data-combat-dashboard] .bi-health-row"));
-    standards.forEach((combatant, index) => {
-        const row = rows[index];
-        if (!row) return;
+    for (const combatant of combatants) {
+        const row = root.querySelector<HTMLElement>(`.bi-health-row[data-combatant-id='${cssEscape(combatant.id)}']`);
+        if (!row) continue;
         const status = row.querySelector<HTMLElement>(".bi-statuses")?.textContent ?? "";
         const pair = status.match(/HP\s*(-?\d+)\s*\/\s*(-?\d+)/i);
         if (pair) {
             result.set(combatant.id, { current: Number(pair[1]), max: Number(pair[2]) });
-            return;
+            continue;
         }
         const single = status.match(/HP\s*(-?\d+)/i);
         if (single) result.set(combatant.id, { current: Number(single[1]), max: null });
-    });
+    }
     return result;
 }
 
@@ -579,16 +830,62 @@ function findCombatantCard(root: HTMLElement, combatantId: string): HTMLElement 
     return null;
 }
 
+function groupName(root: HTMLElement, groupId: string): string {
+    for (const group of root.querySelectorAll<HTMLElement>(".bi-tactical-group")) {
+        if (group.dataset.groupId !== groupId) continue;
+        return group.querySelector<HTMLInputElement>("[data-role='group-name']")?.value.trim() || "Group";
+    }
+    return "Group";
+}
+
+function friendly(value: string): string {
+    if (value === "players") return "Players";
+    if (value === "enemies") return "Enemies";
+    return value.split(/[-_ ]+/).filter(Boolean).map(part => part[0]?.toUpperCase() + part.slice(1)).join(" ") || "Other side";
+}
+
+function blockBadges(allianceId: string, blockType: StateBlock["blockType"]): HTMLElement {
+    const container = document.createElement("div");
+    container.className = "bi-badges";
+    container.append(simpleBadge(friendly(allianceId)));
+    if (blockType === "kaiju") container.append(simpleBadge("Kaiju", true));
+    else if (blockType === "mixed") container.append(simpleBadge("Standard + Kaiju", true));
+    return container;
+}
+
+function simpleBadge(text: string, strong = false): HTMLElement {
+    const element = document.createElement("span");
+    element.className = `bi-badge${strong ? " bi-kaiju" : ""}`;
+    element.textContent = text;
+    return element;
+}
+
+function cssEscape(value: string): string {
+    if (typeof CSS !== "undefined" && typeof CSS.escape === "function") return CSS.escape(value);
+    return value.replace(/[\\'"\]\[]/g, match => `\\${match}`);
+}
+
 function installStyles(documentRef: Document): void {
     if (documentRef.head.querySelector("style[data-role='combatant-quick-stats-style']")) return;
     const style = documentRef.createElement("style");
     style.dataset.role = "combatant-quick-stats-style";
     style.textContent = `
-.block-initiative-app .bi-runner-member{align-items:flex-start}
+.block-initiative-app .bi-runner-view-controls{margin-left:auto}
+.block-initiative-app .bi-runner-blocks{display:grid;gap:1rem}
+.block-initiative-app .bi-runner-block{border:1px solid var(--bi-border);border-radius:.65rem;overflow:visible;padding:.7rem;scroll-margin-top:1rem}
+.block-initiative-app .bi-runner-block.bi-active{border-width:1px}
+.block-initiative-app.bi-show-active-block .bi-runner-block.bi-active{border-width:2px}
+.block-initiative-app .bi-runner-block-head{padding-bottom:.5rem;border-bottom:1px solid var(--bi-border)}
+.block-initiative-app .bi-runner-block-number{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.65}
+.block-initiative-app .bi-runner-block-note{padding:.1rem .15rem 0}
+.block-initiative-app .bi-block-jump{background:transparent;color:inherit;cursor:pointer}
+.block-initiative-app .bi-runner-member{align-items:flex-start;display:flex;flex-wrap:wrap;gap:.5rem;padding:.7rem;border:1px solid var(--bi-border);border-radius:.55rem}
+.block-initiative-app .bi-runner-member-identity{display:flex;gap:.45rem;align-items:baseline;min-width:0;flex:1 1 auto}
 .block-initiative-app .bi-runner-member.bi-acted{opacity:.62;background:var(--bi-soft)}
 .block-initiative-app .bi-acted-toggle{display:flex;gap:.35rem;align-items:center;margin-left:auto;white-space:nowrap;font-size:.84rem;font-weight:600}
 .block-initiative-app .bi-acted-toggle input{width:auto!important;min-width:0;padding:0}
-.block-initiative-app .bi-quick-stats{flex:1 0 100%;width:100%;display:grid;gap:.42rem;padding-top:.48rem;border-top:1px solid var(--bi-border)}
+.block-initiative-app .bi-quick-stats,.block-initiative-app .bi-integrated-state,.block-initiative-app .bi-integrated-conditions{flex:1 0 100%;width:100%}
+.block-initiative-app .bi-quick-stats{display:grid;gap:.42rem;padding-top:.48rem;border-top:1px solid var(--bi-border)}
 .block-initiative-app .bi-quick-facts{display:flex;flex-wrap:wrap;gap:.25rem .8rem;font-size:.88rem}
 .block-initiative-app .bi-quick-abilities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem .45rem}
 .block-initiative-app .bi-quick-ability{display:grid;grid-template-columns:2.1rem 2.2rem 2.4rem 2.5rem;gap:.2rem;align-items:baseline;padding:.25rem .35rem;border:1px solid var(--bi-border);border-radius:.35rem;font-variant-numeric:tabular-nums}
@@ -596,6 +893,13 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-quick-ability>strong{font-size:.76rem}
 .block-initiative-app .bi-quick-ability>span:not(.bi-quick-ability-label){font-size:.82rem;text-align:right}
 .block-initiative-app .bi-quick-defenses{display:grid;gap:.16rem;font-size:.82rem}
+.block-initiative-app .bi-integrated-state{display:grid;gap:.45rem}
+.block-initiative-app .bi-integrated-health,.block-initiative-app .bi-integrated-kaiju{margin:0;border-radius:.45rem}
+.block-initiative-app .bi-integrated-health>.bi-row>strong{display:none}
+.block-initiative-app .bi-integrated-health.active,.block-initiative-app .bi-integrated-kaiju.active{border-width:1px}
+.block-initiative-app.bi-show-active-block .bi-integrated-health.active,.block-initiative-app.bi-show-active-block .bi-integrated-kaiju.active{border-width:2px}
+.block-initiative-app .bi-integrated-conditions{display:grid;grid-template-columns:auto 1fr;gap:.55rem;align-items:center;padding-top:.45rem;border-top:1px solid var(--bi-border)}
+.block-initiative-app .bi-integrated-conditions .bi-condition-editor{min-width:0}
 .block-initiative-app .bi-quick-stats-setup{border-top:1px solid var(--bi-border);padding-top:.55rem}
 .block-initiative-app .bi-quick-stats-setup>summary{font-weight:700}
 .block-initiative-app .bi-quick-stats-setup-body{display:grid;gap:.6rem;margin-top:.55rem}
@@ -604,15 +908,17 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-quick-stat-entry-ability{display:grid;grid-template-columns:auto 1fr 1fr;gap:.4rem;align-items:end;border:1px solid var(--bi-border);border-radius:.45rem;padding:.45rem}
 .block-initiative-app .bi-quick-stat-entry-ability>strong{align-self:center}
 .block-initiative-app .bi-quick-stats-defense-entry{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}
-.block-initiative-app.bi-stats-hidden .bi-quick-stats{display:none!important}
-.block-initiative-app.bi-stats-hidden [data-combat-dashboard] > :not(:first-child):not([data-condition-dashboard]){display:none!important}
+.block-initiative-app.bi-stats-hidden .bi-quick-stats,
+.block-initiative-app.bi-stats-hidden .bi-integrated-state{display:none!important}
 @media(max-width:760px){
 .block-initiative-app .bi-quick-abilities,.block-initiative-app .bi-quick-stat-entry-abilities{grid-template-columns:repeat(2,minmax(0,1fr))}
 .block-initiative-app .bi-quick-stats-entry-grid,.block-initiative-app .bi-quick-stats-defense-entry{grid-template-columns:1fr 1fr}
+.block-initiative-app .bi-integrated-conditions{grid-template-columns:1fr}
 }
 @media(max-width:500px){
 .block-initiative-app .bi-quick-abilities,.block-initiative-app .bi-quick-stat-entry-abilities,.block-initiative-app .bi-quick-stats-entry-grid,.block-initiative-app .bi-quick-stats-defense-entry{grid-template-columns:1fr}
 .block-initiative-app .bi-quick-ability{grid-template-columns:2.4rem 2.4rem 2.6rem 2.8rem}
+.block-initiative-app .bi-runner-member-identity{flex-direction:column;gap:.1rem}
 }
 `;
     documentRef.head.append(style);
