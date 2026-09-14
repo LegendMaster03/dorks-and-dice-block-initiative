@@ -6,6 +6,7 @@ import { initializeConditionTrackingUi } from "./condition-tracking-ui";
 import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
+import { initializeIntegratedRunnerCleanupUi } from "./integrated-runner-cleanup";
 import { initializeKaijuLayoutUi } from "./kaiju-layout-ui";
 import { initializeOtherSideUi } from "./other-side-ui";
 import { initializePlayerDisplayOverrides } from "./player-display-overrides";
@@ -36,6 +37,7 @@ export function initializeFrontendRuntime(): void {
     initializeConditionLayoutUi();
     initializeRulesCoreLinkUi();
     initializeCombatantQuickStatsUi();
+    initializeIntegratedRunnerCleanupUi();
     initializePlayerDisplayOverrides();
 
     // App-level form events are authoritative render/enhancement boundaries.
