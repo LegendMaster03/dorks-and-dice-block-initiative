@@ -79,12 +79,13 @@ function ensureSecondaryStatline(card: HTMLElement): void {
         factRow.hidden = Array.from(factRow.children).every(child => child instanceof HTMLElement && child.hidden);
     }
 
-    // HP is not a derived display value. The existing compact HP editor is the
-    // encounter's DM-owned health tracker; imported stat blocks only seed it.
-    // Move that same control into the header rather than copying/parsing its text.
+    // The compact HP editor is the encounter's actual DM-owned health tracker.
+    // Move only that control into the stat line; do not move the containing
+    // health row, which also carries dashboard/layout state and condition UI.
     const healthRow = card.querySelector<HTMLElement>(".bi-integrated-health[data-combatant-id]");
+    const healthEditor = healthRow?.querySelector<HTMLElement>(":scope > .bi-hp-editor") ?? null;
     let statline = card.querySelector<HTMLElement>(":scope > .bi-card-secondary-statline");
-    if (!speed && !ac && !healthRow) {
+    if (!speed && !ac && !healthEditor) {
         statline?.remove();
         return;
     }
@@ -128,9 +129,9 @@ function ensureSecondaryStatline(card: HTMLElement): void {
     }
 
     let healthWrap = right.querySelector<HTMLElement>(":scope > .bi-card-secondary-health");
-    if (healthRow) {
+    if (healthEditor) {
         if (!healthWrap) {
-            healthWrap = document.createElement("span");
+            healthWrap = document.createElement("div");
             healthWrap.className = "bi-card-secondary-health";
             const caption = document.createElement("span");
             caption.className = "bi-card-secondary-health-label";
@@ -139,9 +140,10 @@ function ensureSecondaryStatline(card: HTMLElement): void {
             right.append(healthWrap);
         }
         const caption = healthWrap.querySelector<HTMLElement>(":scope > .bi-card-secondary-health-label");
-        if (healthRow.parentElement !== healthWrap) {
-            caption ? healthWrap.insertBefore(healthRow, caption) : healthWrap.prepend(healthRow);
+        if (healthEditor.parentElement !== healthWrap) {
+            caption ? healthWrap.insertBefore(healthEditor, caption) : healthWrap.prepend(healthEditor);
         }
+        if (healthRow) healthRow.hidden = true;
     } else {
         healthWrap?.remove();
     }
@@ -220,8 +222,7 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-card-secondary-stat>strong{font-size:1.05rem;font-weight:800}
 .block-initiative-app .bi-card-secondary-stat>span,.block-initiative-app .bi-card-secondary-health-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;opacity:.62;margin-top:.18rem}
 .block-initiative-app .bi-card-secondary-health{display:grid;justify-items:center;line-height:1;min-width:5.6rem}
-.block-initiative-app .bi-card-secondary-health>.bi-integrated-health{border:0!important;padding:0!important;margin:0!important;background:transparent!important;display:block!important;width:auto!important}
-.block-initiative-app .bi-card-secondary-health>.bi-integrated-health>.bi-row{display:none!important}
+.block-initiative-app .bi-card-secondary-health>.bi-hp-editor{margin:0}
 .block-initiative-app .bi-card-secondary-health .bi-hp-summary{margin:0}
 .block-initiative-app .bi-card-secondary-statline + .bi-quick-stats{border-top:0;padding-top:0}
 .block-initiative-app.bi-stats-hidden .bi-card-secondary-statline{display:none!important}

@@ -8,8 +8,6 @@ export function initializeEnemyDuplicateUi(): void {
     initialized = true;
 
     installStyles(root.ownerDocument);
-    root.addEventListener("input", () => requestEnhancement());
-    root.addEventListener("change", () => requestEnhancement());
     registerAfterRender("enemy-duplicate", 70, () => enhance(root));
 }
 
