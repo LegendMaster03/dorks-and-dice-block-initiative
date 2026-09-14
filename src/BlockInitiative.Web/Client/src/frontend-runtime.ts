@@ -12,6 +12,7 @@ import { initializeKaijuLayoutUi } from "./kaiju-layout-ui";
 import { initializeOtherSideUi } from "./other-side-ui";
 import { initializePlayerDisplayOverrides } from "./player-display-overrides";
 import { initializeRulesCoreLinkUi } from "./rules-core-link-ui";
+import { initializeSetupLayoutUi } from "./setup-layout-ui";
 import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
 import { requestEnhancement } from "./render-lifecycle";
 
@@ -26,6 +27,7 @@ export function initializeFrontendRuntime(): void {
     // Registration order is encoded by each module's after-render priority.
     // Initialization only installs stable event handlers/styles and registers
     // hooks; application-owned DOM changes are handled by requested passes.
+    initializeSetupLayoutUi();
     initializeOtherSideUi();
     initializeCombatantFieldUi();
     initializeCombatStateUi();
