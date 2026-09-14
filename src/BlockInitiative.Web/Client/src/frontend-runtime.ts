@@ -53,11 +53,23 @@ export function initializeFrontendRuntime(): void {
     initializePlayerDisplayOverrides();
 
     // App-level form events are authoritative render/enhancement boundaries.
-    // Several app handlers create/remove DOM synchronously in response to these
-    // events; one coalesced pass runs after the event stack settles.
-    root.addEventListener("input", requestEnhancement);
-    root.addEventListener("change", requestEnhancement);
-    root.addEventListener("click", requestEnhancement);
+    // Enhancement-owned popovers manage their own transient input state and
+    // must not trigger a full pass on each keystroke or click.
+    root.addEventListener("input", requestEnhancementForAppEvent);
+    root.addEventListener("change", requestEnhancementForAppEvent);
+    root.addEventListener("click", requestEnhancementForAppEvent);
 
+    requestEnhancement();
+}
+
+function requestEnhancementForAppEvent(event: Event): void {
+    const target = event.target;
+    const element = target instanceof Element
+        ? target
+        : target instanceof Node
+            ? target.parentElement
+            : null;
+
+    if (element?.closest(".bi-condition-picker, .bi-condition-menu")) return;
     requestEnhancement();
 }

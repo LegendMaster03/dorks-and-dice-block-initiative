@@ -79,9 +79,12 @@ function ensureSecondaryStatline(card: HTMLElement): void {
         factRow.hidden = Array.from(factRow.children).every(child => child instanceof HTMLElement && child.hidden);
     }
 
-    const hp = readHealth(card);
+    // HP is not a derived display value. The existing compact HP editor is the
+    // encounter's DM-owned health tracker; imported stat blocks only seed it.
+    // Move that same control into the header rather than copying/parsing its text.
+    const healthRow = card.querySelector<HTMLElement>(".bi-integrated-health[data-combatant-id]");
     let statline = card.querySelector<HTMLElement>(":scope > .bi-card-secondary-statline");
-    if (!speed && !ac && !hp) {
+    if (!speed && !ac && !healthRow) {
         statline?.remove();
         return;
     }
@@ -91,26 +94,61 @@ function ensureSecondaryStatline(card: HTMLElement): void {
         statline.className = "bi-card-secondary-statline";
     }
 
-    const signature = `${speed ?? ""}\u0000${ac ?? ""}\u0000${hp ?? ""}`;
-    if (statline.dataset.secondaryStatsSignature !== signature) {
-        statline.dataset.secondaryStatsSignature = signature;
-        statline.replaceChildren();
-
-        const left = document.createElement("div");
+    let left = statline.querySelector<HTMLElement>(":scope > .bi-card-secondary-left");
+    if (!left) {
+        left = document.createElement("div");
         left.className = "bi-card-secondary-left";
-        if (speed) {
-            const label = document.createElement("strong");
-            label.textContent = "Speed";
-            left.append(label, document.createTextNode(` ${speed}`));
-        }
+        statline.prepend(left);
+    }
+    left.replaceChildren();
+    if (speed) {
+        const label = document.createElement("strong");
+        label.textContent = "Speed";
+        left.append(label, document.createTextNode(` ${speed}`));
+    }
 
-        const right = document.createElement("div");
+    let right = statline.querySelector<HTMLElement>(":scope > .bi-card-secondary-right");
+    if (!right) {
+        right = document.createElement("div");
         right.className = "bi-card-secondary-right";
-        if (ac) right.append(metric("AC", ac));
-        if (hp) right.append(metric("HP", hp));
+        statline.append(right);
+    }
 
-        if (left.childElementCount || left.textContent) statline.append(left);
-        if (right.childElementCount) statline.append(right);
+    let acMetric = right.querySelector<HTMLElement>(":scope > .bi-card-secondary-stat[data-stat='ac']");
+    if (ac) {
+        if (!acMetric) {
+            acMetric = metric("AC", ac);
+            acMetric.dataset.stat = "ac";
+            right.prepend(acMetric);
+        } else {
+            acMetric.querySelector<HTMLElement>(":scope > strong")!.textContent = ac;
+        }
+    } else {
+        acMetric?.remove();
+    }
+
+    let healthWrap = right.querySelector<HTMLElement>(":scope > .bi-card-secondary-health");
+    if (healthRow) {
+        if (!healthWrap) {
+            healthWrap = document.createElement("span");
+            healthWrap.className = "bi-card-secondary-health";
+            const caption = document.createElement("span");
+            caption.className = "bi-card-secondary-health-label";
+            caption.textContent = "HP";
+            healthWrap.append(caption);
+            right.append(healthWrap);
+        }
+        const caption = healthWrap.querySelector<HTMLElement>(":scope > .bi-card-secondary-health-label");
+        if (healthRow.parentElement !== healthWrap) {
+            caption ? healthWrap.insertBefore(healthRow, caption) : healthWrap.prepend(healthRow);
+        }
+    } else {
+        healthWrap?.remove();
+    }
+
+    if (!left.textContent?.trim() && !right.childElementCount) {
+        statline.remove();
+        return;
     }
 
     const firstBody = card.querySelector<HTMLElement>(
@@ -140,18 +178,6 @@ function factValue(fact: HTMLElement | undefined, label: string): string | null 
     const text = fact?.textContent?.trim() ?? "";
     if (!text) return null;
     return text.replace(new RegExp(`^${label}\\s*`, "i"), "").trim() || null;
-}
-
-function readHealth(card: HTMLElement): string | null {
-    const statuses = Array.from(card.querySelectorAll<HTMLElement>(".bi-integrated-state .bi-statuses"));
-    for (const status of statuses) {
-        const text = status.textContent ?? "";
-        const pair = text.match(/HP\s*(-?\d+)\s*\/\s*(-?\d+)/i);
-        if (pair) return `${pair[1]}/${pair[2]}`;
-        const single = text.match(/HP\s*(-?\d+)/i);
-        if (single) return single[1];
-    }
-    return null;
 }
 
 function metric(label: string, value: string): HTMLElement {
@@ -192,7 +218,11 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-card-secondary-right{display:flex;gap:.8rem;align-items:flex-end;margin-left:auto}
 .block-initiative-app .bi-card-secondary-stat{display:grid;justify-items:center;line-height:1;min-width:2.6rem}
 .block-initiative-app .bi-card-secondary-stat>strong{font-size:1.05rem;font-weight:800}
-.block-initiative-app .bi-card-secondary-stat>span{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;opacity:.62;margin-top:.18rem}
+.block-initiative-app .bi-card-secondary-stat>span,.block-initiative-app .bi-card-secondary-health-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;opacity:.62;margin-top:.18rem}
+.block-initiative-app .bi-card-secondary-health{display:grid;justify-items:center;line-height:1;min-width:5.6rem}
+.block-initiative-app .bi-card-secondary-health>.bi-integrated-health{border:0!important;padding:0!important;margin:0!important;background:transparent!important;display:block!important;width:auto!important}
+.block-initiative-app .bi-card-secondary-health>.bi-integrated-health>.bi-row{display:none!important}
+.block-initiative-app .bi-card-secondary-health .bi-hp-summary{margin:0}
 .block-initiative-app .bi-card-secondary-statline + .bi-quick-stats{border-top:0;padding-top:0}
 .block-initiative-app.bi-stats-hidden .bi-card-secondary-statline{display:none!important}
 @media(max-width:620px){
