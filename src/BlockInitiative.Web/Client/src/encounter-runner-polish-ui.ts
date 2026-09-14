@@ -46,7 +46,7 @@ export function initializeEncounterRunnerPolishUi(): void {
         }
 
         for (const card of root.querySelectorAll<HTMLElement>(".bi-runner-member[data-combatant-id]")) {
-            ensurePrimaryStats(card);
+            ensureSecondaryStatline(card);
             normalizeHeaderOrder(card);
         }
 
@@ -65,50 +65,81 @@ function highlightActiveNavigation(root: HTMLElement): void {
     }
 }
 
-function ensurePrimaryStats(card: HTMLElement): void {
-    const acFact = Array.from(card.querySelectorAll<HTMLElement>(".bi-quick-fact"))
-        .find(fact => /^AC\s/i.test(fact.textContent?.trim() ?? ""));
-    const ac = acFact?.textContent?.trim().replace(/^AC\s*/i, "") || null;
+function ensureSecondaryStatline(card: HTMLElement): void {
+    const quickFacts = Array.from(card.querySelectorAll<HTMLElement>(".bi-quick-fact"));
+    const acFact = quickFacts.find(fact => /^AC\s/i.test(fact.textContent?.trim() ?? ""));
+    const speedFact = quickFacts.find(fact => /^Speed\s/i.test(fact.textContent?.trim() ?? ""));
+    const ac = factValue(acFact, "AC");
+    const speed = factValue(speedFact, "Speed");
     if (acFact) acFact.hidden = true;
+    if (speedFact) speedFact.hidden = true;
+
+    const factRow = card.querySelector<HTMLElement>(":scope > .bi-quick-stats .bi-quick-facts");
+    if (factRow) {
+        factRow.hidden = Array.from(factRow.children).every(child => child instanceof HTMLElement && child.hidden);
+    }
 
     const hp = readHealth(card);
-    let cluster = card.querySelector<HTMLElement>(":scope > .bi-card-primary-stats");
-    if (!ac && !hp) {
-        cluster?.remove();
+    let statline = card.querySelector<HTMLElement>(":scope > .bi-card-secondary-statline");
+    if (!speed && !ac && !hp) {
+        statline?.remove();
         return;
     }
 
-    if (!cluster) {
-        cluster = document.createElement("div");
-        cluster.className = "bi-card-primary-stats";
-        const initiative = card.querySelector<HTMLElement>(":scope > .bi-card-initiative");
-        const acted = card.querySelector<HTMLElement>(":scope > .bi-acted-toggle");
-        const context = card.querySelector<HTMLElement>(":scope > .bi-card-context-wrap");
-        const anchor = initiative ?? acted ?? context;
-        anchor ? card.insertBefore(cluster, anchor) : card.append(cluster);
+    if (!statline) {
+        statline = document.createElement("div");
+        statline.className = "bi-card-secondary-statline";
     }
 
-    const signature = `${ac ?? ""}\u0000${hp ?? ""}`;
-    if (cluster.dataset.primaryStatsSignature === signature) return;
-    cluster.dataset.primaryStatsSignature = signature;
-    cluster.replaceChildren();
-    if (ac) cluster.append(metric("AC", ac));
-    if (hp) cluster.append(metric("HP", hp));
-}
+    const signature = `${speed ?? ""}\u0000${ac ?? ""}\u0000${hp ?? ""}`;
+    if (statline.dataset.secondaryStatsSignature !== signature) {
+        statline.dataset.secondaryStatsSignature = signature;
+        statline.replaceChildren();
 
-function normalizeHeaderOrder(card: HTMLElement): void {
-    const primaryStats = card.querySelector<HTMLElement>(":scope > .bi-card-primary-stats");
-    const initiative = card.querySelector<HTMLElement>(":scope > .bi-card-initiative");
-    const acted = card.querySelector<HTMLElement>(":scope > .bi-acted-toggle");
-    const context = card.querySelector<HTMLElement>(":scope > .bi-card-context-wrap");
+        const left = document.createElement("div");
+        left.className = "bi-card-secondary-left";
+        if (speed) {
+            const label = document.createElement("strong");
+            label.textContent = "Speed";
+            left.append(label, document.createTextNode(` ${speed}`));
+        }
+
+        const right = document.createElement("div");
+        right.className = "bi-card-secondary-right";
+        if (ac) right.append(metric("AC", ac));
+        if (hp) right.append(metric("HP", hp));
+
+        if (left.childElementCount || left.textContent) statline.append(left);
+        if (right.childElementCount) statline.append(right);
+    }
+
     const firstBody = card.querySelector<HTMLElement>(
         ":scope > .bi-card-condition-summary, :scope > .bi-quick-stats, :scope > .bi-integrated-state, :scope > .bi-integrated-conditions"
     );
+    firstBody ? card.insertBefore(statline, firstBody) : card.append(statline);
+}
 
-    for (const item of [primaryStats, initiative, acted, context]) {
+function normalizeHeaderOrder(card: HTMLElement): void {
+    const initiative = card.querySelector<HTMLElement>(":scope > .bi-card-initiative");
+    const acted = card.querySelector<HTMLElement>(":scope > .bi-acted-toggle");
+    const context = card.querySelector<HTMLElement>(":scope > .bi-card-context-wrap");
+    const statline = card.querySelector<HTMLElement>(":scope > .bi-card-secondary-statline");
+    const firstBody = statline ?? card.querySelector<HTMLElement>(
+        ":scope > .bi-card-condition-summary, :scope > .bi-quick-stats, :scope > .bi-integrated-state, :scope > .bi-integrated-conditions"
+    );
+
+    // Keep the right side of the header in a stable order:
+    // initiative -> acted -> context menu. AC/HP move to the row beneath.
+    for (const item of [initiative, acted, context]) {
         if (!item) continue;
         firstBody ? card.insertBefore(item, firstBody) : card.append(item);
     }
+}
+
+function factValue(fact: HTMLElement | undefined, label: string): string | null {
+    const text = fact?.textContent?.trim() ?? "";
+    if (!text) return null;
+    return text.replace(new RegExp(`^${label}\\s*`, "i"), "").trim() || null;
 }
 
 function readHealth(card: HTMLElement): string | null {
@@ -125,7 +156,7 @@ function readHealth(card: HTMLElement): string | null {
 
 function metric(label: string, value: string): HTMLElement {
     const item = document.createElement("span");
-    item.className = "bi-card-primary-stat";
+    item.className = "bi-card-secondary-stat";
     const strong = document.createElement("strong");
     strong.textContent = value;
     const caption = document.createElement("span");
@@ -156,12 +187,18 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-card-context-menu[data-open-direction='left']{left:auto!important;right:0!important}
 .block-initiative-app .bi-card-context-menu[data-open-direction='right']{left:0!important;right:auto!important}
 .block-initiative-app.bi-show-active-block .bi-runner-block.bi-active{border-width:2px;border-color:var(--bs-primary,#0d6efd);box-shadow:0 0 0 2px color-mix(in srgb,var(--bs-primary,#0d6efd) 22%,transparent)}
-.block-initiative-app .bi-card-primary-stats{display:flex;gap:.75rem;align-items:flex-start;flex:0 0 auto;font-variant-numeric:tabular-nums}
-.block-initiative-app .bi-card-primary-stat{display:grid;justify-items:center;line-height:1}
-.block-initiative-app .bi-card-primary-stat>strong{font-size:1.05rem;font-weight:800}
-.block-initiative-app .bi-card-primary-stat>span{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;opacity:.62;margin-top:.18rem}
-.block-initiative-app.bi-stats-hidden .bi-card-primary-stats{display:none!important}
-@media(max-width:620px){.block-initiative-app .bi-card-primary-stats{order:2;margin-left:auto}}
+.block-initiative-app .bi-card-secondary-statline{display:flex;justify-content:space-between;align-items:flex-end;gap:.75rem;flex:1 0 100%;width:100%;padding-top:.42rem;border-top:1px solid var(--bi-border);font-variant-numeric:tabular-nums}
+.block-initiative-app .bi-card-secondary-left{min-width:0;font-size:.88rem}
+.block-initiative-app .bi-card-secondary-right{display:flex;gap:.8rem;align-items:flex-end;margin-left:auto}
+.block-initiative-app .bi-card-secondary-stat{display:grid;justify-items:center;line-height:1;min-width:2.6rem}
+.block-initiative-app .bi-card-secondary-stat>strong{font-size:1.05rem;font-weight:800}
+.block-initiative-app .bi-card-secondary-stat>span{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;opacity:.62;margin-top:.18rem}
+.block-initiative-app .bi-card-secondary-statline + .bi-quick-stats{border-top:0;padding-top:0}
+.block-initiative-app.bi-stats-hidden .bi-card-secondary-statline{display:none!important}
+@media(max-width:620px){
+  .block-initiative-app .bi-card-secondary-statline{align-items:center}
+  .block-initiative-app .bi-card-secondary-right{gap:.55rem}
+}
 `;
     documentRef.head.append(style);
 }
