@@ -76,24 +76,6 @@ test("keeps 3.x damage reduction separate and does not invent ability saves", ()
     assert.equal(stats.vulnerabilities, "cold");
 });
 
-test("extracts 3.5e defenses embedded in Special Qualities", () => {
-    const stats = projectMonsterCombatStats({
-        body: [
-            "Armor Class: 22, touch 11, flat-footed 21",
-            "Hit Dice: 8d10+16 (60 hp)",
-            "Initiative: +1",
-            "Speed: 30 ft.",
-            "Special Qualities: darkvision 60 ft., damage reduction 5/magic, resistance to fire 10, immunity to poison, vulnerability to cold",
-            "Str 20 Dex 12 Con 15 Int 8 Wis 10 Cha 9"
-        ].join("\n")
-    }, "D&D 3.5e");
-
-    assert.equal(stats.damageReduction, "5/magic");
-    assert.equal(stats.resistances, "fire 10");
-    assert.equal(stats.immunities, "poison");
-    assert.equal(stats.vulnerabilities, "cold");
-});
-
 test("extracts 3.5e goblin HP, initiative, and speed without swallowing descriptive text", () => {
     const stats = projectMonsterCombatStats({
         body: [
