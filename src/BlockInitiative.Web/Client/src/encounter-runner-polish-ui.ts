@@ -151,6 +151,34 @@ function readHealth(card: HTMLElement): string | null {
         const single = text.match(/HP\s*(-?\d+)/i);
         if (single) return single[1];
     }
+
+    // The live health row can be rebuilt after the card polish pass. Fall back
+    // to the authoritative setup inputs so a configured/imported HP value is
+    // still present in the card header on the first encounter render.
+    const combatantId = card.dataset.combatantId;
+    const root = card.closest<HTMLElement>(".block-initiative-app");
+    if (!combatantId || !root) return null;
+
+    const setupCard = Array.from(root.querySelectorAll<HTMLElement>(".bi-entry[data-id]"))
+        .find(entry => entry.dataset.id === combatantId);
+    const healthSetup = setupCard?.querySelector<HTMLElement>("[data-combat-setup='standard']");
+    if (!healthSetup) return null;
+
+    const current = readLabeledNumber(healthSetup, "Current HP");
+    const max = readLabeledNumber(healthSetup, "Max HP");
+    if (current === null && max === null) return null;
+    if (max === null) return String(current);
+    return `${current ?? max}/${max}`;
+}
+
+function readLabeledNumber(container: HTMLElement, labelText: string): number | null {
+    for (const field of container.querySelectorAll<HTMLElement>(".bi-field")) {
+        if (field.querySelector("label")?.textContent?.trim() !== labelText) continue;
+        const raw = field.querySelector<HTMLInputElement>("input")?.value.trim() ?? "";
+        if (!raw) return null;
+        const value = Number(raw);
+        return Number.isFinite(value) ? value : null;
+    }
     return null;
 }
 
