@@ -84,13 +84,24 @@ export interface InitiativeTurnStateResponse {
     lastAdvance: TurnAdvancePreview | null;
 }
 
+let runtimeManualOrder: string[] | null = null;
+
+export function setRuntimeManualOrder(order: readonly string[] | null): void {
+    runtimeManualOrder = order ? [...order] : null;
+}
+
+export function getRuntimeManualOrder(): string[] | null {
+    return runtimeManualOrder ? [...runtimeManualOrder] : null;
+}
+
 export async function previewInitiative(
     url: string,
     request: InitiativePreviewRequest
 ): Promise<InitiativePreviewResponse> {
-    const response = await postJson<InitiativePreviewResponse>(url, request, "Initiative preview");
+    const effectiveRequest = withRuntimeManualOrder(request);
+    const response = await postJson<InitiativePreviewResponse>(url, effectiveRequest, "Initiative preview");
     window.dispatchEvent(new CustomEvent("block-initiative:preview", {
-        detail: { request, response }
+        detail: { request: effectiveRequest, response }
     }));
     return response;
 }
@@ -99,11 +110,33 @@ export async function loadInitiativeTurnState(
     url: string,
     request: InitiativeTurnStateRequest
 ): Promise<InitiativeTurnStateResponse> {
-    const response = await postJson<InitiativeTurnStateResponse>(url, request, "Initiative state");
+    const effectiveRequest = withRuntimeManualOrder(request);
+    const response = await postJson<InitiativeTurnStateResponse>(url, effectiveRequest, "Initiative state");
     window.dispatchEvent(new CustomEvent("block-initiative:state", {
-        detail: { request, response }
+        detail: { request: effectiveRequest, response }
     }));
     return response;
+}
+
+function withRuntimeManualOrder<T extends InitiativePreviewRequest>(request: T): T {
+    if (!runtimeManualOrder) return request;
+
+    const combatantIds = request.combatants.map(combatant => combatant.id);
+    if (!sameMembers(runtimeManualOrder, combatantIds)) {
+        runtimeManualOrder = null;
+        return request;
+    }
+
+    return {
+        ...request,
+        manualOrderOverride: [...runtimeManualOrder]
+    };
+}
+
+function sameMembers(left: readonly string[], right: readonly string[]): boolean {
+    if (left.length !== right.length) return false;
+    const expected = new Set(left);
+    return expected.size === left.length && right.every(id => expected.has(id));
 }
 
 async function postJson<T>(
