@@ -34,6 +34,22 @@ test("projects 5e-style combat card stats", () => {
     assert.equal(stats.conditionImmunities, "charmed, frightened");
 });
 
+test("reads normalized defense aliases from nested combat data", () => {
+    const stats = projectMonsterCombatStats({
+        defenses: {
+            damage_vulnerabilities: ["radiant"],
+            damage_resistances: ["fire", "cold"],
+            damage_immunities: ["poison"],
+            condition_immunities: ["charmed", "frightened"]
+        }
+    }, "D&D 5.5e / 2024");
+
+    assert.equal(stats.vulnerabilities, "radiant");
+    assert.equal(stats.resistances, "fire, cold");
+    assert.equal(stats.immunities, "poison");
+    assert.equal(stats.conditionImmunities, "charmed, frightened");
+});
+
 test("keeps 3.x damage reduction separate and does not invent ability saves", () => {
     const stats = projectMonsterCombatStats({
         body: [
@@ -55,6 +71,24 @@ test("keeps 3.x damage reduction separate and does not invent ability saves", ()
     assert.equal(stats.initiativeModifier, 0);
     assert.deepEqual(stats.abilities.STR, { score: 28, modifier: 9, save: null });
     assert.equal(stats.damageReduction, "10/adamantine");
+    assert.equal(stats.resistances, "fire 10");
+    assert.equal(stats.immunities, "poison");
+    assert.equal(stats.vulnerabilities, "cold");
+});
+
+test("extracts 3.5e defenses embedded in Special Qualities", () => {
+    const stats = projectMonsterCombatStats({
+        body: [
+            "Armor Class: 22, touch 11, flat-footed 21",
+            "Hit Dice: 8d10+16 (60 hp)",
+            "Initiative: +1",
+            "Speed: 30 ft.",
+            "Special Qualities: darkvision 60 ft., damage reduction 5/magic, resistance to fire 10, immunity to poison, vulnerability to cold",
+            "Str 20 Dex 12 Con 15 Int 8 Wis 10 Cha 9"
+        ].join("\n")
+    }, "D&D 3.5e");
+
+    assert.equal(stats.damageReduction, "5/magic");
     assert.equal(stats.resistances, "fire 10");
     assert.equal(stats.immunities, "poison");
     assert.equal(stats.vulnerabilities, "cold");
