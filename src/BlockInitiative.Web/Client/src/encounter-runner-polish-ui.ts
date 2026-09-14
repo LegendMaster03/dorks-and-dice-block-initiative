@@ -1,3 +1,4 @@
+import { chooseHealthEditor } from "./encounter-card-model";
 import { registerAfterRender } from "./render-lifecycle";
 
 let initialized = false;
@@ -79,12 +80,17 @@ function ensureSecondaryStatline(card: HTMLElement): void {
         factRow.hidden = Array.from(factRow.children).every(child => child instanceof HTMLElement && child.hidden);
     }
 
-    // The compact HP editor is the encounter's actual DM-owned health tracker.
-    // Move only that control into the stat line; do not move the containing
-    // health row, which also carries dashboard/layout state and condition UI.
+    // Hook 50 creates the real HP editor inside the health row. Hook 160 moves
+    // that editor into the card stat line, so later passes must treat the card
+    // as its owner. A newly rendered health row takes precedence and replaces
+    // any stale card-owned editor.
     const healthRow = card.querySelector<HTMLElement>(".bi-integrated-health[data-combatant-id]");
-    const healthEditor = healthRow?.querySelector<HTMLElement>(":scope > .bi-hp-editor") ?? null;
+    const rowHealthEditor = healthRow?.querySelector<HTMLElement>(":scope > .bi-hp-editor") ?? null;
     let statline = card.querySelector<HTMLElement>(":scope > .bi-card-secondary-statline");
+    const ownedHealthEditor = statline?.querySelector<HTMLElement>(
+        ":scope > .bi-card-secondary-right > .bi-card-secondary-health > .bi-hp-editor"
+    ) ?? null;
+    const healthEditor = chooseHealthEditor(rowHealthEditor, ownedHealthEditor);
     if (!speed && !ac && !healthEditor) {
         statline?.remove();
         return;
@@ -138,6 +144,9 @@ function ensureSecondaryStatline(card: HTMLElement): void {
             caption.textContent = "HP";
             healthWrap.append(caption);
             right.append(healthWrap);
+        }
+        for (const staleEditor of Array.from(healthWrap.querySelectorAll<HTMLElement>(":scope > .bi-hp-editor"))) {
+            if (staleEditor !== healthEditor) staleEditor.remove();
         }
         const caption = healthWrap.querySelector<HTMLElement>(":scope > .bi-card-secondary-health-label");
         if (healthEditor.parentElement !== healthWrap) {

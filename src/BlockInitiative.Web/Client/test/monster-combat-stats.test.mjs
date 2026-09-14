@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { defenseRows, mergeMonsterCombatStats } from "../.test-dist/encounter-card-model.js";
 import { projectMonsterCombatStats } from "../.test-dist/monster-combat-stats.js";
 
 test("projects 5e-style combat card stats", () => {
@@ -32,6 +33,12 @@ test("projects 5e-style combat card stats", () => {
     assert.equal(stats.resistances, "fire, lightning while bloodied");
     assert.equal(stats.immunities, "poison");
     assert.equal(stats.conditionImmunities, "charmed, frightened");
+    assert.deepEqual(defenseRows(stats), [
+        { label: "Vulnerable", value: "cold" },
+        { label: "Resistant", value: "fire, lightning while bloodied" },
+        { label: "Immune", value: "poison" },
+        { label: "Condition Immune", value: "charmed, frightened" }
+    ]);
 });
 
 test("reads normalized defense aliases from nested combat data", () => {
@@ -74,6 +81,54 @@ test("keeps 3.x damage reduction separate and does not invent ability saves", ()
     assert.equal(stats.resistances, "fire 10");
     assert.equal(stats.immunities, "poison");
     assert.equal(stats.vulnerabilities, "cold");
+    assert.deepEqual(defenseRows(stats), [
+        { label: "Vulnerable", value: "cold" },
+        { label: "Resistant", value: "fire 10" },
+        { label: "Immune", value: "poison" },
+        { label: "Damage Reduction", value: "10/adamantine" }
+    ]);
+});
+
+test("manual defense values reach the encounter-card defense rows", () => {
+    const manual = {
+        ...projectMonsterCombatStats({}, "Manual"),
+        vulnerabilities: "radiant",
+        resistances: "fire 5",
+        immunities: "poison",
+        conditionImmunities: "charmed",
+        damageReduction: "5/silver"
+    };
+
+    assert.deepEqual(defenseRows(manual), [
+        { label: "Vulnerable", value: "radiant" },
+        { label: "Resistant", value: "fire 5" },
+        { label: "Immune", value: "poison" },
+        { label: "Condition Immune", value: "charmed" },
+        { label: "Damage Reduction", value: "5/silver" }
+    ]);
+});
+
+test("manual defense overrides preserve linked Rules Core defenses that were not overridden", () => {
+    const linked = projectMonsterCombatStats({
+        vulnerable: ["cold"],
+        resist: ["fire"],
+        immune: ["poison"],
+        conditionImmune: ["frightened"]
+    }, "D&D 5.5e / 2024");
+    const manual = {
+        ...projectMonsterCombatStats({}, "Manual"),
+        resistances: "lightning",
+        damageReduction: "5/silver"
+    };
+
+    const merged = mergeMonsterCombatStats(linked, manual);
+    assert.deepEqual(defenseRows(merged), [
+        { label: "Vulnerable", value: "cold" },
+        { label: "Resistant", value: "lightning" },
+        { label: "Immune", value: "poison" },
+        { label: "Condition Immune", value: "frightened" },
+        { label: "Damage Reduction", value: "5/silver" }
+    ]);
 });
 
 test("extracts 3.5e goblin HP, initiative, and speed without swallowing descriptive text", () => {
