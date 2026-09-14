@@ -42,7 +42,7 @@ function enhance(root: HTMLElement): void {
 
         const combatant = byId.get(combatantId);
         if (combatant) ensureInitiativeDisplay(card, combatant);
-        ensureContextMenu(card, combatantId);
+        ensureContextMenu(root, card, combatantId);
         suppressDuplicateInitiativeFact(card);
         refreshConditionPresentation(card);
     }
@@ -74,7 +74,7 @@ function ensureInitiativeDisplay(card: HTMLElement, combatant: CombatantPreview)
         : `Rolled initiative ${formatNumber(combatant.initiativeTotal)}.`;
 }
 
-function ensureContextMenu(card: HTMLElement, combatantId: string): void {
+function ensureContextMenu(root: HTMLElement, card: HTMLElement, combatantId: string): void {
     let wrapper = card.querySelector<HTMLElement>(":scope > .bi-card-context-wrap");
     if (!wrapper) {
         wrapper = document.createElement("div");
@@ -117,10 +117,28 @@ function ensureContextMenu(card: HTMLElement, combatantId: string): void {
     const menu = wrapper.querySelector<HTMLElement>(":scope > .bi-card-context-menu");
     if (!menu) return;
 
-    const conditionSection = card.querySelector<HTMLElement>(":scope > .bi-integrated-conditions");
-    if (conditionSection && conditionSection.parentElement !== menu) {
-        conditionSection.classList.add("bi-card-context-conditions");
+    let conditionSection = menu.querySelector<HTMLElement>(":scope > .bi-card-context-conditions");
+    if (!conditionSection) {
+        conditionSection = document.createElement("section");
+        conditionSection.className = "bi-card-context-conditions";
         menu.append(conditionSection);
+    }
+
+    const editors = Array.from(root.querySelectorAll<HTMLElement>(`[data-condition-editor-for='${cssEscape(combatantId)}']`));
+    const editor = editors[editors.length - 1];
+    if (editor && editor.parentElement !== conditionSection) {
+        for (const stale of editors.slice(0, -1)) stale.remove();
+        conditionSection.replaceChildren(editor);
+    }
+
+    if (!conditionSection.querySelector("[data-condition-editor-for]")) {
+        const note = conditionSection.querySelector<HTMLElement>(":scope > .bi-card-context-empty")
+            ?? document.createElement("div");
+        note.className = "bi-card-context-empty bi-muted";
+        note.textContent = "Condition controls are loading.";
+        if (!note.isConnected) conditionSection.append(note);
+    } else {
+        conditionSection.querySelector(":scope > .bi-card-context-empty")?.remove();
     }
 }
 
@@ -210,7 +228,6 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-card-context-menu[hidden]{display:none!important}
 .block-initiative-app .bi-card-context-heading{display:block;margin-bottom:.45rem}
 .block-initiative-app .bi-card-context-conditions{display:block!important;width:auto!important;flex:none!important;border:0!important;padding:0!important;margin:0!important}
-.block-initiative-app .bi-card-context-conditions>strong{display:none}
 .block-initiative-app .bi-card-context-conditions .bi-condition-editor{display:flex;min-width:0}
 .block-initiative-app .bi-card-condition-summary{flex:1 0 100%;width:100%;display:flex;flex-wrap:wrap;gap:.3rem;align-items:center}
 .block-initiative-app .bi-card-condition-chip,.block-initiative-app .bi-card-context-menu .bi-condition-chip{border:1px solid transparent;border-radius:999px;padding:.14rem .5rem;font-size:.76rem;font-weight:650;line-height:1.25}
@@ -235,4 +252,9 @@ function formatNumber(value: number): string {
 
 function signed(value: number): string {
     return `${value >= 0 ? "+" : ""}${formatNumber(value)}`;
+}
+
+function cssEscape(value: string): string {
+    if (typeof CSS !== "undefined" && typeof CSS.escape === "function") return CSS.escape(value);
+    return value.replace(/[\\'"\]\[]/g, match => `\\${match}`);
 }
