@@ -1,3 +1,5 @@
+import { projectMonsterCombatStats } from "./monster-combat-stats";
+
 export type MonsterMatchKind = "resolved" | "source";
 
 export interface RuleBrowserLink {
@@ -148,6 +150,7 @@ export async function loadMonsterTemplate(match: MonsterSearchMatch): Promise<Mo
             match,
             typeof detail.displayName === "string" && detail.displayName.trim() ? detail.displayName : match.displayName,
             isRecord(detail.document) ? detail.document : {},
+            detail.editionDisplayName ?? match.editionDisplayName,
             detail.browserLink ?? match.browserLink ?? null);
     } else {
         const detail = await getJson<SourceEntityDetail>(
@@ -157,6 +160,7 @@ export async function loadMonsterTemplate(match: MonsterSearchMatch): Promise<Mo
             match,
             typeof detail.name === "string" && detail.name.trim() ? detail.name : match.displayName,
             isRecord(detail.document) ? detail.document : {},
+            detail.editionDisplayName ?? match.editionDisplayName,
             null);
     }
 
@@ -168,18 +172,20 @@ function templateFromDocument(
     match: MonsterSearchMatch,
     fallbackName: string,
     document: Record<string, unknown>,
+    editionDisplayName: string,
     browserLink: RuleBrowserLink | null
 ): MonsterTemplate {
     const name = typeof document.name === "string" && document.name.trim()
         ? document.name.trim()
         : fallbackName;
+    const combatStats = projectMonsterCombatStats(document, editionDisplayName);
 
     return {
         match,
         name,
-        maxHp: readHitPoints(document.hp),
-        initiativeModifier: readInitiativeModifier(document),
-        armorClass: readArmorClass(document.ac),
+        maxHp: combatStats.maxHp,
+        initiativeModifier: combatStats.initiativeModifier,
+        armorClass: combatStats.armorClass,
         challengeRating: readChallengeRating(document.cr),
         document,
         browserLink
@@ -198,65 +204,11 @@ function announceTemplateLink(template: MonsterTemplate): void {
     }));
 }
 
-function readHitPoints(value: unknown): number | null {
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (!isRecord(value)) return null;
-    const average = value.average;
-    return typeof average === "number" && Number.isFinite(average) ? average : null;
-}
-
-function readInitiativeModifier(document: Record<string, unknown>): number | null {
-    const explicit = readExplicitInitiative(document.initiative);
-    if (explicit !== null) return explicit;
-
-    const dexterity = document.dex;
-    if (typeof dexterity !== "number" || !Number.isFinite(dexterity)) return null;
-    return Math.floor((dexterity - 10) / 2);
-}
-
-function readExplicitInitiative(value: unknown): number | null {
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string") return parseSignedNumber(value);
-    if (!isRecord(value)) return null;
-
-    for (const key of ["bonus", "mod", "modifier", "initiativeBonus"]) {
-        const candidate = value[key];
-        if (typeof candidate === "number" && Number.isFinite(candidate)) return candidate;
-        if (typeof candidate === "string") {
-            const parsed = parseSignedNumber(candidate);
-            if (parsed !== null) return parsed;
-        }
-    }
-
-    return null;
-}
-
-function readArmorClass(value: unknown): string | null {
-    if (typeof value === "number" || typeof value === "string") return String(value);
-    if (!Array.isArray(value) || value.length === 0) return null;
-
-    const first = value[0];
-    if (typeof first === "number" || typeof first === "string") return String(first);
-    if (isRecord(first)) {
-        const ac = first.ac;
-        if (typeof ac === "number" || typeof ac === "string") return String(ac);
-    }
-
-    return null;
-}
-
 function readChallengeRating(value: unknown): string | null {
     if (typeof value === "number" || typeof value === "string") return String(value);
     if (!isRecord(value)) return null;
     const cr = value.cr;
     return typeof cr === "number" || typeof cr === "string" ? String(cr) : null;
-}
-
-function parseSignedNumber(value: string): number | null {
-    const match = value.trim().match(/[+-]?\d+(?:\.\d+)?/);
-    if (!match) return null;
-    const parsed = Number(match[0]);
-    return Number.isFinite(parsed) ? parsed : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

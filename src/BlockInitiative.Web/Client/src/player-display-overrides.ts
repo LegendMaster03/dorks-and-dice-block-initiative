@@ -14,7 +14,6 @@ export function initializePlayerDisplayOverrides(): void {
 .block-initiative-app.bi-stats-hidden .bi-kaiju-panel>.bi-row .bi-muted,
 .block-initiative-app.bi-stats-hidden .bi-kaiju-panel>.bi-row .bi-statuses,
 .block-initiative-app.bi-stats-hidden .bi-kaiju-panel>:not(.bi-row):not(.bi-combat-condition-control){display:none!important}
-.block-initiative-app.bi-stats-hidden [data-combat-dashboard]>:first-child>.bi-muted{display:none!important}
 `;
     documentRef.head.append(style);
 }

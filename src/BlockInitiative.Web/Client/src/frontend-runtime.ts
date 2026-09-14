@@ -1,4 +1,5 @@
 import { initializeCombatStateUi } from "./combat-state-ui";
+import { initializeCombatantDragReorderUi } from "./combatant-drag-reorder-ui";
 import { initializeCombatantFieldUi } from "./combatant-field-ui";
 import { initializeCombatantQuickStatsUi } from "./combatant-quick-stats-ui";
 import { initializeConditionLayoutUi } from "./condition-layout-ui";
@@ -6,10 +7,12 @@ import { initializeConditionTrackingUi } from "./condition-tracking-ui";
 import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
 import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
+import { initializeIntegratedRunnerCleanupUi } from "./integrated-runner-cleanup";
 import { initializeKaijuLayoutUi } from "./kaiju-layout-ui";
 import { initializeOtherSideUi } from "./other-side-ui";
 import { initializePlayerDisplayOverrides } from "./player-display-overrides";
 import { initializeRulesCoreLinkUi } from "./rules-core-link-ui";
+import { initializeSetupLayoutUi } from "./setup-layout-ui";
 import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
 import { requestEnhancement } from "./render-lifecycle";
 
@@ -24,6 +27,7 @@ export function initializeFrontendRuntime(): void {
     // Registration order is encoded by each module's after-render priority.
     // Initialization only installs stable event handlers/styles and registers
     // hooks; application-owned DOM changes are handled by requested passes.
+    initializeSetupLayoutUi();
     initializeOtherSideUi();
     initializeCombatantFieldUi();
     initializeCombatStateUi();
@@ -36,6 +40,8 @@ export function initializeFrontendRuntime(): void {
     initializeConditionLayoutUi();
     initializeRulesCoreLinkUi();
     initializeCombatantQuickStatsUi();
+    initializeCombatantDragReorderUi();
+    initializeIntegratedRunnerCleanupUi();
     initializePlayerDisplayOverrides();
 
     // App-level form events are authoritative render/enhancement boundaries.

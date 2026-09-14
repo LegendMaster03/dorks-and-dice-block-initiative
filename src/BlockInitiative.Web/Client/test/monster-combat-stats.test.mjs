@@ -59,3 +59,22 @@ test("keeps 3.x damage reduction separate and does not invent ability saves", ()
     assert.equal(stats.immunities, "poison");
     assert.equal(stats.vulnerabilities, "cold");
 });
+
+test("extracts 3.5e goblin HP, initiative, and speed without swallowing descriptive text", () => {
+    const stats = projectMonsterCombatStats({
+        body: [
+            "Armor Class: 15, touch 12, flat-footed 13",
+            "Hit Dice: 1d8+1 (5 hp)",
+            "Initiative: +1",
+            "Speed is 30 feet. —Darkvision out to 60 feet. — +4 racial bonus on Move Silently and Ride checks. —Automatic Languages: Common, Goblin. Bonus Languages: Draconic, Elven, Giant, Gnoll, Orc. —Favored Class: Rogue.",
+            "The goblin warrior presented here had the following ability scores before racial adjustments: Str 13 Dex 11 Con 12 Int 10 Wis 9 Cha 8"
+        ].join("\n")
+    }, "D&D 3.5e");
+
+    assert.equal(stats.armorClass, "15");
+    assert.equal(stats.maxHp, 5);
+    assert.equal(stats.initiativeModifier, 1);
+    assert.equal(stats.speed, "30 feet");
+    assert.deepEqual(stats.abilities.STR, { score: 13, modifier: 1, save: null });
+    assert.deepEqual(stats.abilities.DEX, { score: 11, modifier: 0, save: null });
+});
