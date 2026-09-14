@@ -262,7 +262,9 @@ function ensureDashboard(root: HTMLElement): void {
         }
     }
 
-    const actions = runner.querySelector(".bi-actions");
+    // The runner contains nested toolbars that also use .bi-actions. Only a
+    // direct child can be a valid insertBefore reference for the dashboard.
+    const actions = runner.querySelector<HTMLElement>(":scope > .bi-actions");
     actions ? runner.insertBefore(dashboard, actions) : runner.append(dashboard);
 }
 

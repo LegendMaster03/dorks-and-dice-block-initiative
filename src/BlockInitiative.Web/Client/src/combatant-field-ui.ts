@@ -9,6 +9,10 @@ export function initializeCombatantFieldUi(): void {
 
     installStyles(root);
     registerAfterRender("combatant-fields", 20, () => enhance(root));
+    // Combat stats are added later in the lifecycle and may temporarily claim
+    // the existing modifier field. Reassert primary-field ownership after
+    // those setup enhancements so Mod remains a top-level roster column.
+    registerAfterRender("combatant-field-placement", 130, () => enhance(root));
 }
 
 function installStyles(root: HTMLElement): void {
@@ -45,15 +49,13 @@ function installStyles(root: HTMLElement): void {
 
 function enhance(root: HTMLElement): void {
     for (const card of root.querySelectorAll<HTMLElement>(".bi-entry[data-id]")) {
-        if (card.dataset.primaryFieldsReady === "true") continue;
-
         const main = card.querySelector<HTMLElement>(".bi-entry-main");
         const initiativeWrap = card.querySelector<HTMLElement>("[data-role='initiative-wrap']");
         const modifierInput = card.querySelector<HTMLInputElement>("[data-field='modifier']");
         const blockTypeInput = card.querySelector<HTMLSelectElement>("[data-field='block-type']");
         const controllerInput = card.querySelector<HTMLSelectElement>("[data-field='controller']");
         const rulesReferenceInput = card.querySelector<HTMLInputElement>("[data-field='rules-reference']");
-        const details = modifierInput?.closest("details");
+        const details = blockTypeInput?.closest("details");
 
         if (!main || !initiativeWrap || !modifierInput || !blockTypeInput || !controllerInput || !rulesReferenceInput || !(details instanceof HTMLDetailsElement)) continue;
 
@@ -70,7 +72,9 @@ function enhance(root: HTMLElement): void {
         const modifierLabel = modifierField.querySelector("label");
         if (modifierLabel) modifierLabel.textContent = "Initiative modifier";
         modifierInput.placeholder = "e.g. +2";
-        initiativeWrap.before(modifierField);
+        if (modifierField.parentElement !== main || modifierField.nextElementSibling !== initiativeWrap) {
+            initiativeWrap.before(modifierField);
+        }
 
         blockTypeField.hidden = true;
         controllerField.hidden = true;
