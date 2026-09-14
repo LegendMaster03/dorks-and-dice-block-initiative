@@ -34,6 +34,22 @@ test("projects 5e-style combat card stats", () => {
     assert.equal(stats.conditionImmunities, "charmed, frightened");
 });
 
+test("reads normalized defense aliases from nested combat data", () => {
+    const stats = projectMonsterCombatStats({
+        defenses: {
+            damage_vulnerabilities: ["radiant"],
+            damage_resistances: ["fire", "cold"],
+            damage_immunities: ["poison"],
+            condition_immunities: ["charmed", "frightened"]
+        }
+    }, "D&D 5.5e / 2024");
+
+    assert.equal(stats.vulnerabilities, "radiant");
+    assert.equal(stats.resistances, "fire, cold");
+    assert.equal(stats.immunities, "poison");
+    assert.equal(stats.conditionImmunities, "charmed, frightened");
+});
+
 test("keeps 3.x damage reduction separate and does not invent ability saves", () => {
     const stats = projectMonsterCombatStats({
         body: [

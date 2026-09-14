@@ -48,39 +48,67 @@ export function projectMonsterCombatStats(
         initiativeModifier: readInitiativeModifier(document, abilities.DEX.modifier, legacy),
         abilities,
         vulnerabilities: firstFormatted([
-            document.vulnerable,
-            document.vulnerabilities,
-            document.damageVulnerabilities,
+            ...defenseCandidates(document, [
+                "vulnerable", "vulnerability", "vulnerabilities",
+                "damageVulnerability", "damageVulnerabilities",
+                "weakness", "weaknesses"
+            ]),
             legacy.get("Damage Vulnerabilities"),
-            legacy.get("Vulnerabilities")
+            legacy.get("Vulnerabilities"),
+            legacy.get("Weaknesses")
         ]),
         resistances: firstFormatted([
-            document.resist,
-            document.resistance,
-            document.resistances,
-            document.damageResistances,
+            ...defenseCandidates(document, [
+                "resist", "resistance", "resistances",
+                "damageResistance", "damageResistances"
+            ]),
             legacy.get("Damage Resistances"),
             legacy.get("Resistances")
         ]),
         immunities: firstFormatted([
-            document.immune,
-            document.immunities,
-            document.damageImmunities,
+            ...defenseCandidates(document, [
+                "immune", "immunity", "immunities",
+                "damageImmunity", "damageImmunities"
+            ]),
             legacy.get("Damage Immunities"),
             legacy.get("Immunities")
         ]),
         conditionImmunities: firstFormatted([
-            document.conditionImmune,
-            document.conditionImmunities,
+            ...defenseCandidates(document, [
+                "conditionImmune", "conditionImmunity", "conditionImmunities"
+            ]),
             legacy.get("Condition Immunities")
         ]),
         damageReduction: firstFormatted([
-            document.damageReduction,
-            document.dr,
+            ...defenseCandidates(document, ["damageReduction", "dr"]),
             legacy.get("Damage Reduction"),
             legacy.get("DR")
         ])
     };
+}
+
+function defenseCandidates(document: Record<string, unknown>, names: string[]): unknown[] {
+    const wanted = new Set(names.map(normalizeFieldName));
+    const sources: Record<string, unknown>[] = [document];
+    for (const containerName of [
+        "defense", "defenses", "defence", "defences",
+        "combatStats", "combatStatistics", "statistics", "stats", "statblock", "attributes"
+    ]) {
+        const container = document[containerName];
+        if (isRecord(container)) sources.push(container);
+    }
+
+    const matches: unknown[] = [];
+    for (const source of sources) {
+        for (const [key, value] of Object.entries(source)) {
+            if (wanted.has(normalizeFieldName(key))) matches.push(value);
+        }
+    }
+    return matches;
+}
+
+function normalizeFieldName(value: string): string {
+    return value.replace(/[^a-z0-9]/gi, "").toLowerCase();
 }
 
 function readAbilitySaves(document: Record<string, unknown>): Map<string, number> {
