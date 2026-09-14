@@ -37,6 +37,7 @@ export function initializeEncounterRunnerPolishUi(): void {
         // always be visually obvious rather than being an optional overlay.
         root.classList.add("bi-show-active-block");
         root.querySelector<HTMLButtonElement>("[data-action='toggle-active-block-highlight']")?.remove();
+        highlightActiveNavigation(root);
 
         // The round counter already communicates normal round transitions.
         // Keep exceptional messages such as the round-one cyclic merge.
@@ -46,6 +47,7 @@ export function initializeEncounterRunnerPolishUi(): void {
 
         for (const card of root.querySelectorAll<HTMLElement>(".bi-runner-member[data-combatant-id]")) {
             ensurePrimaryStats(card);
+            normalizeHeaderOrder(card);
         }
 
         for (const menu of root.querySelectorAll<HTMLElement>(".bi-card-context-menu:not([hidden])")) {
@@ -53,6 +55,14 @@ export function initializeEncounterRunnerPolishUi(): void {
             if (trigger) positionContextMenu(trigger, menu);
         }
     });
+}
+
+function highlightActiveNavigation(root: HTMLElement): void {
+    const activeBlock = root.querySelector<HTMLElement>("[data-runner-block].bi-active[data-block-id]");
+    const activeId = activeBlock?.dataset.blockId ?? null;
+    for (const chip of root.querySelectorAll<HTMLElement>(".bi-block-jump[data-block-id]")) {
+        chip.classList.toggle("active", Boolean(activeId && chip.dataset.blockId === activeId));
+    }
 }
 
 function ensurePrimaryStats(card: HTMLElement): void {
@@ -84,6 +94,21 @@ function ensurePrimaryStats(card: HTMLElement): void {
     cluster.replaceChildren();
     if (ac) cluster.append(metric("AC", ac));
     if (hp) cluster.append(metric("HP", hp));
+}
+
+function normalizeHeaderOrder(card: HTMLElement): void {
+    const primaryStats = card.querySelector<HTMLElement>(":scope > .bi-card-primary-stats");
+    const initiative = card.querySelector<HTMLElement>(":scope > .bi-card-initiative");
+    const acted = card.querySelector<HTMLElement>(":scope > .bi-acted-toggle");
+    const context = card.querySelector<HTMLElement>(":scope > .bi-card-context-wrap");
+    const firstBody = card.querySelector<HTMLElement>(
+        ":scope > .bi-card-condition-summary, :scope > .bi-quick-stats, :scope > .bi-integrated-state, :scope > .bi-integrated-conditions"
+    );
+
+    for (const item of [primaryStats, initiative, acted, context]) {
+        if (!item) continue;
+        firstBody ? card.insertBefore(item, firstBody) : card.append(item);
+    }
 }
 
 function readHealth(card: HTMLElement): string | null {
