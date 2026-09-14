@@ -1,5 +1,6 @@
 import { initializeCombatStateUi } from "./combat-state-ui";
 import { initializeCombatantFieldUi } from "./combatant-field-ui";
+import { initializeCombatantQuickStatsUi } from "./combatant-quick-stats-ui";
 import { initializeConditionLayoutUi } from "./condition-layout-ui";
 import { initializeConditionTrackingUi } from "./condition-tracking-ui";
 import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
@@ -7,6 +8,7 @@ import { initializeHealthControlUi } from "./health-control-ui";
 import { initializeInitiativeRollUi } from "./initiative-roll-ui";
 import { initializeKaijuLayoutUi } from "./kaiju-layout-ui";
 import { initializeOtherSideUi } from "./other-side-ui";
+import { initializePlayerDisplayOverrides } from "./player-display-overrides";
 import { initializeRulesCoreLinkUi } from "./rules-core-link-ui";
 import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
 import { requestEnhancement } from "./render-lifecycle";
@@ -33,6 +35,8 @@ export function initializeFrontendRuntime(): void {
     initializeConditionTrackingUi();
     initializeConditionLayoutUi();
     initializeRulesCoreLinkUi();
+    initializeCombatantQuickStatsUi();
+    initializePlayerDisplayOverrides();
 
     // App-level form events are authoritative render/enhancement boundaries.
     // Several app handlers create/remove DOM synchronously in response to these
