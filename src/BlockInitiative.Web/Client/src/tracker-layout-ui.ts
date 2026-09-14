@@ -110,6 +110,11 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app.bi-dense-tracker .bi-roster-entry>.bi-monster-meta{display:none!important}
 .block-initiative-app.bi-dense-tracker .bi-roster-entry>.bi-template-actions{grid-column:1/-1;grid-row:2;margin:.05rem 0 0}
 .block-initiative-app.bi-dense-tracker .bi-roster-entry>.bi-template-actions .btn{padding:.18rem .42rem}
+.block-initiative-app.bi-dense-tracker .bi-roster-entry>details,
+.block-initiative-app.bi-dense-tracker .bi-roster-entry>.bi-condition-setup{
+  grid-column:1/-1!important;width:100%;min-width:0;justify-self:stretch
+}
+.block-initiative-app.bi-dense-tracker .bi-roster-entry>.bi-quick-stats-setup .bi-note{max-width:none}
 
 .block-initiative-app.bi-dense-tracker .bi-roster-entry>[data-combat-setup='standard']{
   border:0!important;margin:0!important;padding:0!important;min-width:0;width:max-content;overflow:visible
