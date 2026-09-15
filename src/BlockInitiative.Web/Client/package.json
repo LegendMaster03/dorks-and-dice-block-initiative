@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "sh -c 'rm -rf .test-dist; tsc --ignoreConfig src/render-lifecycle.ts src/monster-combat-stats.ts src/combatant-reorder.ts src/encounter-card-model.ts --outDir .test-dist --module ESNext --target ES2022 --moduleResolution Bundler --skipLibCheck; status=$?; if [ $status -eq 0 ]; then node --test test/render-lifecycle.test.mjs test/monster-combat-stats.test.mjs test/combatant-reorder.test.mjs; status=$?; fi; rm -rf .test-dist; exit $status'",
+    "test": "sh -c 'rm -rf .test-dist; tsc --ignoreConfig src/render-lifecycle.ts src/monster-combat-stats.ts src/combatant-reorder.ts src/encounter-card-model.ts src/campaign-roster.ts --outDir .test-dist --module ESNext --target ES2022 --moduleResolution Bundler --skipLibCheck; status=$?; if [ $status -eq 0 ]; then node --test test/render-lifecycle.test.mjs test/monster-combat-stats.test.mjs test/combatant-reorder.test.mjs test/campaign-roster.test.mjs test/encounter-persistence.test.mjs; status=$?; fi; rm -rf .test-dist; exit $status'",
     "typecheck": "tsc --noEmit",
     "build": "npm run test && npm run typecheck && vite build"
   },

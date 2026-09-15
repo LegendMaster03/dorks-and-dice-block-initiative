@@ -1,3 +1,4 @@
+import { initializeCampaignUi } from "./campaign-ui";
 import { initializeCombatStateUi } from "./combat-state-ui";
 import { initializeCombatStatsCollapseUi } from "./combat-stats-collapse-ui";
 import { initializeCombatantDragReorderUi } from "./combatant-drag-reorder-ui";
@@ -7,6 +8,7 @@ import { initializeConditionLayoutUi } from "./condition-layout-ui";
 import { initializeConditionTrackingUi } from "./condition-tracking-ui";
 import { initializeEncounterCardAffordancesUi } from "./encounter-card-affordances-ui";
 import { initializeEncounterCardLayoutUi } from "./encounter-card-layout-ui";
+import { initializeEncounterPersistence } from "./encounter-persistence";
 import { initializeEncounterRunnerPolishUi } from "./encounter-runner-polish-ui";
 import { initializeEncounterSetupPolishUi } from "./encounter-setup-polish-ui";
 import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
@@ -33,6 +35,7 @@ export function initializeFrontendRuntime(): void {
     // Initialization only installs stable event handlers/styles and registers
     // hooks; application-owned DOM changes are handled by requested passes.
     initializeSetupLayoutUi();
+    initializeCampaignUi();
     initializeOtherSideUi();
     initializeCombatantFieldUi();
     initializeCombatStateUi();
@@ -53,6 +56,7 @@ export function initializeFrontendRuntime(): void {
     initializeEncounterCardAffordancesUi();
     initializeEncounterRunnerPolishUi();
     initializePlayerDisplayOverrides();
+    initializeEncounterPersistence();
 
     // App-level form events are authoritative render/enhancement boundaries.
     // Enhancement-owned popovers manage their own transient input state and
