@@ -55,7 +55,7 @@ export function initializeCampaignUi(): void {
     let hostContext: ToolHostContext | null = null;
     let campaignContext: ToolHostCampaignContext | null = null;
     let campaignSummaries: ToolHostCampaignSummary[] = [];
-    let loadingCampaign = false;
+    let campaignRequestSequence = 0;
 
     select.addEventListener("change", () => {
         void selectCampaign(select.value);
@@ -92,6 +92,8 @@ export function initializeCampaignUi(): void {
     }
 
     async function selectCampaign(campaignId: string): Promise<void> {
+        const requestSequence = ++campaignRequestSequence;
+
         if (!campaignId) {
             campaignContext = null;
             importButton.disabled = true;
@@ -101,15 +103,14 @@ export function initializeCampaignUi(): void {
             return;
         }
 
-        if (!hostContext?.user || loadingCampaign) return;
-        loadingCampaign = true;
+        if (!hostContext?.user) return;
         select.disabled = true;
         importButton.disabled = true;
         status.textContent = "Loading campaign roster…";
 
         try {
             const loaded = await loadToolHostCampaignContext(hostContext, campaignId);
-            if (select.value !== campaignId) return;
+            if (requestSequence !== campaignRequestSequence || select.value !== campaignId) return;
 
             campaignContext = loaded;
             root.dataset.campaignId = loaded.campaignId;
@@ -123,13 +124,15 @@ export function initializeCampaignUi(): void {
             const participantLabel = `${loaded.participants.length} active participant${loaded.participants.length === 1 ? "" : "s"}`;
             status.textContent = `${loaded.name}: ${characterLabel}; ${participantLabel}. Your campaign role${loaded.requestingUserRoles.length === 1 ? "" : "s"}: ${roles}.`;
         } catch (error) {
+            if (requestSequence !== campaignRequestSequence) return;
             campaignContext = null;
             delete root.dataset.campaignId;
             dispatchCampaignChange(root, null);
             status.textContent = campaignErrorMessage(error);
         } finally {
-            loadingCampaign = false;
-            select.disabled = false;
+            if (requestSequence === campaignRequestSequence) {
+                select.disabled = false;
+            }
         }
     }
 }
@@ -162,6 +165,7 @@ function importCampaignCharacters(
         name: nameInput(card)?.value ?? ""
     }));
     const missing = charactersMissingFromEncounter(existing, campaign.characters);
+    let added = 0;
 
     for (const character of missing) {
         let card = firstBlankPlayerCard(playerContainer);
@@ -179,10 +183,11 @@ function importCampaignCharacters(
         input.value = character.name;
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
+        added++;
     }
 
-    if (missing.length > 0) requestEnhancement();
-    return missing.length;
+    if (added > 0) requestEnhancement();
+    return added;
 }
 
 function playerCards(container: HTMLElement): HTMLElement[] {
