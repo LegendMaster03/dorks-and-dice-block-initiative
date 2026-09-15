@@ -7,6 +7,11 @@ export default defineConfig({
             formats: ["es"],
             fileName: () => "app.js"
         },
+        rollupOptions: {
+            output: {
+                inlineDynamicImports: true
+            }
+        },
         outDir: "../wwwroot",
         emptyOutDir: true,
         sourcemap: true
