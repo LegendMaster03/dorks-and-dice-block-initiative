@@ -29,6 +29,22 @@ BlockInitiative.Core
 
 The TypeScript client owns the interactive encounter workspace. Complex browser-side state is expected; the Embedded Module choice is a hosting decision and does not limit the frontend to a single-file widget.
 
+## Campaign integration
+
+Campaign support is an optional host integration, not a prerequisite for initiative tracking. Standalone and anonymous hosted sessions retain the manual roster workflow.
+
+The main site remains authoritative for campaign membership, roles, participants, and campaign-character associations. Block Initiative consumes the Tool Host's stable read-only campaign projection and does not access the site's campaign persistence directly.
+
+The distinction between campaign concepts remains intact:
+
+- membership and roles represent authenticated campaign authority;
+- participants represent people at the table, including guests without accounts;
+- campaign-linked characters represent character records that can seed player combatants.
+
+The initial integration is deliberately additive. Selecting a campaign exposes context to the encounter workspace and allows active linked characters to be added to the player roster. Existing manual combatants are retained, and participants are not automatically converted into characters or combatants.
+
+Imported combatant cards retain stable campaign/character identifiers as metadata. That creates a future synchronization and persistence boundary without making display names authoritative or introducing persistence into `BlockInitiative.Core`.
+
 ## Frontend render lifecycle
 
 Block Initiative owns the DOM inside `#tool-root`, so application-owned mutations are coordinated explicitly rather than rediscovered with `MutationObserver`.
@@ -82,6 +98,8 @@ Unresolved rules cases should appear only when encountered. Opposing-side initia
 ## Persistence
 
 No persistence technology is selected yet. Encounter storage requirements need to be established before choosing PostgreSQL, another service, or a different persistence model.
+
+Campaign selection and roster import do not constitute encounter persistence. The selected campaign and linked-character IDs are retained as integration metadata so a future persistence layer can associate encounters with campaigns without coupling storage decisions to the initiative engine.
 
 ## Real-time synchronization
 
