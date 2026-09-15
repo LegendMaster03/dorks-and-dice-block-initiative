@@ -18,16 +18,17 @@ export function initializeCampaignUi(): void {
 
     const root = document.getElementById("tool-root");
     if (!(root instanceof HTMLElement)) return;
+    const appRoot: HTMLElement = root;
     initialized = true;
 
-    const contextUrl = root.dataset.toolContextUrl;
+    const contextUrl = appRoot.dataset.toolContextUrl;
     if (!contextUrl) return;
 
-    const setup = root.querySelector<HTMLElement>("[data-role='setup']");
+    const setup = appRoot.querySelector<HTMLElement>("[data-role='setup']");
     const sides = setup?.querySelector<HTMLElement>(".bi-sides");
     if (!setup || !sides) return;
 
-    installStyles(root);
+    installStyles(appRoot);
 
     const panel = document.createElement("section");
     panel.className = "bi-campaign-panel";
@@ -62,7 +63,7 @@ export function initializeCampaignUi(): void {
     });
     importButton.addEventListener("click", () => {
         if (!campaignContext) return;
-        const added = importCampaignCharacters(root, campaignContext);
+        const added = importCampaignCharacters(appRoot, campaignContext);
         status.textContent = added === 0
             ? "All active campaign-linked characters are already represented in this encounter."
             : `Added ${added} campaign character${added === 1 ? "" : "s"} to the player roster.`;
@@ -97,8 +98,8 @@ export function initializeCampaignUi(): void {
         if (!campaignId) {
             campaignContext = null;
             importButton.disabled = true;
-            delete root.dataset.campaignId;
-            dispatchCampaignChange(root, null);
+            delete appRoot.dataset.campaignId;
+            dispatchCampaignChange(appRoot, null);
             status.textContent = "Manual encounter selected. Campaign data will not be added automatically.";
             return;
         }
@@ -113,9 +114,9 @@ export function initializeCampaignUi(): void {
             if (requestSequence !== campaignRequestSequence || select.value !== campaignId) return;
 
             campaignContext = loaded;
-            root.dataset.campaignId = loaded.campaignId;
+            appRoot.dataset.campaignId = loaded.campaignId;
             importButton.disabled = loaded.characters.length === 0;
-            dispatchCampaignChange(root, loaded);
+            dispatchCampaignChange(appRoot, loaded);
 
             const roles = loaded.requestingUserRoles.length > 0
                 ? loaded.requestingUserRoles.join(", ")
@@ -126,8 +127,8 @@ export function initializeCampaignUi(): void {
         } catch (error) {
             if (requestSequence !== campaignRequestSequence) return;
             campaignContext = null;
-            delete root.dataset.campaignId;
-            dispatchCampaignChange(root, null);
+            delete appRoot.dataset.campaignId;
+            dispatchCampaignChange(appRoot, null);
             status.textContent = campaignErrorMessage(error);
         } finally {
             if (requestSequence === campaignRequestSequence) {
