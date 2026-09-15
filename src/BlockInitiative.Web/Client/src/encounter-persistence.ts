@@ -943,7 +943,7 @@ function cloneRulesCoreLink(value: unknown): SavedRulesCoreLink | null {
 }
 
 function cssEscape(value: string): string {
-    return globalThis.CSS?.escape ? CSS.escape(value) : value.replace(/[\\'\"]/g, "\\$&");
+    return CSS.escape(value);
 }
 
 function nextTask(): Promise<void> {
