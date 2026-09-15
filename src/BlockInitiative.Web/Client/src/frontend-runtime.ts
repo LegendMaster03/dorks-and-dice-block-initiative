@@ -1,3 +1,4 @@
+import { initializeCampaignUi } from "./campaign-ui";
 import { initializeCombatStateUi } from "./combat-state-ui";
 import { initializeCombatStatsCollapseUi } from "./combat-stats-collapse-ui";
 import { initializeCombatantDragReorderUi } from "./combatant-drag-reorder-ui";
@@ -33,6 +34,7 @@ export function initializeFrontendRuntime(): void {
     // Initialization only installs stable event handlers/styles and registers
     // hooks; application-owned DOM changes are handled by requested passes.
     initializeSetupLayoutUi();
+    initializeCampaignUi();
     initializeOtherSideUi();
     initializeCombatantFieldUi();
     initializeCombatStateUi();
