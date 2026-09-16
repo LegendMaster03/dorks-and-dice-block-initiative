@@ -162,7 +162,7 @@ function ensureKaijuSetup(card: HTMLElement, id: string, root: HTMLElement): voi
     panel.className = "bi-combat-config";
     panel.dataset.combatSetup = "kaiju";
     panel.innerHTML = `
-<div><strong>Kaiju battle state</strong><div class="bi-note">Kaiju use a Chaos Threshold and separate Vulnerable Area HP pools instead of normal HP.</div></div>
+<div><strong>Kaiju battle state</strong><div class="bi-note">Kaiju use a Chaos Threshold and separate Vulnerable Area HP pools instead of normal HP.</div><div class="bi-note">Kaiju Fighting rules by Loot Tavern — <a href="https://www.patreon.com/posts/ryokos-kaiju-to-141132181" target="_blank" rel="noopener noreferrer">view the official Kaiju Fighting Lite rules</a>.</div></div>
 <div class="bi-combat-grid three mt-2" data-role="kaiju-basics"></div>
 <div class="bi-field mt-2"><label>Current behaviour / phase</label><input data-field="behaviour-phase" placeholder="Record the active Behaviour or phase"></div>
 <div class="bi-row mt-3"><div><strong>Vulnerable Areas <span class="bi-muted">(weak points)</span></strong><div class="bi-note">Each has its own HP and can become targetable as Behaviours change.</div></div><button type="button" class="btn btn-sm btn-outline-secondary" data-action="add-area">+ Area</button></div>
@@ -319,7 +319,10 @@ function renderKaiju(id: string, name: string, state: KaijuState, active: boolea
     const phase = document.createElement("div");
     phase.className = "bi-muted";
     phase.textContent = state.behaviourPhase ? `Behaviour / phase: ${state.behaviourPhase}` : "Behaviour / phase not recorded";
-    title.append(h, phase);
+    const source = document.createElement("div");
+    source.className = "bi-note";
+    source.innerHTML = `Kaiju Fighting rules by Loot Tavern — <a href="https://www.patreon.com/posts/ryokos-kaiju-to-141132181" target="_blank" rel="noopener noreferrer">view the official Kaiju Fighting Lite rules</a>.`;
+    title.append(h, phase, source);
     const statuses = document.createElement("div");
     statuses.className = "bi-statuses";
     paintKaijuStatuses(statuses, evaluation);
