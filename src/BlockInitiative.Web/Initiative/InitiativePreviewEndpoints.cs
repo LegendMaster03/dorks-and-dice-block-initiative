@@ -22,10 +22,12 @@ public static class InitiativePreviewEndpoints
         {
             var combatants = ToCombatants(request.Combatants);
             var tacticalGroupMode = ParseTacticalGroupMode(request.TacticalGroupMode);
+            var initiativeMode = ParseInitiativeMode(request.InitiativeMode);
             var layout = InitiativeEngine.Build(
                 combatants,
                 request.ManualOrderOverride,
-                tacticalGroupMode);
+                tacticalGroupMode,
+                initiativeMode);
 
             return Results.Ok(ToPreviewResponse(layout));
         }
@@ -51,10 +53,12 @@ public static class InitiativePreviewEndpoints
         {
             var combatants = ToCombatants(request.Combatants);
             var tacticalGroupMode = ParseTacticalGroupMode(request.TacticalGroupMode);
+            var initiativeMode = ParseInitiativeMode(request.InitiativeMode);
             var layout = InitiativeEngine.Build(
                 combatants,
                 request.ManualOrderOverride,
-                tacticalGroupMode);
+                tacticalGroupMode,
+                initiativeMode);
 
             var isResume = request.ResumeRound is not null || request.ResumeActiveCombatantId is not null;
             if (isResume && (request.ResumeRound is null || string.IsNullOrWhiteSpace(request.ResumeActiveCombatantId)))
@@ -199,6 +203,24 @@ public static class InitiativePreviewEndpoints
             nameof(value));
     }
 
+    private static InitiativeMode ParseInitiativeMode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || string.Equals(value, "block", StringComparison.OrdinalIgnoreCase))
+        {
+            return InitiativeMode.Block;
+        }
+
+        if (string.Equals(value, "standard", StringComparison.OrdinalIgnoreCase))
+        {
+            return InitiativeMode.Standard;
+        }
+
+        throw new ArgumentException(
+            $"Unknown initiative mode '{value}'. Expected 'block' or 'standard'.",
+            nameof(value));
+    }
+
     private static string FormatBlockType(TurnBlockType blockType)
         => blockType switch
         {
@@ -212,12 +234,14 @@ public static class InitiativePreviewEndpoints
 public sealed record InitiativePreviewRequest(
     IReadOnlyList<InitiativeCombatantRequest>? Combatants,
     IReadOnlyList<string>? ManualOrderOverride = null,
-    string? TacticalGroupMode = null);
+    string? TacticalGroupMode = null,
+    string? InitiativeMode = null);
 
 public sealed record InitiativeTurnStateRequest(
     IReadOnlyList<InitiativeCombatantRequest>? Combatants,
     IReadOnlyList<string>? ManualOrderOverride = null,
     string? TacticalGroupMode = null,
+    string? InitiativeMode = null,
     int AdvanceCount = 0,
     int? ResumeRound = null,
     string? ResumeActiveCombatantId = null,

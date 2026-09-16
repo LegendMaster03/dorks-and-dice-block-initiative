@@ -5,7 +5,8 @@ public static class InitiativeEngine
     public static InitiativeLayout Build(
         IEnumerable<CombatantInitiative> combatants,
         IReadOnlyList<string>? manualOrderOverride = null,
-        TacticalGroupInitiativeMode tacticalGroupMode = TacticalGroupInitiativeMode.Individual)
+        TacticalGroupInitiativeMode tacticalGroupMode = TacticalGroupInitiativeMode.Individual,
+        InitiativeMode mode = InitiativeMode.Block)
     {
         var source = combatants.ToArray();
         ValidateCombatants(source);
@@ -40,11 +41,17 @@ public static class InitiativeEngine
                 .ThenBy(placement => placement.SourceIndex)
                 .ToArray();
 
-            issues.AddRange(FindOpposingTieIssues(ordered));
+            issues.AddRange(mode == InitiativeMode.Standard
+                ? FindStandardTieIssues(ordered, tacticalGroupMode)
+                : FindOpposingTieIssues(ordered));
         }
 
-        var blocks = BuildBlocks(ordered);
-        var cyclicMerge = BuildCyclicMergePlan(blocks);
+        var blocks = mode == InitiativeMode.Standard
+            ? BuildStandardTurns(ordered)
+            : BuildBlocks(ordered);
+        var cyclicMerge = mode == InitiativeMode.Block
+            ? BuildCyclicMergePlan(blocks)
+            : null;
 
         return new InitiativeLayout(
             source,
@@ -157,6 +164,16 @@ public static class InitiativeEngine
                 combatant.BlockType,
                 combatant.TacticalGroupId.Trim());
 
+    private static IReadOnlyList<TurnBlock> BuildStandardTurns(
+        IReadOnlyList<InitiativePlacement> ordered)
+        => ordered
+            .Select((placement, index) => CreateBlock(
+                index,
+                placement.Combatant.AllianceId,
+                placement.Combatant.BlockType,
+                new[] { placement.Combatant.Id }))
+            .ToArray();
+
     private static IReadOnlyList<TurnBlock> BuildBlocks(
         IReadOnlyList<InitiativePlacement> ordered)
     {
@@ -225,6 +242,39 @@ public static class InitiativeEngine
                 top.AllianceId,
                 TurnBlock.CombineBlockTypes(top.BlockType, bottom.BlockType))
             : null;
+    }
+
+    private static IEnumerable<InitiativeIssue> FindStandardTieIssues(
+        IReadOnlyList<InitiativePlacement> ordered,
+        TacticalGroupInitiativeMode tacticalGroupMode)
+    {
+        foreach (var tieGroup in ordered.GroupBy(placement => placement.EffectiveInitiative))
+        {
+            var tied = tieGroup.ToArray();
+            if (tied.Length < 2)
+            {
+                continue;
+            }
+
+            if (tacticalGroupMode != TacticalGroupInitiativeMode.Individual
+                && BelongToSameTacticalGroup(tied))
+            {
+                continue;
+            }
+
+            yield return new InitiativeIssue(
+                InitiativeIssueCode.TieRequiresAdjudication,
+                $"Initiative {tieGroup.Key} is tied. The displayed input order is not an adjudicated tie result; "
+                + "supply a manual order override before advancing combat.",
+                tied.Select(placement => placement.Combatant.Id).ToArray());
+        }
+    }
+
+    private static bool BelongToSameTacticalGroup(IReadOnlyList<InitiativePlacement> tied)
+    {
+        var key = GetTacticalGroupKey(tied[0].Combatant);
+        return key is not null
+            && tied.All(placement => Equals(GetTacticalGroupKey(placement.Combatant), key));
     }
 
     private static IEnumerable<InitiativeIssue> FindOpposingTieIssues(

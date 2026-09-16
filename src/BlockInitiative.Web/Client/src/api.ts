@@ -1,5 +1,8 @@
 import { initializeFrontendRuntime } from "./frontend-runtime";
+import { getInitiativeMode, initializeInitiativeModeUi } from "./initiative-mode";
+import type { InitiativeMode } from "./initiative-mode";
 
+export type { InitiativeMode } from "./initiative-mode";
 export type TurnBlockType = "standard" | "kaiju" | "mixed";
 export type TacticalGroupInitiativeMode = "individual" | "average" | "shared";
 
@@ -18,6 +21,7 @@ export interface InitiativePreviewRequest {
     combatants: InitiativeCombatantInput[];
     manualOrderOverride?: string[] | null;
     tacticalGroupMode?: TacticalGroupInitiativeMode;
+    initiativeMode?: InitiativeMode;
 }
 
 export interface InitiativeTurnStateRequest extends InitiativePreviewRequest {
@@ -98,7 +102,7 @@ export async function previewInitiative(
     url: string,
     request: InitiativePreviewRequest
 ): Promise<InitiativePreviewResponse> {
-    const effectiveRequest = withRuntimeManualOrder(request);
+    const effectiveRequest = withRuntimeSettings(request);
     const response = await postJson<InitiativePreviewResponse>(url, effectiveRequest, "Initiative preview");
     window.dispatchEvent(new CustomEvent("block-initiative:preview", {
         detail: { request: effectiveRequest, response }
@@ -110,7 +114,7 @@ export async function loadInitiativeTurnState(
     url: string,
     request: InitiativeTurnStateRequest
 ): Promise<InitiativeTurnStateResponse> {
-    const effectiveRequest = withRuntimeManualOrder(request);
+    const effectiveRequest = withRuntimeSettings(request);
     const response = await postJson<InitiativeTurnStateResponse>(url, effectiveRequest, "Initiative state");
     window.dispatchEvent(new CustomEvent("block-initiative:state", {
         detail: { request: effectiveRequest, response }
@@ -118,17 +122,22 @@ export async function loadInitiativeTurnState(
     return response;
 }
 
-function withRuntimeManualOrder<T extends InitiativePreviewRequest>(request: T): T {
-    if (!runtimeManualOrder) return request;
+function withRuntimeSettings<T extends InitiativePreviewRequest>(request: T): T {
+    const withMode = {
+        ...request,
+        initiativeMode: getInitiativeMode()
+    };
+
+    if (!runtimeManualOrder) return withMode;
 
     const combatantIds = request.combatants.map(combatant => combatant.id);
     if (!sameMembers(runtimeManualOrder, combatantIds)) {
         runtimeManualOrder = null;
-        return request;
+        return withMode;
     }
 
     return {
-        ...request,
+        ...withMode,
         manualOrderOverride: [...runtimeManualOrder]
     };
 }
@@ -176,4 +185,7 @@ async function postJson<T>(
 // synchronously create its initial application-owned DOM first. This preserves
 // the current Embedded Module host contract without using DOM mutation as the
 // mounting signal.
-window.setTimeout(initializeFrontendRuntime, 0);
+window.setTimeout(() => {
+    initializeInitiativeModeUi();
+    initializeFrontendRuntime();
+}, 0);

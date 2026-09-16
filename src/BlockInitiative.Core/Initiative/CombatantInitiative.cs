@@ -24,6 +24,17 @@ public enum TacticalGroupInitiativeMode
 }
 
 /// <summary>
+/// Selects how ordered initiative placements are converted into encounter turns.
+/// Block mode derives contiguous allied blocks and applies the round-boundary
+/// merge rule. Standard mode gives every combatant its own turn.
+/// </summary>
+public enum InitiativeMode
+{
+    Block,
+    Standard
+}
+
+/// <summary>
 /// Raw initiative facts for one combatant. These values are preserved even when
 /// controller relationships, tactical-group placement, or DM overrides change
 /// the active turn placement.
@@ -45,7 +56,8 @@ public sealed record InitiativePlacement(
 
 public enum InitiativeIssueCode
 {
-    OpposingTieRequiresAdjudication
+    OpposingTieRequiresAdjudication,
+    TieRequiresAdjudication
 }
 
 public sealed record InitiativeIssue(
