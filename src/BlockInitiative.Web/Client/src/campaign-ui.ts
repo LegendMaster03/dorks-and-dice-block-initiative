@@ -32,6 +32,7 @@ export function initializeCampaignUi(): void {
 
     const panel = document.createElement("section");
     panel.className = "bi-campaign-panel";
+    panel.hidden = true;
     panel.innerHTML = `
 <div class="bi-campaign-copy">
   <strong>Campaign</strong>
@@ -75,11 +76,11 @@ export function initializeCampaignUi(): void {
         try {
             hostContext = await loadToolHostContext(contextUrl!);
             if (!hostContext.user) {
-                status.textContent = "Sign in to Dorks & Dice to load campaign characters. Manual encounters remain available without sign-in.";
-                select.disabled = true;
+                panel.remove();
                 return;
             }
 
+            panel.hidden = false;
             campaignSummaries = await loadToolHostCampaigns(hostContext);
             populateCampaignOptions(select, campaignSummaries);
             select.disabled = false;
@@ -87,6 +88,7 @@ export function initializeCampaignUi(): void {
                 ? "This account has no active campaigns. Manual encounter setup remains available."
                 : `${campaignSummaries.length} active campaign${campaignSummaries.length === 1 ? " is" : "s are"} available.`;
         } catch (error) {
+            if (panel.hidden) return;
             status.textContent = campaignErrorMessage(error);
             select.disabled = true;
         }
@@ -233,6 +235,7 @@ function installStyles(root: HTMLElement): void {
     style.dataset.biCampaignStyles = "true";
     style.textContent = `
 .block-initiative-app .bi-campaign-panel{display:grid;grid-template-columns:minmax(12rem,.75fr) minmax(18rem,1.25fr);gap:.75rem 1rem;align-items:end;padding:.75rem;border:1px solid var(--bi-border);border-radius:.65rem;background:var(--bi-soft)}
+.block-initiative-app .bi-campaign-panel[hidden]{display:none!important}
 .block-initiative-app .bi-campaign-copy{align-self:start}.block-initiative-app .bi-campaign-controls{display:grid;grid-template-columns:minmax(12rem,1fr) auto;gap:.6rem;align-items:end}.block-initiative-app .bi-campaign-status{grid-column:1/-1}
 @media(max-width:800px){.block-initiative-app .bi-campaign-panel,.block-initiative-app .bi-campaign-controls{grid-template-columns:1fr}}
 `;

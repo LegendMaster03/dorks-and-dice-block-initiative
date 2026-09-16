@@ -9,6 +9,7 @@ import { initializeConditionTrackingUi } from "./condition-tracking-ui";
 import { initializeEncounterCardAffordancesUi } from "./encounter-card-affordances-ui";
 import { initializeEncounterCardLayoutUi } from "./encounter-card-layout-ui";
 import { initializeEncounterPersistence } from "./encounter-persistence";
+import { normalizeStoredEncounterDefaults } from "./encounter-storage-normalization";
 import { initializeEncounterRunnerPolishUi } from "./encounter-runner-polish-ui";
 import { initializeEncounterSetupPolishUi } from "./encounter-setup-polish-ui";
 import { initializeEnemyDuplicateUi } from "./enemy-duplicate-ui";
@@ -30,6 +31,8 @@ export function initializeFrontendRuntime(): void {
     const root = document.getElementById("tool-root");
     if (!(root instanceof HTMLElement)) return;
     initialized = true;
+
+    normalizeStoredEncounterDefaults();
 
     // Registration order is encoded by each module's after-render priority.
     // Initialization only installs stable event handlers/styles and registers
