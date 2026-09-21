@@ -122,6 +122,7 @@ let hosted = false;
 let busy = false;
 let searchSequence = 0;
 let runnerSession: RunnerSession | null = null;
+let runnerHistory: InitiativeTurnStateResponse[] = [];
 let editingRunningEncounter = false;
 const monsterTemplates = new Map<string, MonsterTemplate>();
 
@@ -408,7 +409,7 @@ function renderPreview(preview: InitiativePreviewResponse, request: InitiativePr
     const list = document.createElement("div"); list.className = "bi-blocks";
     preview.blocks.forEach((block, index) => { const element = document.createElement("article"); element.className = "bi-block"; const head = document.createElement("div"); head.className = "bi-block-head"; const strong = document.createElement("strong"); strong.textContent = `Block ${index + 1}`; head.append(strong, blockBadges(block.allianceId, block.blockType)); const body = document.createElement("div"); body.className = "bi-block-body"; for (const id of block.memberOrder) { const combatant = byId.get(id); const row = document.createElement("div"); row.className = "bi-member"; const name = document.createElement("span"); name.textContent = combatant?.name ?? id; const initiative = document.createElement("span"); initiative.className = "bi-muted"; if (combatant) { const groupLabel = combatant.tacticalGroupId ? ` · ${groupName(combatant.tacticalGroupId)}` : ""; const effective = combatant.effectiveInitiative !== combatant.initiativeTotal ? ` → position ${formatNumber(combatant.effectiveInitiative)}` : ""; const kaiju = combatant.blockType === "kaiju" ? " · Kaiju" : ""; initiative.textContent = `Roll ${formatNumber(combatant.initiativeTotal)}${effective}${groupLabel}${kaiju}`; } row.append(name, initiative); body.append(row); } if (block.allianceId === "players" && block.memberOrder.length > 1) { const note = document.createElement("div"); note.className = "bi-muted mt-2"; note.textContent = "Players in this block may choose their order."; body.append(note); } element.append(head, body); list.append(element); });
     section.append(list, roundBoundary(preview));
-    if (!preview.requiresAdjudication) { const action = document.createElement("div"); action.className = "bi-row bi-primary"; const actionText = document.createElement("div"); actionText.innerHTML = editingRunningEncounter ? "<strong>Resume?</strong><div class='bi-muted'>The current round and active side turn will be preserved.</div>" : "<strong>Ready?</strong><div class='bi-muted'>Tracking starts on the first active block in round 1.</div>"; const start = document.createElement("button"); start.className = "btn btn-primary"; start.textContent = editingRunningEncounter ? "Resume encounter" : "Start encounter"; start.onclick = () => void (editingRunningEncounter ? resumeEncounter(request, preview) : startEncounter(request, preview)); action.append(actionText, start); section.append(action); }
+    if (!preview.requiresAdjudication) { const action = document.createElement("div"); action.className = "bi-row bi-primary"; const actionText = document.createElement("div"); actionText.innerHTML = editingRunningEncounter ? "<strong>Resume?</strong><div class='bi-muted'>The current round and active side turn will be preserved.</div>" : "<strong>Ready?</strong><div class='bi-muted'>Tracking starts on the first active block in round 1.</div>"; const start = document.createElement("button"); start.className = "btn btn-primary"; start.dataset.action = editingRunningEncounter ? "resume-encounter" : "start-encounter"; start.textContent = editingRunningEncounter ? "Resume encounter" : "Start encounter"; start.onclick = () => void (editingRunningEncounter ? resumeEncounter(request, preview) : startEncounter(request, preview)); action.append(actionText, start); section.append(action); }
     results.append(section);
 }
 
@@ -441,6 +442,7 @@ async function startEncounter(request: InitiativePreviewRequest, preview: Initia
     try {
         const state = await loadInitiativeTurnState(stateUrl, { ...request, advanceCount: 0 });
         runnerSession = { request, preview, state };
+        runnerHistory = [];
         renderRunnerState();
     } catch (error) {
         setup.hidden = false;
@@ -469,6 +471,7 @@ async function resumeEncounter(request: InitiativePreviewRequest, preview: Initi
             resumeCyclicMergeCompleted: runnerSession.state.cyclicMergeCompleted
         });
         runnerSession = { request, preview, state };
+        runnerHistory = [];
         editingRunningEncounter = false;
         setup.querySelector("[data-role='running-edit-note']")?.remove();
         previewButton.textContent = "Build initiative blocks";
@@ -496,12 +499,21 @@ async function advanceRunner(): Promise<void> {
             resumeActiveCombatantId: anchor,
             resumeCyclicMergeCompleted: runnerSession.state.cyclicMergeCompleted
         });
+        runnerHistory.push(runnerSession.state);
         runnerSession = { ...runnerSession, state };
         renderRunnerState();
     } catch (error) {
         results.replaceChildren();
         showError(error);
     }
+}
+
+function undoRunnerAdvance(): void {
+    if (!runnerSession || runnerHistory.length === 0) return;
+    const previous = runnerHistory.pop();
+    if (!previous) return;
+    runnerSession = { ...runnerSession, state: previous };
+    renderRunnerState();
 }
 
 function beginRunningEdit(): void {
@@ -526,12 +538,12 @@ function renderRunnerState(): void {
     if (!runnerSession) return;
     const { preview, state } = runnerSession;
     results.replaceChildren(); const byId = new Map(preview.orderedCombatants.map(combatant => [combatant.id, combatant])); const activeIndex = state.blocks.findIndex(block => block.id === state.activeBlockId); const active = activeIndex >= 0 ? state.blocks[activeIndex] : null;
-    const card = document.createElement("section"); card.className = "card card-body bi-grid"; const top = document.createElement("div"); top.className = "bi-row"; const title = document.createElement("div"); const round = document.createElement("strong"); round.textContent = `Round ${state.round}`; const heading = document.createElement("h3"); heading.className = "h5 mb-0"; heading.textContent = active ? `Block ${activeIndex + 1} is active` : "Encounter"; title.append(round, heading); const edit = document.createElement("button"); edit.className = "btn btn-sm btn-outline-secondary"; edit.textContent = "Add / edit combatants"; edit.onclick = () => beginRunningEdit(); top.append(title, edit); card.append(top);
+    const card = document.createElement("section"); card.className = "card card-body bi-grid"; const top = document.createElement("div"); top.className = "bi-row"; const title = document.createElement("div"); const round = document.createElement("strong"); round.textContent = `Round ${state.round}`; const heading = document.createElement("h3"); heading.className = "h5 mb-0"; heading.textContent = active ? `Block ${activeIndex + 1} is active` : "Encounter"; title.append(round, heading); const edit = document.createElement("button"); edit.className = "btn btn-sm btn-outline-secondary"; edit.dataset.action = "edit-running-encounter"; edit.textContent = "Add / edit combatants"; edit.onclick = () => beginRunningEdit(); top.append(title, edit); card.append(top);
     if (state.lastAdvance?.cyclicMergeCompleted) { const note = document.createElement("div"); note.className = "bi-message bi-success"; note.textContent = "Round 1 complete. The lower same-side block joined the higher initiative block for round 2 onward."; card.append(note); }
     else if (state.lastAdvance?.roundAdvanced) { const note = document.createElement("div"); note.className = "bi-message bi-success"; note.textContent = `Round ${state.round} started.`; card.append(note); }
     if (active) { const activePanel = document.createElement("div"); activePanel.className = "bi-active bi-grid"; const head = document.createElement("div"); head.className = "bi-row"; const text = document.createElement("div"); const activeHeading = document.createElement("h4"); activeHeading.className = "h5 mb-0"; activeHeading.textContent = `${friendly(active.allianceId)} block`; const hint = document.createElement("div"); hint.className = "bi-muted"; hint.textContent = "Finish this side turn before advancing."; text.append(activeHeading, hint); head.append(text, blockBadges(active.allianceId, active.blockType)); activePanel.append(head); const members = document.createElement("div"); members.className = "bi-list"; for (const id of active.memberOrder) { const combatant = byId.get(id); const member = document.createElement("div"); member.className = "bi-runner-member bi-row"; const name = document.createElement("strong"); name.textContent = combatant?.name ?? id; const meta = document.createElement("span"); meta.className = "bi-muted"; const labels = [combatant?.tacticalGroupId ? groupName(combatant.tacticalGroupId) : "", combatant?.blockType === "kaiju" ? "Kaiju" : ""].filter(Boolean); meta.textContent = labels.join(" · "); member.append(name, meta); members.append(member); } activePanel.append(members); if (active.allianceId === "players" && active.memberOrder.length > 1) { const note = document.createElement("div"); note.className = "bi-muted"; note.textContent = "Players may act in any order within this block."; activePanel.append(note); } card.append(activePanel); }
     const sequence = document.createElement("div"); sequence.className = "bi-sequence"; state.blocks.forEach((block, index) => { const chip = document.createElement("span"); chip.className = `bi-seq${block.id === state.activeBlockId ? " active" : ""}`; const suffix = block.blockType === "kaiju" ? " · Kaiju" : block.blockType === "mixed" ? " · mixed" : ""; chip.textContent = `${index + 1}. ${friendly(block.allianceId)}${suffix}`; sequence.append(chip); }); card.append(sequence);
-    const actions = document.createElement("div"); actions.className = "bi-actions bi-primary"; const next = document.createElement("button"); next.className = "btn btn-primary"; next.textContent = "Next block"; next.onclick = () => void advanceRunner(); actions.append(next); card.append(actions); results.append(card);
+    const actions = document.createElement("div"); actions.className = "bi-actions bi-primary"; const previous = document.createElement("button"); previous.className = "btn btn-outline-secondary"; previous.dataset.action = "previous-turn"; previous.textContent = "Previous block"; previous.disabled = runnerHistory.length === 0; previous.onclick = () => undoRunnerAdvance(); const next = document.createElement("button"); next.className = "btn btn-primary"; next.dataset.action = "next-turn"; next.textContent = "Next block"; next.onclick = () => void advanceRunner(); actions.append(previous, next); card.append(actions); results.append(card);
 }
 
 function groupName(groupId: string): string { const group = Array.from(shell.querySelectorAll<HTMLElement>(".bi-tactical-group")).find(candidate => candidate.dataset.groupId === groupId); return group ? group.querySelector<HTMLInputElement>("[data-role='group-name']")?.value.trim() || "Group" : "Group"; }

@@ -24,7 +24,7 @@ jobs:
             -v "$PWD:/src" \
             -w /src/src/BlockInitiative.Web/Client \
             node:24-alpine \
-            sh -lc 'npm install --no-audit --no-fund && npm run build'
+            sh -lc 'npm ci --no-audit --no-fund && npm run build'
 
       - name: Run tests
         run: |

@@ -330,10 +330,10 @@ function integrateCombatState(root: HTMLElement, runner: HTMLElement, combatants
     }
 
     const standardCombatants = combatants.filter(combatant => combatant.allianceId !== "players" && combatant.blockType === "standard");
-    const unassignedHealthRows = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-health-row:not([data-combatant-id])"));
-    standardCombatants.forEach((combatant, index) => {
-        const row = unassignedHealthRows[index]
-            ?? root.querySelector<HTMLElement>(`.bi-health-row[data-combatant-id='${cssEscape(combatant.id)}']`);
+    standardCombatants.forEach(combatant => {
+        const selector = `.bi-health-row[data-combatant-id='${cssEscape(combatant.id)}']`;
+        const row = dashboard.querySelector<HTMLElement>(selector)
+            ?? root.querySelector<HTMLElement>(selector);
         const member = runner.querySelector<HTMLElement>(`.bi-runner-member[data-combatant-id='${cssEscape(combatant.id)}']`);
         if (!row || !member) return;
         row.dataset.combatantId = combatant.id;
@@ -342,10 +342,10 @@ function integrateCombatState(root: HTMLElement, runner: HTMLElement, combatants
     });
 
     const kaijuCombatants = combatants.filter(combatant => combatant.blockType === "kaiju");
-    const unassignedKaijuPanels = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-kaiju-panel:not([data-combatant-id])"));
-    kaijuCombatants.forEach((combatant, index) => {
-        const panel = unassignedKaijuPanels[index]
-            ?? root.querySelector<HTMLElement>(`.bi-kaiju-panel[data-combatant-id='${cssEscape(combatant.id)}']`);
+    kaijuCombatants.forEach(combatant => {
+        const selector = `.bi-kaiju-panel[data-combatant-id='${cssEscape(combatant.id)}']`;
+        const panel = dashboard.querySelector<HTMLElement>(selector)
+            ?? root.querySelector<HTMLElement>(selector);
         const member = runner.querySelector<HTMLElement>(`.bi-runner-member[data-combatant-id='${cssEscape(combatant.id)}']`);
         if (!panel || !member) return;
         panel.dataset.combatantId = combatant.id;

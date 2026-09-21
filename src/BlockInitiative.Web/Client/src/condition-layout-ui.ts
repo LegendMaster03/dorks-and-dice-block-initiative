@@ -1,4 +1,4 @@
-import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
+import { registerAfterRender, requestEnhancement } from "./render-lifecycle.js";
 
 type PreviewDetail = {
     response: {
@@ -74,7 +74,7 @@ function enhance(root: HTMLElement): void {
     const rowByCombatantId = new Map<string, HTMLElement>();
     for (const row of conditionRows) {
         const editor = row.querySelector<HTMLElement>("[data-condition-editor-for]");
-        const combatantId = editor?.dataset.conditionEditorFor;
+        const combatantId = row.dataset.combatantId ?? editor?.dataset.conditionEditorFor;
         if (combatantId) rowByCombatantId.set(combatantId, row);
     }
 
@@ -82,9 +82,8 @@ function enhance(root: HTMLElement): void {
     const standardCombatants = lastPreview.response.orderedCombatants.filter(
         combatant => combatant.allianceId !== "players" && combatant.blockType === "standard"
     );
-    const healthRows = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-health-row"));
-    standardCombatants.forEach((combatant, index) => {
-        const target = healthRows[index];
+    standardCombatants.forEach(combatant => {
+        const target = dashboard.querySelector<HTMLElement>(`.bi-health-row[data-combatant-id='${cssEscape(combatant.id)}']`);
         const sourceRow = rowByCombatantId.get(combatant.id);
         if (!target || !sourceRow) return;
 
@@ -96,9 +95,8 @@ function enhance(root: HTMLElement): void {
     });
 
     const kaijuCombatants = lastPreview.response.orderedCombatants.filter(combatant => combatant.blockType === "kaiju");
-    const kaijuPanels = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-kaiju-panel"));
-    kaijuCombatants.forEach((combatant, index) => {
-        const target = kaijuPanels[index];
+    kaijuCombatants.forEach(combatant => {
+        const target = dashboard.querySelector<HTMLElement>(`.bi-kaiju-panel[data-combatant-id='${cssEscape(combatant.id)}']`);
         const sourceRow = rowByCombatantId.get(combatant.id);
         if (!target || !sourceRow) return;
 
@@ -139,4 +137,9 @@ function attachConditionEditor(target: HTMLElement, editor: HTMLElement): void {
     label.textContent = "Conditions";
     wrapper.append(label, editor);
     target.append(wrapper);
+}
+
+function cssEscape(value: string): string {
+    if (typeof CSS !== "undefined" && typeof CSS.escape === "function") return CSS.escape(value);
+    return value.replace(/[\\'"\]\[]/g, match => `\\${match}`);
 }
