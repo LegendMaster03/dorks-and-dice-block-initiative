@@ -11,6 +11,8 @@ export function mountApplicationShell(root: HTMLElement): HTMLElement {
     const style = document.createElement("style");
     style.textContent = `
     .block-initiative-app{--bi-border:rgba(127,127,127,.28);--bi-soft:rgba(127,127,127,.08)}
+    .block-initiative-app .btn-outline-primary{--bs-btn-color:var(--bs-link-color,#0d6efd);--bs-btn-border-color:var(--bs-link-color,#0d6efd)}
+    .block-initiative-app .btn-outline-secondary{--bs-btn-color:var(--bs-secondary-color,#6c757d);--bs-btn-border-color:var(--bs-secondary-color,#6c757d)}
     .block-initiative-app .bi-grid,.block-initiative-app .bi-list{display:grid;gap:.75rem}
     .block-initiative-app .bi-steps,.block-initiative-app .bi-sides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
     .block-initiative-app .bi-steps{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -23,7 +25,7 @@ export function mountApplicationShell(root: HTMLElement): HTMLElement {
     .block-initiative-app .bi-field{display:grid;gap:.2rem;position:relative}.block-initiative-app .bi-field label{font-size:.82rem;font-weight:600;opacity:.8}.block-initiative-app input,.block-initiative-app select{width:100%;min-width:0;padding:.4rem .5rem}
     .block-initiative-app .bi-row,.block-initiative-app .bi-actions,.block-initiative-app .bi-badges,.block-initiative-app .bi-sequence{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}.block-initiative-app .bi-row{justify-content:space-between}.block-initiative-app .bi-actions{justify-content:flex-end}
     .block-initiative-app .bi-badge,.block-initiative-app .bi-seq{border:1px solid currentColor;border-radius:999px;padding:.15rem .5rem;font-size:.8rem}.block-initiative-app .bi-seq.active{border-width:2px;font-weight:700}.block-initiative-app .bi-kaiju{font-weight:700}
-    .block-initiative-app .bi-muted{opacity:.72}.block-initiative-app .bi-message{border-left:4px solid currentColor;padding:.65rem .8rem}.block-initiative-app .bi-warning{background:rgba(180,130,0,.08)}.block-initiative-app .bi-success{background:rgba(0,130,70,.08)}.block-initiative-app .bi-error{background:rgba(180,0,0,.08)}
+    .block-initiative-app .bi-muted{color:var(--bs-secondary-color,currentColor);opacity:1}.block-initiative-app .bi-message{border-left:4px solid currentColor;padding:.65rem .8rem}.block-initiative-app .bi-warning{background:rgba(180,130,0,.08)}.block-initiative-app .bi-success{background:rgba(0,130,70,.08)}.block-initiative-app .bi-error{background:rgba(180,0,0,.08)}
     .block-initiative-app .bi-blocks{display:grid;gap:.6rem}.block-initiative-app .bi-member{display:flex;justify-content:space-between;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--bi-border)}.block-initiative-app .bi-member:last-child{border-bottom:0}
     .block-initiative-app .bi-primary{border-top:1px solid var(--bi-border);margin-top:.8rem;padding-top:.8rem}.block-initiative-app details{margin-top:.55rem}.block-initiative-app summary{cursor:pointer}.block-initiative-app .bi-advanced{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin-top:.55rem}
     .block-initiative-app .bi-active{border-width:2px}.block-initiative-app .bi-active h4{margin-bottom:.2rem}.block-initiative-app .bi-runner-member{padding:.5rem;border:1px solid var(--bi-border);border-radius:.45rem}
@@ -35,6 +37,7 @@ export function mountApplicationShell(root: HTMLElement): HTMLElement {
     .block-initiative-app .bi-autocomplete strong,.block-initiative-app .bi-autocomplete small{display:block}.block-initiative-app .bi-autocomplete small{opacity:.72}
     .block-initiative-app .bi-group-roll{min-width:8rem;max-width:11rem}.block-initiative-app .bi-group-summary{font-size:.85rem;opacity:.8}
     .block-initiative-app .bi-running-edit-note{margin:.1rem 0 .2rem}
+    .block-initiative-app .bi-guide-body{display:grid;gap:.7rem;margin-top:.6rem}
     @media(max-width:900px){.block-initiative-app .bi-steps,.block-initiative-app .bi-sides{grid-template-columns:1fr}.block-initiative-app .bi-enemy-options{grid-template-columns:1fr}}
     @media(max-width:800px){.block-initiative-app .bi-entry-main,.block-initiative-app .bi-entry-main.custom,.block-initiative-app .bi-advanced{grid-template-columns:1fr 1fr}}
     @media(max-width:500px){.block-initiative-app .bi-entry-main,.block-initiative-app .bi-entry-main.custom,.block-initiative-app .bi-advanced{grid-template-columns:1fr}}
@@ -50,12 +53,20 @@ export function mountApplicationShell(root: HTMLElement): HTMLElement {
         <p class="mb-1">Build the encounter roster, derive turn blocks, then run combat from one screen.</p>
         <p class="bi-muted mb-0" data-role="host-status"></p>
       </div>
-      <div class="bi-steps">
-        <div class="bi-step"><strong>1. Build the roster</strong><div class="bi-muted">Players are simple. Non-player sides can use grouped initiative and Rules Core monster data.</div></div>
-        <div class="bi-step"><strong>2. Build blocks</strong><div class="bi-muted">Initiative placement and side determine turn blocks. Adjacent members of one side always share a turn block.</div></div>
-        <div class="bi-step"><strong>3. Run combat</strong><div class="bi-muted">Track the active block, health, Kaiju state, and creatures joining mid-fight.</div></div>
-      </div>
-      <details><summary>How the block rule works</summary><p class="mb-0">Initiative is sorted normally. Consecutive combatants from the same side form one turn block, even when their member block types differ. Players in the same player block may act in any order. If the first and last blocks belong to the same side, the lower block skips its separate round-one activation and joins the higher block across the round boundary.</p></details>
+      <details data-role="initiative-guide">
+        <summary>How this tool works</summary>
+        <div class="bi-guide-body">
+          <div class="bi-steps">
+            <div class="bi-step"><strong>1. Build the roster</strong><div class="bi-muted">Players are simple. Non-player sides can use grouped initiative and Rules Core monster data.</div></div>
+            <div class="bi-step"><strong>2. Build blocks</strong><div class="bi-muted">Initiative placement and side determine turn blocks. Adjacent members of one side always share a turn block.</div></div>
+            <div class="bi-step"><strong>3. Run combat</strong><div class="bi-muted">Track the active block, health, Kaiju state, and creatures joining mid-fight.</div></div>
+          </div>
+          <div data-role="block-rule-copy">
+            <strong>Block rule</strong>
+            <p class="bi-muted mb-0">Initiative is sorted normally. Consecutive combatants from the same side form one turn block, even when their member block types differ. Players in the same player block may act in any order. If the first and last blocks belong to the same side, the lower block skips its separate round-one activation and joins the higher block across the round boundary.</p>
+          </div>
+        </div>
+      </details>
     </header>
     <section class="card card-body bi-grid" data-role="setup">
       <div><h3 class="h5 mb-1">Set up the encounter</h3><div class="bi-muted">Only name and initiative are required for manual entries. Rules Core can fill monster data when available.</div></div>

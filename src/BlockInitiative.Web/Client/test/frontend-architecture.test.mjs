@@ -355,3 +355,30 @@ test("roster core composes monster and tactical-group modules", async () => {
     assert.doesNotMatch(roster, /private addTacticalGroup\(/);
     assert.doesNotMatch(roster, /private updateGroupSummary\(/);
 });
+
+
+test("application shell keeps guidance compact and secondary controls readable across themes", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const shell = await readFile(
+        path.resolve(testDirectory, "../src/application/app-shell.ts"),
+        "utf8");
+    const mode = await readFile(
+        path.resolve(testDirectory, "../src/initiative/initiative-mode.ts"),
+        "utf8");
+
+    assert.match(
+        shell,
+        /<details data-role="initiative-guide">[\s\S]*?<div class="bi-steps">[\s\S]*?data-role="block-rule-copy"[\s\S]*?<\/details>/);
+    assert.match(shell, /<summary>How this tool works<\/summary>/);
+    assert.match(
+        shell,
+        /\.bi-muted\{color:var\(--bs-secondary-color,currentColor\);opacity:1\}/);
+    assert.match(
+        shell,
+        /\.btn-outline-primary\{--bs-btn-color:var\(--bs-link-color,#0d6efd\);--bs-btn-border-color:var\(--bs-link-color,#0d6efd\)\}/);
+    assert.match(
+        shell,
+        /\.btn-outline-secondary\{--bs-btn-color:var\(--bs-secondary-color,#6c757d\);--bs-btn-border-color:var\(--bs-secondary-color,#6c757d\)\}/);
+    assert.match(mode, /\[data-role='block-rule-copy'\]/);
+    assert.doesNotMatch(mode, /querySelector<HTMLElement>\("header details"\)/);
+});
