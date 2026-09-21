@@ -1,4 +1,4 @@
-import { registerAfterRender } from "./render-lifecycle";
+import { registerAfterRender } from "../render-lifecycle";
 
 let initialized = false;
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { charactersMissingFromEncounter } from "../.test-dist/campaign-roster.js";
+import { charactersMissingFromEncounter } from "../.test-dist/campaign/campaign-roster.js";
 
 test("linked campaign character IDs prevent duplicate imports after a local rename", () => {
     const existing = [

@@ -1,8 +1,8 @@
 import { initializeFrontendRuntime } from "./frontend-runtime";
-import { getInitiativeMode, initializeInitiativeModeUi } from "./initiative-mode";
-import type { InitiativeMode } from "./initiative-mode";
+import { getInitiativeMode, initializeInitiativeModeUi } from "./initiative/initiative-mode";
+import type { InitiativeMode } from "./initiative/initiative-mode";
 
-export type { InitiativeMode } from "./initiative-mode";
+export type { InitiativeMode } from "./initiative/initiative-mode";
 export type TurnBlockType = "standard" | "kaiju" | "mixed";
 export type TacticalGroupInitiativeMode = "individual" | "average" | "shared";
 

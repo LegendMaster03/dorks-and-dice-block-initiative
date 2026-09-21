@@ -35,12 +35,35 @@ The TypeScript application follows the same core-plus-module principle as the Co
 
 ```text
 Client/src/
-├── app.ts                         # roster/bootstrap coordinator
+├── app.ts                         # bootstrap, host endpoints, preview dispatch
+├── api.ts                         # shared initiative API contract
+├── host.ts                        # Tool Host transport boundary
+├── render-lifecycle.ts            # cross-cutting enhancement coordinator
 ├── application/
 │   ├── app-shell.ts               # static shell and base presentation
 │   ├── initiative-preview.ts      # preview/adjudication view
 │   ├── encounter-runner.ts        # running encounter lifecycle/history
 │   └── presentation.ts            # shared presentation primitives
+├── campaign/
+│   ├── campaign-ui.ts             # optional hosted campaign integration
+│   └── campaign-roster.ts         # campaign-character deduplication rules
+├── initiative/
+│   ├── initiative-mode.ts         # Block vs Standard initiative mode
+│   ├── initiative-roll-ui.ts      # initiative rolling/group calculations
+│   ├── combatant-reorder.ts       # pure reorder operations
+│   └── combatant-drag-reorder-ui.ts
+├── roster/
+│   ├── roster-controller.ts       # roster construction/validation/request projection
+│   ├── monster-roster.ts          # Rules Core monster templates/autocomplete/cloning
+│   ├── tactical-group-roster.ts   # tactical-group construction/mode presentation
+│   ├── monster-combat-stats.ts    # edition-neutral monster stat projection
+│   ├── combatant-field-ui.ts      # primary roster-field layout
+│   ├── enemy-duplicate-ui.ts      # tactical-group duplication affordances
+│   └── other-side-ui.ts           # additional-side roster structure
+├── conditions/
+│   ├── condition-model.ts         # tracked-condition state
+│   ├── condition-editor.ts        # chips, menus, picker, Rules Core lookup
+│   └── condition-tracking-ui.ts   # setup/preview/runner projection coordinator
 ├── combat/
 │   ├── combat-state-types.ts      # shared combat state contracts
 │   ├── combat-ui.ts               # shared combat UI primitives
@@ -59,7 +82,11 @@ Client/src/
     └── encounter-restore.ts       # reconstruction/replay session
 ```
 
-The application coordinator does not own preview or runner internals. Combat-state coordination does not own Standard or Kaiju implementation details. Persistence treats capture, storage, and restore as separate responsibilities while preserving one complete-encounter contract. Rules Core entity modules share one transport boundary rather than duplicating HTTP and error-handling logic.
+The root of `Client/src` is intentionally reserved for application bootstrap and cross-cutting coordination. Domain-specific code should live under the domain that owns it rather than accumulating at the root.
+
+`app.ts` does not own roster construction, preview rendering, or runner internals. `RosterController` owns combatant roster state and request projection, while `MonsterRosterService` owns Rules Core monster lookup/template-derived behavior and `TacticalGroupRosterService` owns tactical-group construction, mode presentation, and summaries. Condition tracking separates state, editor rendering, and lifecycle projection so future condition behavior has an obvious home.
+
+Combat-state coordination does not own Standard or Kaiju implementation details. Persistence treats capture, storage, and restore as separate responsibilities while preserving one complete-encounter contract. Rules Core entity modules share one transport boundary rather than duplicating HTTP and error-handling logic.
 
 Inheritance is used where there is a real domain subtype relationship, such as Core turn blocks and initiative modes. Browser modules generally use composition where lifecycle ownership is the more meaningful relationship.
 

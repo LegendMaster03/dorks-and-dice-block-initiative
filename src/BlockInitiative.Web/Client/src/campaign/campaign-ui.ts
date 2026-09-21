@@ -3,13 +3,13 @@ import {
     loadToolHostCampaignContext,
     loadToolHostCampaigns,
     loadToolHostContext
-} from "./host";
+} from "../host";
 import type {
     ToolHostCampaignContext,
     ToolHostCampaignSummary,
     ToolHostContext
-} from "./host";
-import { requestEnhancement } from "./render-lifecycle";
+} from "../host";
+import { requestEnhancement } from "../render-lifecycle";
 
 let initialized = false;
 

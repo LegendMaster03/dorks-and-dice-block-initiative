@@ -1,4 +1,4 @@
-import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
+import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
 
 const D20_SIDES = 20;
 

@@ -3,16 +3,16 @@ import {
     loadInitiativeTurnState,
     previewInitiative,
     setRuntimeManualOrder
-} from "./api";
+} from "../api";
 import type {
     InitiativePreviewRequest,
     InitiativePreviewResponse,
     InitiativeTurnStateRequest,
     InitiativeTurnStateResponse
-} from "./api";
+} from "../api";
 import { moveCombatantByOffset, sameMembers, sameOrder } from "./combatant-reorder";
-import { initiativePreviewUrl, initiativeStateUrl, loadToolHostContext } from "./host";
-import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
+import { initiativePreviewUrl, initiativeStateUrl, loadToolHostContext } from "../host";
+import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
 
 type PreviewDetail = {
     request: InitiativePreviewRequest;

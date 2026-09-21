@@ -1,5 +1,5 @@
-import { projectMonsterCombatStats } from "../../monster-combat-stats";
-import type { MonsterCombatStats } from "../../monster-combat-stats";
+import { projectMonsterCombatStats } from "../../roster/monster-combat-stats";
+import type { MonsterCombatStats } from "../../roster/monster-combat-stats";
 import { getRulesCoreJson, searchRulesCoreEntity } from "./client";
 import type { RuleBrowserLink, RulesCoreSearchMatch } from "./client";
 
