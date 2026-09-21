@@ -190,6 +190,7 @@ function ensureConditionDashboard(root: HTMLElement): void {
     for (const combatant of lastPreview.response.orderedCombatants) {
         const row = document.createElement("article");
         row.className = `bi-condition-dashboard-row${activeIds.has(combatant.id) ? " active" : ""}`;
+        row.dataset.combatantId = combatant.id;
         const name = document.createElement("strong");
         name.textContent = combatant.name;
         row.append(name, buildConditionEditor(combatant.id, root));

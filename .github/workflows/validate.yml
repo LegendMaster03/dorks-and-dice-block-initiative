@@ -27,7 +27,7 @@ jobs:
       - name: Build frontend
         working-directory: src/BlockInitiative.Web/Client
         run: |
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npm run build
 
       - name: Restore

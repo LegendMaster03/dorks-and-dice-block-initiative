@@ -98,6 +98,13 @@ type SavedRunnerCombat = {
 
 type SavedRulesCoreLink = Record<string, unknown> & { templateId: string };
 
+type NamedEncounterSave = {
+    id: string;
+    name: string;
+    savedAt: string;
+    encounter: SavedEncounter;
+};
+
 type SavedEncounter = {
     version: 1;
     savedAt: string;
@@ -115,6 +122,7 @@ type SavedEncounter = {
 };
 
 const storageKey = "dorks-and-dice:block-initiative:encounter:v1";
+const namedStorageKey = "dorks-and-dice:block-initiative:named-encounters:v1";
 const saveDelayMs = 80;
 const maxReplayAdvances = 1000;
 
@@ -203,13 +211,110 @@ function ensurePersistenceBar(root: HTMLElement): void {
         ? "Restoring the saved encounter from this browser…"
         : "Encounter changes save automatically in this browser until you reset them.";
 
+    const savedSelect = document.createElement("select");
+    savedSelect.className = "form-select form-select-sm";
+    savedSelect.dataset.role = "named-encounter-select";
+    savedSelect.setAttribute("aria-label", "Named encounter saves");
+
+    const saveCopy = document.createElement("button");
+    saveCopy.type = "button";
+    saveCopy.className = "btn btn-sm btn-outline-secondary";
+    saveCopy.dataset.action = "save-named-encounter";
+    saveCopy.textContent = "Save named copy";
+
+    const load = document.createElement("button");
+    load.type = "button";
+    load.className = "btn btn-sm btn-outline-secondary";
+    load.dataset.action = "load-named-encounter";
+    load.textContent = "Load";
+    load.disabled = true;
+
+    const removeSaved = document.createElement("button");
+    removeSaved.type = "button";
+    removeSaved.className = "btn btn-sm btn-outline-secondary";
+    removeSaved.dataset.action = "delete-named-encounter";
+    removeSaved.textContent = "Delete";
+    removeSaved.disabled = true;
+
+    const refreshNamed = (selectedId = "") => {
+        const saves = readNamedEncounters();
+        savedSelect.replaceChildren(new Option("Saved encounters", ""));
+        for (const saved of saves) {
+            savedSelect.add(new Option(`${saved.name} — ${formatSavedAt(saved.savedAt)}`, saved.id));
+        }
+        if (selectedId && saves.some(saved => saved.id === selectedId)) savedSelect.value = selectedId;
+        const hasSelection = Boolean(savedSelect.value);
+        load.disabled = !hasSelection;
+        removeSaved.disabled = !hasSelection;
+    };
+
+    savedSelect.onchange = () => {
+        const hasSelection = Boolean(savedSelect.value);
+        load.disabled = !hasSelection;
+        removeSaved.disabled = !hasSelection;
+    };
+
+    saveCopy.onclick = () => {
+        if (restoring) return;
+        const defaultName = `Encounter ${new Date().toLocaleString()}`;
+        const entered = window.prompt("Name this encounter save:", defaultName);
+        const name = entered?.trim();
+        if (!name) return;
+
+        const encounter = captureEncounter(root);
+        const saved: NamedEncounterSave = {
+            id: crypto.randomUUID(),
+            name,
+            savedAt: encounter.savedAt,
+            encounter
+        };
+        const saves = [saved, ...readNamedEncounters()];
+        if (!writeNamedEncounters(saves)) {
+            setPersistenceStatus(root, "Browser storage is full or unavailable, so the named encounter could not be saved.");
+            return;
+        }
+        refreshNamed(saved.id);
+        setPersistenceStatus(root, `Saved named encounter "${name}". Automatic recovery continues separately.`);
+    };
+
+    load.onclick = () => {
+        const saved = readNamedEncounters().find(candidate => candidate.id === savedSelect.value);
+        if (!saved) {
+            refreshNamed();
+            return;
+        }
+        if (!window.confirm(`Load "${saved.name}"? This replaces the current automatic recovery encounter in this browser.`)) return;
+        try {
+            window.localStorage.setItem(storageKey, JSON.stringify(saved.encounter));
+            window.location.reload();
+        } catch {
+            setPersistenceStatus(root, "Browser storage is unavailable, so the named encounter can not be loaded.");
+        }
+    };
+
+    removeSaved.onclick = () => {
+        const saved = readNamedEncounters().find(candidate => candidate.id === savedSelect.value);
+        if (!saved) {
+            refreshNamed();
+            return;
+        }
+        if (!window.confirm(`Delete the named encounter "${saved.name}"? The current automatic recovery encounter is not affected.`)) return;
+        const remaining = readNamedEncounters().filter(candidate => candidate.id !== saved.id);
+        if (!writeNamedEncounters(remaining)) {
+            setPersistenceStatus(root, "Browser storage is unavailable, so the named encounter can not be deleted.");
+            return;
+        }
+        refreshNamed();
+        setPersistenceStatus(root, `Deleted named encounter "${saved.name}".`);
+    };
+
     const reset = document.createElement("button");
     reset.type = "button";
     reset.className = "btn btn-sm btn-outline-danger";
     reset.dataset.action = "reset-persisted-encounter";
     reset.textContent = "Reset encounter";
     reset.onclick = () => {
-        if (!window.confirm("Reset this encounter? This clears the saved encounter from this browser and starts a blank encounter.")) return;
+        if (!window.confirm("Reset this encounter? This clears the automatic recovery encounter from this browser and starts a blank encounter. Named saves are kept.")) return;
         resetting = true;
         if (saveTimer !== null) window.clearTimeout(saveTimer);
         try {
@@ -220,8 +325,12 @@ function ensurePersistenceBar(root: HTMLElement): void {
         window.location.reload();
     };
 
-    bar.append(status, reset);
+    const actions = document.createElement("div");
+    actions.className = "bi-actions";
+    actions.append(savedSelect, saveCopy, load, removeSaved, reset);
+    bar.append(status, actions);
     header.append(bar);
+    refreshNamed();
 }
 
 function setPersistenceStatus(root: HTMLElement, text: string): void {
@@ -376,20 +485,18 @@ function captureRunnerCombat(root: HTMLElement): SavedRunnerCombat {
     if (!dashboard) return result;
 
     const standards = ordered.filter(combatant => combatant.allianceId !== "players" && combatant.blockType === "standard");
-    const healthRows = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-health-row"));
-    standards.forEach((combatant, index) => {
-        const row = healthRows[index];
+    standards.forEach(combatant => {
+        const row = dashboard.querySelector<HTMLElement>(`.bi-health-row[data-combatant-id='${cssEscape(combatant.id)}']`);
         if (!row) return;
         result.standard[combatant.id] = {
-            currentHp: inputByLabel(row, "Current HP")?.value ?? "",
-            maxHp: inputByLabel(row, "Max HP")?.value ?? ""
+            currentHp: combatInput(row, "current-hp", "Current HP")?.value ?? "",
+            maxHp: combatInput(row, "max-hp", "Max HP")?.value ?? ""
         };
     });
 
     const kaijus = ordered.filter(combatant => combatant.blockType === "kaiju");
-    const panels = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-kaiju-panel"));
-    kaijus.forEach((combatant, index) => {
-        const panel = panels[index];
+    kaijus.forEach(combatant => {
+        const panel = dashboard.querySelector<HTMLElement>(`.bi-kaiju-panel[data-combatant-id='${cssEscape(combatant.id)}']`);
         if (!panel) return;
         const chaosSection = directSection(panel, "Chaos Threshold");
         const areaSection = directSection(panel, "Vulnerable Areas");
@@ -426,6 +533,11 @@ function inputByLabel(scope: HTMLElement, labelText: string): HTMLInputElement |
         if (input) return input;
     }
     return null;
+}
+
+function combatInput(scope: HTMLElement, fieldKey: string, fallbackLabel: string): HTMLInputElement | null {
+    return scope.querySelector<HTMLInputElement>(`[data-combat-field='${fieldKey}'] input[data-combat-field='${fieldKey}']`)
+        ?? inputByLabel(scope, fallbackLabel);
 }
 
 function checkboxByText(scope: HTMLElement, labelText: string): HTMLInputElement | null {
@@ -710,6 +822,16 @@ function restoreRunnerValuesIntoSetup(root: HTMLElement, saved: SavedRunnerComba
 function setLabeledInput(scope: HTMLElement, label: string, value: string): void {
     const input = inputByLabel(scope, label);
     if (!input) return;
+    setInputAndDispatch(input, value);
+}
+
+function setCombatInput(scope: HTMLElement, fieldKey: string, fallbackLabel: string, value: string): void {
+    const input = combatInput(scope, fieldKey, fallbackLabel);
+    if (!input) return;
+    setInputAndDispatch(input, value);
+}
+
+function setInputAndDispatch(input: HTMLInputElement, value: string): void {
     input.value = value;
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -795,8 +917,7 @@ function continueAfterPreview(root: HTMLElement): void {
         return;
     }
 
-    const start = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-role='results'] button"))
-        .find(button => button.textContent?.trim() === "Start encounter");
+    const start = root.querySelector<HTMLButtonElement>("[data-role='results'] [data-action='start-encounter']");
     if (!start) {
         failRestore(root, new Error("The saved running encounter could not be restarted from its initiative preview."));
         return;
@@ -817,8 +938,7 @@ function replaySavedTurn(root: HTMLElement): void {
         return;
     }
 
-    const next = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-role='results'] button"))
-        .find(button => button.textContent?.trim() === "Next block");
+    const next = root.querySelector<HTMLButtonElement>("[data-role='results'] [data-action='next-turn']");
     if (!next) {
         failRestore(root, new Error("The saved encounter runner could not continue to its stored active turn."));
         return;
@@ -835,9 +955,7 @@ async function finishRunningRestore(root: HTMLElement): Promise<void> {
     await nextTask();
 
     if (pendingRestore.view === "editing") {
-        const edit = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-role='results'] button"))
-            .find(button => button.textContent?.trim() === "Add / edit combatants");
-        edit?.click();
+        root.querySelector<HTMLButtonElement>("[data-role='results'] [data-action='edit-running-encounter']")?.click();
     }
     completeRestore(root);
 }
@@ -848,20 +966,18 @@ function restoreRunnerValues(root: HTMLElement, saved: SavedRunnerCombat): void 
     if (!dashboard) return;
 
     const standards = ordered.filter(combatant => combatant.allianceId !== "players" && combatant.blockType === "standard");
-    const rows = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-health-row"));
-    standards.forEach((combatant, index) => {
+    standards.forEach(combatant => {
         const hp = saved.standard[combatant.id];
-        const row = rows[index];
+        const row = dashboard.querySelector<HTMLElement>(`.bi-health-row[data-combatant-id='${cssEscape(combatant.id)}']`);
         if (!hp || !row) return;
-        setLabeledInput(row, "Max HP", hp.maxHp);
-        setLabeledInput(row, "Current HP", hp.currentHp);
+        setCombatInput(row, "max-hp", "Max HP", hp.maxHp);
+        setCombatInput(row, "current-hp", "Current HP", hp.currentHp);
     });
 
     const kaijus = ordered.filter(combatant => combatant.blockType === "kaiju");
-    const panels = Array.from(dashboard.querySelectorAll<HTMLElement>(".bi-kaiju-panel"));
-    kaijus.forEach((combatant, index) => {
+    kaijus.forEach(combatant => {
         const state = saved.kaiju[combatant.id];
-        const panel = panels[index];
+        const panel = dashboard.querySelector<HTMLElement>(`.bi-kaiju-panel[data-combatant-id='${cssEscape(combatant.id)}']`);
         if (!state || !panel) return;
         const chaos = directSection(panel, "Chaos Threshold");
         const finishing = directSection(panel, "Finishing Blow");
@@ -914,6 +1030,43 @@ function readSavedEncounter(): SavedEncounter | null {
     } catch {
         return null;
     }
+}
+
+function readNamedEncounters(): NamedEncounterSave[] {
+    try {
+        const raw = window.localStorage.getItem(namedStorageKey);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw) as unknown;
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter(isNamedEncounterSave).sort((left, right) => right.savedAt.localeCompare(left.savedAt));
+    } catch {
+        return [];
+    }
+}
+
+function writeNamedEncounters(saves: NamedEncounterSave[]): boolean {
+    try {
+        window.localStorage.setItem(namedStorageKey, JSON.stringify(saves));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function isNamedEncounterSave(value: unknown): value is NamedEncounterSave {
+    if (!value || typeof value !== "object") return false;
+    const candidate = value as Partial<NamedEncounterSave>;
+    return typeof candidate.id === "string"
+        && candidate.id.trim().length > 0
+        && typeof candidate.name === "string"
+        && candidate.name.trim().length > 0
+        && typeof candidate.savedAt === "string"
+        && isSavedEncounter(candidate.encounter);
+}
+
+function formatSavedAt(value: string): string {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 function isSavedEncounter(value: unknown): value is SavedEncounter {

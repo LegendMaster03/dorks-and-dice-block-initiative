@@ -2,11 +2,12 @@ FROM node:24-alpine AS frontend
 WORKDIR /src/src/BlockInitiative.Web/Client
 
 COPY ["src/BlockInitiative.Web/Client/package.json", "./"]
+COPY ["src/BlockInitiative.Web/Client/package-lock.json", "./"]
 COPY ["src/BlockInitiative.Web/Client/tsconfig.json", "./"]
 COPY ["src/BlockInitiative.Web/Client/vite.config.ts", "./"]
 COPY ["src/BlockInitiative.Web/Client/src", "./src"]
 COPY ["src/BlockInitiative.Web/Client/test", "./test"]
-RUN npm install --no-audit --no-fund && npm run build
+RUN npm ci --no-audit --no-fund && npm run build
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src

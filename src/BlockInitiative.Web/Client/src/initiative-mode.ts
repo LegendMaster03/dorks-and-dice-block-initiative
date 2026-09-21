@@ -269,8 +269,10 @@ function updateRunnerCopy(root: HTMLElement): void {
     if (activeToggle?.textContent) activeToggle.textContent = activeToggle.textContent.replace("active block", "active turn");
     if (activeToggle?.title) activeToggle.title = activeToggle.title.replaceAll("block", "turn").replaceAll("Block", "Turn");
 
-    const next = Array.from(runner.querySelectorAll<HTMLButtonElement>("button"))
-        .find(button => button.textContent === "Next block" || button.textContent === "Next turn");
+    const previous = runner.querySelector<HTMLButtonElement>("[data-action='previous-turn']");
+    if (previous) previous.textContent = "Previous turn";
+
+    const next = runner.querySelector<HTMLButtonElement>("[data-action='next-turn']");
     if (next) next.textContent = "Next turn";
 
     const hint = runner.querySelector<HTMLElement>("[data-role='reorder-hint']");

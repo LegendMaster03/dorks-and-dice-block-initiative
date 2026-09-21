@@ -15,12 +15,12 @@ The current implementation establishes the initiative engine and a manual encoun
 - derive contiguous allied turn blocks without changing the original initiative rolls;
 - resolve opposing-side initiative ties explicitly without inventing a house rule;
 - start the encounter after reviewing the derived blocks;
-- track the current round and active block with a single **Next block** action;
+- track the current round and active block with **Previous block** and **Next block** controls so accidental advancement is reversible;
 - automatically apply the special round-one cyclic merge through the Core turn-state engine;
 - track Rules Core-backed or manual conditions on any combatant, including an optional duration/note, without automatically enforcing condition effects;
 - open Rules Core-backed combatants and conditions in their associated Rules Core page when browser links are available.
 
-The UI deliberately separates ordinary encounter setup from advanced mechanics. Character sheets are not required for manual use. The current running position and encounter state are browser-session state and are not persisted yet.
+The UI deliberately separates ordinary encounter setup from advanced mechanics. Character sheets are not required for manual use. Encounter setup, the current running position, HP, conditions, Kaiju state, and the active view are automatically restored from browser-local storage after a reload. A DM can also create named browser-local encounter saves and later load or delete them without disturbing other named saves. These are local to the current browser; server-side and cross-device encounter storage are not implemented.
 
 Kaiju-specific turn-state mechanics such as Chaos Threshold, Vulnerable Areas, behaviours, Death Throes, and Finishing Blow are not yet implemented. The `kaiju` block type exists so those mechanics can attach to a real special block instead of being folded into a standard enemy block.
 
@@ -32,7 +32,7 @@ Kaiju-specific turn-state mechanics such as Chaos Threshold, Vulnerable Areas, b
 - Docker
 - xUnit
 
-No persistence technology has been selected yet.
+No server-side persistence technology has been selected yet. The current encounter uses browser `localStorage` for automatic reload recovery.
 
 ## Projects
 

@@ -181,15 +181,27 @@ test("one setup action builds blocks and continues into start or resume", async 
     assert.match(source, /button\.textContent = "Apply changes & resume"/);
 });
 
-test("encounter initiative header shows the modifier and suppresses the duplicate quick fact", async () => {
+test("encounter initiative header shows the rolled total without repeating the modifier", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
     const affordancesSource = await readFile(path.resolve(testDirectory, "../src/encounter-card-affordances-ui.ts"), "utf8");
     const quickStatsSource = await readFile(path.resolve(testDirectory, "../src/combatant-quick-stats-ui.ts"), "utf8");
 
-    assert.match(affordancesSource, /bi-card-initiative-modifier/);
+    assert.match(affordancesSource, /bi-card-initiative-total/);
+    assert.doesNotMatch(affordancesSource, /bi-card-initiative-modifier/);
     assert.match(affordancesSource, /suppressDuplicateInitiativeFact\(card\)/);
-    assert.match(affordancesSource, /\$\{signed\(combatant\.initiativeModifier\)\} mod/);
     assert.match(quickStatsSource, /appendFact\(facts,\s*"Init",\s*initiative/);
+});
+
+test("encounter runner exposes reversible advancement through stable action identifiers", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const appSource = await readFile(path.resolve(testDirectory, "../src/app.ts"), "utf8");
+    const persistenceSource = await readFile(path.resolve(testDirectory, "../src/encounter-persistence.ts"), "utf8");
+
+    assert.match(appSource, /runnerHistory\.push\(runnerSession\.state\)/);
+    assert.match(appSource, /function undoRunnerAdvance\(\)/);
+    assert.match(appSource, /dataset\.action = "previous-turn"/);
+    assert.match(appSource, /dataset\.action = "next-turn"/);
+    assert.match(persistenceSource, /\[data-action='next-turn'\]/);
 });
 
 test("enemy duplication does not reschedule enhancement for every input or change event", async () => {
@@ -212,4 +224,14 @@ test("application frontend does not use MutationObserver as a render lifecycle",
     }
 
     assert.deepEqual(offenders, []);
+});
+
+test("combat state integration prefers current dashboard rows by combatant identity", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const source = await readFile(path.resolve(testDirectory, "../src/combatant-quick-stats-ui.ts"), "utf8");
+
+    assert.match(source, /dashboard\.querySelector<HTMLElement>\(selector\)\s*\?\? root\.querySelector<HTMLElement>\(selector\)/);
+    assert.match(source, /\.bi-health-row\[data-combatant-id=/);
+    assert.match(source, /\.bi-kaiju-panel\[data-combatant-id=/);
+    assert.doesNotMatch(source, /unassignedHealthRows|unassignedKaijuPanels/);
 });

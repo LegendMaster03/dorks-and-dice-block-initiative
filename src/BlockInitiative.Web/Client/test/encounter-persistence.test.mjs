@@ -41,7 +41,20 @@ test("restore replays the saved active turn instead of silently starting over", 
     const text = await source();
 
     assert.match(text, /sameTurnTarget/);
-    assert.match(text, /Next block/);
+    assert.match(text, /\[data-action='next-turn'\]/);
+    assert.doesNotMatch(text, /find\(button => button\.textContent\?\.trim\(\) === "Next block"\)/);
     assert.match(text, /maxReplayAdvances/);
     assert.match(text, /Saved encounter restored/);
+});
+
+test("named encounter saves are separate from automatic recovery", async () => {
+    const text = await source();
+
+    assert.match(text, /named-encounters:v1/);
+    assert.match(text, /dataset\.action = "save-named-encounter"/);
+    assert.match(text, /dataset\.action = "load-named-encounter"/);
+    assert.match(text, /dataset\.action = "delete-named-encounter"/);
+    assert.match(text, /Named saves are kept/);
+    assert.match(text, /readNamedEncounters/);
+    assert.match(text, /writeNamedEncounters/);
 });

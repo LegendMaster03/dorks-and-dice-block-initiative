@@ -1,4 +1,4 @@
-import { registerAfterRender } from "./render-lifecycle";
+import { registerAfterRender } from "./render-lifecycle.js";
 
 const initializedDocuments = new WeakSet<Document>();
 let initialized = false;
@@ -63,8 +63,8 @@ function enhanceSetupPanel(panel: HTMLElement): void {
     if (!grid) return;
 
     const fields = Array.from(grid.querySelectorAll<HTMLElement>(":scope > .bi-field"));
-    const max = findField(fields, "Max HP");
-    const current = findField(fields, "Current HP");
+    const max = findField(fields, "max-hp", "Max HP");
+    const current = findField(fields, "current-hp", "Current HP");
     if (!current || !max) return;
 
     syncFullHealthDefault(current, max);
@@ -81,8 +81,8 @@ function enhanceHealthRow(row: HTMLElement): void {
     if (!controls) return;
 
     const fields = Array.from(controls.querySelectorAll<HTMLElement>(":scope > .bi-field"));
-    const current = findField(fields, "Current HP");
-    const max = findField(fields, "Max HP");
+    const current = findField(fields, "current-hp", "Current HP");
+    const max = findField(fields, "max-hp", "Max HP");
     if (!current || !max) return;
 
     row.dataset.compactHealthReady = "true";
@@ -270,8 +270,9 @@ function applyAdjustment(currentField: HTMLElement, maxField: HTMLElement, amoun
     currentInput.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function findField(fields: HTMLElement[], labelText: string): HTMLElement | undefined {
-    return fields.find(field => field.querySelector("label")?.textContent?.trim() === labelText);
+function findField(fields: HTMLElement[], fieldKey: string, labelText: string): HTMLElement | undefined {
+    return fields.find(field => field.dataset.combatField === fieldKey)
+        ?? fields.find(field => field.querySelector("label")?.textContent?.trim() === labelText);
 }
 
 function renameLabel(field: HTMLElement, text: string): void {

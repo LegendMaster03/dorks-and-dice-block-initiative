@@ -146,8 +146,8 @@ function ensureStandardSetup(card: HTMLElement, id: string): void {
             const old = state.maxHp;
             state.maxHp = value;
             if (state.currentHp === null || state.currentHp === old) state.currentHp = value;
-        }),
-        numberField("Current HP", state.currentHp, value => { state.currentHp = value; })
+        }, "max-hp"),
+        numberField("Current HP", state.currentHp, value => { state.currentHp = value; }, "current-hp")
     );
     card.append(panel);
 }
@@ -278,6 +278,7 @@ function renderHealth(combatants: Array<{ id: string; name: string }>, activeIds
         standardStates.set(combatant.id, state);
         const row = document.createElement("article");
         row.className = `bi-health-row${activeIds.has(combatant.id) ? " active" : ""}`;
+        row.dataset.combatantId = combatant.id;
         const head = document.createElement("div");
         head.className = "bi-row";
         const name = document.createElement("strong");
@@ -290,8 +291,8 @@ function renderHealth(combatants: Array<{ id: string; name: string }>, activeIds
         const controls = document.createElement("div");
         controls.className = "bi-combat-controls";
         controls.append(
-            numberField("Current HP", state.currentHp, value => { state.currentHp = value; paintHpStatus(status, state); }),
-            numberField("Max HP", state.maxHp, value => { state.maxHp = value; if (state.currentHp === null) state.currentHp = value; paintHpStatus(status, state); })
+            numberField("Current HP", state.currentHp, value => { state.currentHp = value; paintHpStatus(status, state); }, "current-hp"),
+            numberField("Max HP", state.maxHp, value => { state.maxHp = value; if (state.currentHp === null) state.currentHp = value; paintHpStatus(status, state); }, "max-hp")
         );
         const amount = amountField();
         controls.append(amount.wrapper,
@@ -308,6 +309,7 @@ function renderHealth(combatants: Array<{ id: string; name: string }>, activeIds
 function renderKaiju(id: string, name: string, state: KaijuState, active: boolean, root: HTMLElement): HTMLElement {
     const panel = document.createElement("section");
     panel.className = `bi-kaiju-panel bi-grid${active ? " active" : ""}`;
+    panel.dataset.combatantId = id;
     const evaluation = evaluations.get(id);
 
     const head = document.createElement("div");
@@ -493,14 +495,16 @@ function paintKaijuStatuses(container: HTMLElement, evaluation: KaijuEvaluation 
     if (evaluation.defeated) container.append(statusBadge("Defeated", true));
 }
 
-function numberField(labelText: string, value: number | null, setter: (value: number | null) => void): HTMLElement {
+function numberField(labelText: string, value: number | null, setter: (value: number | null) => void, fieldKey?: string): HTMLElement {
     const wrap = document.createElement("div");
     wrap.className = "bi-field";
+    if (fieldKey) wrap.dataset.combatField = fieldKey;
     const label = document.createElement("label");
     label.textContent = labelText;
     const input = document.createElement("input");
     input.type = "number";
     input.step = "1";
+    if (fieldKey) input.dataset.combatField = fieldKey;
     input.value = value === null ? "" : String(value);
     input.addEventListener("change", () => setter(readNumber(input)));
     wrap.append(label, input);
