@@ -79,13 +79,10 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Duration / note", content, StringComparison.Ordinal);
         Assert.Contains("Add manually", content, StringComparison.Ordinal);
         Assert.Contains("View rule", content, StringComparison.Ordinal);
-        Assert.Contains("entityType=condition", content, StringComparison.Ordinal);
+        Assert.Contains("Rules Core condition lookup", content, StringComparison.Ordinal);
         Assert.Contains("does not enforce condition effects", content, StringComparison.Ordinal);
-        Assert.Contains("bi-condition-merged", content, StringComparison.Ordinal);
-        Assert.Contains("bi-combat-condition-control", content, StringComparison.Ordinal);
-        Assert.Contains("Combatants without health tracking", content, StringComparison.Ordinal);
-        Assert.Contains("Health, conditions, and Kaiju state remain editable", content, StringComparison.Ordinal);
-        Assert.Contains("condition-layout", content, StringComparison.Ordinal);
+        Assert.Contains("bi-card-context-conditions", content, StringComparison.Ordinal);
+        Assert.Contains("conditionEditorRole", content, StringComparison.Ordinal);
         Assert.Contains("combat-state", content, StringComparison.Ordinal);
         Assert.DoesNotContain("MutationObserver", content, StringComparison.Ordinal);
         Assert.Contains("bi-dense-tracker", content, StringComparison.Ordinal);

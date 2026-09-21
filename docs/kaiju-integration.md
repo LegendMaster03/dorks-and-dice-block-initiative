@@ -26,11 +26,11 @@ Turn block type
     future special block types
 ```
 
-A Kaiju can therefore belong to the `enemies` alliance while occupying a `kaiju` turn block. It must not collapse into an adjacent standard enemy block solely because the combatants share an alliance.
+A Kaiju can therefore belong to the `enemies` alliance while retaining Kaiju-specific combat behavior. When adjacent Standard and Kaiju combatants belong to the same alliance, Block Initiative may group them into one `MixedTurnBlock`; that mixed turn preserves the specialized member types instead of treating the Kaiju as an ordinary Standard combatant.
 
 ## Damage model
 
-Standard enemies can use ordinary current/max HP tracking in the encounter dashboard.
+Standard enemies use ordinary current/max HP tracking in their encounter cards.
 
 Kaiju deliberately do **not** use that ordinary HP tracker. The public Kaiju Fighting rules instead require separate tracking for:
 
@@ -60,8 +60,10 @@ Kaiju combat-state derivation is implemented separately from ordinary initiative
 
 ## Persistence
 
-Health and Kaiju combat values are currently encounter-session state in the browser. They survive block advancement during the active page session but are not yet persisted across refreshes. Persistence remains a separate design decision so this feature does not accidentally create a second source of truth for player character sheets or lock the project into a database model prematurely.
+Saving an encounter saves the complete encounter, including Kaiju blocks and their Kaiju-specific combat state. Browser-local persistence retains Chaos Threshold values, Vulnerable Areas and their HP/targetable/override state, Behaviour / phase, Finishing Blow tracking, DM overrides, defeat state, and the running initiative position alongside the rest of the encounter.
+
+Kaiju state therefore survives reloads and named encounter save/load operations exactly as ordinary encounter state does. The current storage backend is browser-local; server/account synchronization is a separate transport decision, not a reason to omit any encounter type from a saved encounter.
 
 ## UX direction
 
-Normal encounter setup remains simple. Standard enemy HP appears only for non-player standard combatants. Kaiju controls appear only when a combatant is explicitly marked as Kaiju. During encounter running, ordinary enemy HP and Kaiju state remain visible even when another block is active so the DM can record damage whenever it occurs.
+Normal encounter setup remains simple. Standard enemy HP appears only for non-player standard combatants. Kaiju controls appear only when a combatant is explicitly marked as Kaiju. During encounter running, ordinary enemy HP and Kaiju state are card-owned surfaces that remain available regardless of which block is active, so the DM can record damage whenever it occurs.

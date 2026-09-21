@@ -29,6 +29,40 @@ BlockInitiative.Core
 
 The TypeScript client owns the interactive encounter workspace. Complex browser-side state is expected; the Embedded Module choice is a hosting decision and does not limit the frontend to a single-file widget.
 
+## Frontend module architecture
+
+The TypeScript application follows the same core-plus-module principle as the Core project. Module boundaries are based on ownership and reasons to change, not file size alone.
+
+```text
+Client/src/
+├── app.ts                         # roster/bootstrap coordinator
+├── application/
+│   ├── app-shell.ts               # static shell and base presentation
+│   ├── initiative-preview.ts      # preview/adjudication view
+│   ├── encounter-runner.ts        # running encounter lifecycle/history
+│   └── presentation.ts            # shared presentation primitives
+├── combat/
+│   ├── combat-state-types.ts      # shared combat state contracts
+│   ├── combat-ui.ts               # shared combat UI primitives
+│   ├── standard-combat-state.ts   # Standard HP implementation
+│   └── kaiju-combat-state.ts      # Kaiju combat implementation
+├── integrations/
+│   └── rules-core/
+│       ├── client.ts              # shared transport/search/link contract
+│       ├── monsters.ts            # Monster adapter
+│       └── conditions.ts          # Condition adapter
+└── persistence/
+    ├── encounter-schema.ts        # complete-save contract
+    ├── encounter-storage.ts       # browser storage backend
+    ├── encounter-dom.ts           # persistence DOM identity helpers
+    ├── encounter-capture.ts       # complete snapshot capture
+    └── encounter-restore.ts       # reconstruction/replay session
+```
+
+The application coordinator does not own preview or runner internals. Combat-state coordination does not own Standard or Kaiju implementation details. Persistence treats capture, storage, and restore as separate responsibilities while preserving one complete-encounter contract. Rules Core entity modules share one transport boundary rather than duplicating HTTP and error-handling logic.
+
+Inheritance is used where there is a real domain subtype relationship, such as Core turn blocks and initiative modes. Browser modules generally use composition where lifecycle ownership is the more meaningful relationship.
+
 ## Campaign integration
 
 Campaign support is an optional host integration, not a prerequisite for initiative tracking. Standalone and anonymous hosted sessions retain the manual roster workflow.
@@ -51,19 +85,9 @@ Block Initiative owns the DOM inside `#tool-root`, so application-owned mutation
 
 `render-lifecycle.ts` provides one coalesced enhancement queue. Feature modules register idempotent after-render hooks with numeric ordering, and state or UI events request an enhancement pass through the shared coordinator. Requests made while a pass is already scheduled are coalesced. Requests made synchronously from inside an executing hook are ignored so a hook can not recursively schedule itself because of its own DOM writes.
 
-The current hook order is intentionally structural:
+The hook order is intentionally structural. Lower-priority hooks establish setup and runner structure; later hooks decorate those stable surfaces. Encounter runner cards have an additional ownership rule: `encounter-card-renderer.ts` owns their direct-child composition and named slots. Feature modules may supply initiative, context, metrics, quick stats, conditions, or combat state, but they mount those surfaces through the renderer instead of reordering one another's DOM.
 
-1. other-side structure;
-2. combatant primary fields;
-3. combat-state setup/dashboard creation;
-4. initiative-roll controls;
-5. compact health controls;
-6. Kaiju layout;
-7. duplicate-enemy controls;
-8. dense tracker layout;
-9. condition tracking;
-10. condition placement into combat-state rows;
-11. Rules Core link decoration.
+Combat state and condition tracking now mount directly into their card-owned surfaces. There is no intermediate combat/condition dashboard relay or cleanup pass.
 
 The runtime installs stable event handlers once and requests a pass after application input/change/click events. Preview and turn-state API events also request passes. Asynchronous stateful work, such as Kaiju evaluation, explicitly requests a pass when it replaces application-owned DOM.
 
@@ -77,15 +101,46 @@ The runtime bootstrap is deferred by one browser task because `api.ts` is evalua
 
 The design document distinguishes underlying initiative facts from derived block/round state. The implementation preserves that distinction. Raw initiative values must not be rewritten merely because a controller, block order, or DM override changes how a turn is presented.
 
-## Alliances and block types
+## Alliances and block modules
 
 Alliance and turn-block type are separate concepts.
 
-An alliance identifies which combatants are allied for initiative grouping and encounter logic. A block type identifies the rules that govern a derived turn block. Standard player/enemy blocks use the ordinary block rules. Kaiju use a dedicated Kaiju block type even when their alliance is `enemies`.
+An alliance identifies which combatants are allied for initiative grouping and encounter logic. A block type identifies the rules module represented by a derived turn.
 
-This distinction prevents an adjacent Kaiju and ordinary enemy from collapsing into one ordinary enemy block solely because they share an alliance. It also leaves the model open to future special block types without encoding those mechanics as fake alliances.
+The Core models that distinction structurally:
+
+```text
+TurnBlock (abstract core)
+├── StandardTurnBlock
+├── KaijuTurnBlock
+└── MixedTurnBlock
+```
+
+`TurnBlock` owns the invariants shared by every turn: identity, alliance, membership, tactical member order, merge provenance, and same-side merge validation. Each concrete block module lives in its own file under `Initiative/Blocks` and identifies the ruleset for that turn. `TurnBlockFactory` is the single mapping from `TurnBlockType` to a concrete module, so adding another block kind does not require scattered construction switches.
+
+`MixedTurnBlock` is derived only when a contiguous allied turn or cyclic merge combines different block modules. It is not valid as a raw combatant type.
+
+This is intentionally the same core-plus-module pattern used elsewhere in Dorks & Dice and in XnGine: common lifecycle and invariants remain in the core abstraction, while specialized behavior belongs to the concrete module that owns it.
 
 Kaiju-specific design is documented in [`kaiju-integration.md`](kaiju-integration.md).
+
+
+## Initiative mode modules
+
+`InitiativeEngine` is the shared orchestration core. It validates the roster, resolves controller and tactical-group placement, orders initiative, and then delegates mode-specific behavior to an `InitiativeModeStrategy`.
+
+```text
+InitiativeModeStrategy (abstract core)
+├── BlockInitiativeModeStrategy
+└── StandardInitiativeModeStrategy
+```
+
+Each mode module owns only what differs between modes: tie adjudication policy, conversion of ordered placements into turns, and optional cyclic-merge planning. The engine does not branch on the mode after resolving the strategy. `InitiativeModeStrategyFactory` is the single mapping from the public `InitiativeMode` value to a concrete mode module.
+
+This keeps new initiative modes additive: a new mode should be implemented as a module instead of adding another set of conditionals to `InitiativeEngine`.
+
+
+Tactical-group calculation follows the same boundary. `TacticalGroupRules` owns group identity, while `TacticalGroupInitiativeResolver` owns average/shared-roll calculation and stable grouped sorting. The engine consumes those results as inputs to the common placement pipeline.
 
 ## Encounter UX boundary
 
@@ -97,9 +152,11 @@ Unresolved rules cases should appear only when encountered. Opposing-side initia
 
 ## Persistence
 
-No persistence technology is selected yet. Encounter storage requirements need to be established before choosing PostgreSQL, another service, or a different persistence model.
+The current persistence backend is browser-local storage. The persistence contract is broader than the backend: an encounter save represents the complete encounter, including roster structure, Standard and Kaiju combat state, conditions, initiative position, campaign metadata, and Rules Core projections already handed to the tool. Block type is never a reason to omit state from a save.
 
-Campaign selection and roster import do not constitute encounter persistence. The selected campaign and linked-character IDs are retained as integration metadata so a future persistence layer can associate encounters with campaigns without coupling storage decisions to the initiative engine.
+Server/account or cross-device persistence remains a future transport decision. Changing the storage backend must preserve the complete-encounter contract rather than introducing a second, reduced save format.
+
+Campaign selection and roster import do not themselves constitute encounter persistence. The selected campaign and linked-character IDs are retained as integration metadata so a future host-backed layer can associate encounters with campaigns without coupling storage decisions to the initiative engine.
 
 ## Real-time synchronization
 
@@ -107,4 +164,6 @@ The current Tool Host does not support WebSocket upgrades and does not provide a
 
 ## Rules Core
 
-Block Initiative is expected to consume rules information rather than own the broader hybrid-rules corpus. The integration contract with Rules Core will be designed when the tracker requires concrete rules data. Block construction itself remains an initiative concern and should not become coupled to Rules Core storage internals.
+Block Initiative consumes rules information through the shared `integrations/rules-core/client.ts` boundary rather than owning the broader hybrid-rules corpus. The shared client owns Tool Host transport, search normalization, error handling, and browser-link translation. Entity adapters such as `monsters.ts` and `conditions.ts` own only entity-specific projection behavior.
+
+Block construction remains an initiative concern and is not coupled to Rules Core storage internals. Rules Core enriches encounter data when available; manual encounter entry continues to work when Rules Core data is unavailable.

@@ -5,56 +5,67 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.resolve(testDirectory, "../src/encounter-persistence.ts");
 
-async function source() {
-    return await readFile(sourcePath, "utf8");
+async function source(relativePath) {
+    return await readFile(
+        path.resolve(testDirectory, relativePath),
+        "utf8");
 }
 
 test("encounter persistence uses durable browser storage and an explicit reset", async () => {
-    const text = await source();
+    const coordinator = await source("../src/encounter-persistence.ts");
+    const storage = await source("../src/persistence/encounter-storage.ts");
 
-    assert.match(text, /localStorage\.setItem\(storageKey/);
-    assert.match(text, /localStorage\.getItem\(storageKey/);
-    assert.match(text, /localStorage\.removeItem\(storageKey/);
-    assert.doesNotMatch(text, /sessionStorage/);
-    assert.match(text, /Reset encounter/);
-    assert.match(text, /window\.confirm\(/);
-    assert.match(text, /window\.location\.reload\(\)/);
+    assert.match(storage, /localStorage\.setItem\(/);
+    assert.match(storage, /localStorage\.getItem\(/);
+    assert.match(storage, /localStorage\.removeItem\(/);
+    assert.doesNotMatch(storage, /sessionStorage/);
+    assert.match(coordinator, /Reset encounter/);
+    assert.match(coordinator, /window\.confirm\(/);
+    assert.match(coordinator, /window\.location\.reload\(\)/);
 });
 
-test("encounter persistence captures progression, health, conditions, and campaign context", async () => {
-    const text = await source();
+test("encounter snapshot captures progression, health, conditions, campaign context, and Kaiju state", async () => {
+    const coordinator = await source("../src/encounter-persistence.ts");
+    const capture = await source("../src/persistence/encounter-capture.ts");
+    const restore = await source("../src/persistence/encounter-restore.ts");
 
-    assert.match(text, /block-initiative:preview/);
-    assert.match(text, /block-initiative:state/);
-    assert.match(text, /block-initiative:campaign-change/);
-    assert.match(text, /block-initiative:rules-core-template-link/);
-    assert.match(text, /\.bi-health-row/);
-    assert.match(text, /\.bi-kaiju-panel/);
-    assert.match(text, /\.bi-condition-chip-wrap/);
-    assert.match(text, /data-role='campaign-select'/);
-    assert.match(text, /setRuntimeManualOrder/);
+    assert.match(coordinator, /block-initiative:preview/);
+    assert.match(coordinator, /block-initiative:state/);
+    assert.match(coordinator, /block-initiative:campaign-change/);
+    assert.match(coordinator, /block-initiative:rules-core-template-link/);
+    assert.match(capture, /runnerCard\(root, combatant\.id\)/);
+    assert.match(capture, /data-card-state='kaiju'/);
+    assert.match(capture, /"current-hp"/);
+    assert.match(capture, /"max-hp"/);
+    assert.match(capture, /\.bi-condition-chip-wrap/);
+    assert.match(capture, /kaijuList[\s\S]*directCards\(kaijuList\)\.map\(captureCombatant\)/);
+    assert.match(restore, /data-role='campaign-select'/);
+    assert.match(restore, /setRuntimeManualOrder/);
 });
 
 test("restore replays the saved active turn instead of silently starting over", async () => {
-    const text = await source();
+    const coordinator = await source("../src/encounter-persistence.ts");
+    const restore = await source("../src/persistence/encounter-restore.ts");
 
-    assert.match(text, /sameTurnTarget/);
-    assert.match(text, /\[data-action='next-turn'\]/);
-    assert.doesNotMatch(text, /find\(button => button\.textContent\?\.trim\(\) === "Next block"\)/);
-    assert.match(text, /maxReplayAdvances/);
-    assert.match(text, /Saved encounter restored/);
+    assert.match(restore, /sameTurnTarget/);
+    assert.match(restore, /next-turn/);
+    assert.doesNotMatch(
+        restore,
+        /find\(button => button\.textContent\?\.trim\(\) === "Next block"\)/);
+    assert.match(restore, /maxReplayAdvances/);
+    assert.match(coordinator, /Saved encounter restored/);
 });
 
 test("named encounter saves are separate from automatic recovery", async () => {
-    const text = await source();
+    const coordinator = await source("../src/encounter-persistence.ts");
+    const storage = await source("../src/persistence/encounter-storage.ts");
 
-    assert.match(text, /named-encounters:v1/);
-    assert.match(text, /dataset\.action = "save-named-encounter"/);
-    assert.match(text, /dataset\.action = "load-named-encounter"/);
-    assert.match(text, /dataset\.action = "delete-named-encounter"/);
-    assert.match(text, /Named saves are kept/);
-    assert.match(text, /readNamedEncounters/);
-    assert.match(text, /writeNamedEncounters/);
+    assert.match(storage, /named-encounters:v1/);
+    assert.match(coordinator, /dataset\.action = "save-named-encounter"/);
+    assert.match(coordinator, /dataset\.action = "load-named-encounter"/);
+    assert.match(coordinator, /dataset\.action = "delete-named-encounter"/);
+    assert.match(coordinator, /Named saves are kept/);
+    assert.match(storage, /export function readNamedEncounters/);
+    assert.match(storage, /export function writeNamedEncounters/);
 });

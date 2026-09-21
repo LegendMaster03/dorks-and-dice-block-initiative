@@ -1,6 +1,8 @@
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
-import { searchRulesCoreConditions, toHostedToolHref } from "./rules-core-conditions";
-import type { ConditionSearchMatch, RuleBrowserLink } from "./rules-core-conditions";
+import { searchRulesCoreConditions } from "./integrations/rules-core/conditions";
+import { toHostedToolHref } from "./integrations/rules-core/client";
+import type { ConditionSearchMatch } from "./integrations/rules-core/conditions";
+import type { RuleBrowserLink } from "./integrations/rules-core/client";
 
 type TrackedCondition = {
     id: string;
@@ -17,17 +19,10 @@ type PreviewDetail = {
     };
 };
 
-type TurnStateDetail = {
-    response: {
-        activeBlockId: string | null;
-        blocks: Array<{ id: string; memberOrder: string[] }>;
-    };
-};
-
 const trackedConditions = new Map<string, TrackedCondition[]>();
+const runnerConditionEditors = new Map<string, HTMLElement>();
 const initializedDocuments = new WeakSet<Document>();
 let lastPreview: PreviewDetail | null = null;
-let lastTurnState: TurnStateDetail | null = null;
 let initialized = false;
 
 export function initializeConditionTrackingUi(): void {
@@ -40,18 +35,15 @@ export function initializeConditionTrackingUi(): void {
 
     window.addEventListener("block-initiative:preview", event => {
         lastPreview = (event as CustomEvent<PreviewDetail>).detail ?? null;
+        const activeIds = new Set(lastPreview?.response.orderedCombatants.map(combatant => combatant.id) ?? []);
+        for (const id of runnerConditionEditors.keys()) {
+            if (!activeIds.has(id)) runnerConditionEditors.delete(id);
+        }
         requestEnhancement();
     });
-    window.addEventListener("block-initiative:state", event => {
-        lastTurnState = (event as CustomEvent<TurnStateDetail>).detail ?? null;
-        requestEnhancement();
-    });
-
     registerAfterRender("condition-tracking", 90, () => {
         enhanceSetup(root);
         enhancePreview(root);
-        enhanceRunner(root);
-        ensureConditionDashboard(root);
     });
 }
 
@@ -78,11 +70,7 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-condition-picker label,.block-initiative-app .bi-condition-menu label{font-size:.72rem;font-weight:600;opacity:.78;margin:0}
 .block-initiative-app .bi-condition-picker-actions,.block-initiative-app .bi-condition-menu-actions{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:flex-end}
 .block-initiative-app .bi-condition-search-status{font-size:.8rem;opacity:.72}
-.block-initiative-app .bi-condition-dashboard-list{display:grid;gap:.4rem;margin-top:.45rem}
-.block-initiative-app .bi-condition-dashboard-row{display:grid;grid-template-columns:minmax(8rem,14rem) 1fr;gap:.55rem;align-items:center;border:1px solid var(--bi-border);border-radius:.5rem;padding:.5rem .6rem}
-.block-initiative-app .bi-condition-dashboard-row.active{border-width:2px}
 .block-initiative-app .bi-condition-inline{margin-right:auto}
-@media(max-width:600px){.block-initiative-app .bi-condition-dashboard-row{grid-template-columns:1fr}}
 `;
     documentRef.head.append(style);
 }
@@ -132,18 +120,6 @@ function enhancePreview(root: HTMLElement): void {
     });
 }
 
-function enhanceRunner(root: HTMLElement): void {
-    if (!lastTurnState?.response.activeBlockId) return;
-    const active = lastTurnState.response.blocks.find(block => block.id === lastTurnState!.response.activeBlockId);
-    if (!active) return;
-
-    const rows = Array.from(root.querySelectorAll<HTMLElement>(".bi-runner-member"));
-    active.memberOrder.forEach((combatantId, memberIndex) => {
-        const row = rows[memberIndex];
-        if (row) paintInlineConditions(row, combatantId);
-    });
-}
-
 function paintInlineConditions(row: HTMLElement, combatantId: string): void {
     const existing = row.querySelector<HTMLElement>(":scope > .bi-condition-inline");
     const conditions = conditionsFor(combatantId);
@@ -172,32 +148,16 @@ function paintInlineConditions(row: HTMLElement, combatantId: string): void {
     }
 }
 
-function ensureConditionDashboard(root: HTMLElement): void {
-    const dashboard = root.querySelector<HTMLElement>("[data-combat-dashboard]");
-    if (!dashboard || !lastPreview || dashboard.querySelector("[data-condition-dashboard]")) return;
-
-    const activeBlock = lastTurnState?.response.blocks.find(block => block.id === lastTurnState!.response.activeBlockId);
-    const activeIds = new Set(activeBlock?.memberOrder ?? []);
-    const section = document.createElement("section");
-    section.dataset.conditionDashboard = "true";
-
-    const heading = document.createElement("div");
-    heading.innerHTML = `<h5 class="h6 mb-1">Conditions</h5><div class="bi-note">Track Rules Core or manual conditions. Block Initiative does not enforce condition effects.</div>`;
-    section.append(heading);
-
-    const list = document.createElement("div");
-    list.className = "bi-condition-dashboard-list";
-    for (const combatant of lastPreview.response.orderedCombatants) {
-        const row = document.createElement("article");
-        row.className = `bi-condition-dashboard-row${activeIds.has(combatant.id) ? " active" : ""}`;
-        row.dataset.combatantId = combatant.id;
-        const name = document.createElement("strong");
-        name.textContent = combatant.name;
-        row.append(name, buildConditionEditor(combatant.id, root));
-        list.append(row);
+export function ensureRunnerConditionEditor(root: HTMLElement, combatantId: string): HTMLElement {
+    let editor = runnerConditionEditors.get(combatantId);
+    if (!editor) {
+        editor = buildConditionEditor(combatantId, root);
+        editor.dataset.conditionEditorRole = "runner";
+        runnerConditionEditors.set(combatantId, editor);
+    } else if (!root.contains(editor)) {
+        renderConditionEditor(editor, combatantId, root);
     }
-    section.append(list);
-    dashboard.append(section);
+    return editor;
 }
 
 function buildConditionEditor(combatantId: string, root: HTMLElement): HTMLElement {
@@ -459,7 +419,6 @@ function refreshConditionLabels(root: HTMLElement, condition: TrackedCondition):
         if (chip.dataset.conditionId === condition.id) chip.textContent = conditionLabel(condition);
     }
     enhancePreview(root);
-    enhanceRunner(root);
 }
 
 function refreshConditionUi(root: HTMLElement): void {
@@ -468,7 +427,6 @@ function refreshConditionUi(root: HTMLElement): void {
         if (combatantId) renderConditionEditor(editor, combatantId, root);
     }
     enhancePreview(root);
-    enhanceRunner(root);
     requestEnhancement();
 }
 

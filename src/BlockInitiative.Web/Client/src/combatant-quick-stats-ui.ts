@@ -1,4 +1,5 @@
 import { defenseRows, mergeMonsterCombatStats } from "./encounter-card-model";
+import { collectEncounterCards, mountEncounterCardSlot, renderEncounterCard } from "./encounter-card-renderer";
 import { abilityKeys, projectMonsterCombatStats } from "./monster-combat-stats";
 import type { AbilityKey, MonsterCombatStats } from "./monster-combat-stats";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
@@ -110,9 +111,14 @@ function ensureAllBlocksRunner(root: HTMLElement): void {
     ensureRunnerControls(runner, root);
 
     const signature = JSON.stringify({
-        round: state.round,
-        activeBlockId: state.activeBlockId,
-        blocks: state.blocks.map(block => [block.id, block.allianceId, block.blockType, block.memberOrder])
+        blocks: state.blocks.map(block => [block.id, block.allianceId, block.blockType, block.memberOrder]),
+        combatants: preview.orderedCombatants.map(combatant => [
+            combatant.id,
+            combatant.name,
+            combatant.tacticalGroupId ?? "",
+            combatant.tacticalGroupId ? groupName(root, combatant.tacticalGroupId) : "",
+            combatant.blockType
+        ])
     });
     let stack = runner.querySelector<HTMLElement>(":scope > [data-runner-blocks]");
     if (stack?.dataset.runnerSignature === signature) {
@@ -135,6 +141,7 @@ function ensureAllBlocksRunner(root: HTMLElement): void {
     }
 
     stack.dataset.runnerSignature = signature;
+    const reusableCards = collectEncounterCards(stack);
     stack.replaceChildren();
     const byId = new Map(preview.orderedCombatants.map(combatant => [combatant.id, combatant]));
 
@@ -162,28 +169,14 @@ function ensureAllBlocksRunner(root: HTMLElement): void {
         members.className = "bi-list bi-runner-members";
         for (const combatantId of block.memberOrder) {
             const combatant = byId.get(combatantId);
-            const member = document.createElement("article");
-            member.className = "bi-runner-member bi-row";
-            member.dataset.combatantId = combatantId;
-
-            const identity = document.createElement("div");
-            identity.className = "bi-runner-member-identity";
-            const name = document.createElement("strong");
-            name.textContent = combatant?.name ?? combatantId;
-            identity.append(name);
-
-            const labels = [
-                combatant?.tacticalGroupId ? groupName(root, combatant.tacticalGroupId) : "",
-                combatant?.blockType === "kaiju" ? "Kaiju" : ""
-            ].filter(Boolean);
-            if (labels.length) {
-                const meta = document.createElement("span");
-                meta.className = "bi-muted";
-                meta.textContent = labels.join(" · ");
-                identity.append(meta);
-            }
-
-            member.append(identity);
+            const member = renderEncounterCard(reusableCards.get(combatantId), {
+                id: combatantId,
+                name: combatant?.name ?? combatantId,
+                meta: [
+                    combatant?.tacticalGroupId ? groupName(root, combatant.tacticalGroupId) : "",
+                    combatant?.blockType === "kaiju" ? "Kaiju" : ""
+                ]
+            });
             members.append(member);
         }
         section.append(members);
@@ -297,9 +290,6 @@ function enhance(root: HTMLElement): void {
     if (!runner) return;
     ensureRunnerControls(runner, root);
 
-    integrateCombatState(root, runner, preview.orderedCombatants);
-    integrateConditions(root, runner);
-
     const byId = new Map(preview.orderedCombatants.map(combatant => [combatant.id, combatant]));
     const templateByCombatant = collectTemplateIds(root);
     const healthByCombatant = collectHealth(root, preview.orderedCombatants);
@@ -317,84 +307,6 @@ function enhance(root: HTMLElement): void {
         const stats = mergeMonsterCombatStats(imported, manual);
         paintQuickStats(row, combatant, stats, healthByCombatant.get(combatantId) ?? null);
     }
-}
-
-function integrateCombatState(root: HTMLElement, runner: HTMLElement, combatants: CombatantPreview[]): void {
-    const dashboard = runner.querySelector<HTMLElement>("[data-combat-dashboard]");
-    if (!dashboard) return;
-
-    const guidance = dashboard.firstElementChild instanceof HTMLElement ? dashboard.firstElementChild : null;
-    const guidanceText = guidance?.querySelector<HTMLElement>(".bi-muted");
-    if (guidanceText) {
-        guidanceText.textContent = "Health, conditions, and Kaiju state remain editable from each combatant card.";
-    }
-
-    const standardCombatants = combatants.filter(combatant => combatant.allianceId !== "players" && combatant.blockType === "standard");
-    standardCombatants.forEach(combatant => {
-        const selector = `.bi-health-row[data-combatant-id='${cssEscape(combatant.id)}']`;
-        const row = dashboard.querySelector<HTMLElement>(selector)
-            ?? root.querySelector<HTMLElement>(selector);
-        const member = runner.querySelector<HTMLElement>(`.bi-runner-member[data-combatant-id='${cssEscape(combatant.id)}']`);
-        if (!row || !member) return;
-        row.dataset.combatantId = combatant.id;
-        row.classList.add("bi-integrated-health");
-        ensureStateSlot(member).append(row);
-    });
-
-    const kaijuCombatants = combatants.filter(combatant => combatant.blockType === "kaiju");
-    kaijuCombatants.forEach(combatant => {
-        const selector = `.bi-kaiju-panel[data-combatant-id='${cssEscape(combatant.id)}']`;
-        const panel = dashboard.querySelector<HTMLElement>(selector)
-            ?? root.querySelector<HTMLElement>(selector);
-        const member = runner.querySelector<HTMLElement>(`.bi-runner-member[data-combatant-id='${cssEscape(combatant.id)}']`);
-        if (!panel || !member) return;
-        panel.dataset.combatantId = combatant.id;
-        panel.classList.add("bi-integrated-kaiju");
-        ensureStateSlot(member).append(panel);
-    });
-
-    for (const child of Array.from(dashboard.children)) {
-        if (child === guidance) continue;
-        if (child instanceof HTMLElement) child.hidden = true;
-    }
-}
-
-function integrateConditions(root: HTMLElement, runner: HTMLElement): void {
-    for (const row of runner.querySelectorAll<HTMLElement>(".bi-runner-member")) {
-        row.querySelectorAll(":scope > .bi-condition-inline").forEach(element => element.remove());
-    }
-
-    const dashboard = runner.querySelector<HTMLElement>("[data-condition-dashboard]");
-    if (!dashboard) return;
-
-    for (const editor of Array.from(dashboard.querySelectorAll<HTMLElement>("[data-condition-editor-for]"))) {
-        const combatantId = editor.dataset.conditionEditorFor;
-        if (!combatantId) continue;
-        const member = runner.querySelector<HTMLElement>(`.bi-runner-member[data-combatant-id='${cssEscape(combatantId)}']`);
-        if (!member) continue;
-
-        let section = member.querySelector<HTMLElement>(":scope > .bi-integrated-conditions");
-        if (!section) {
-            section = document.createElement("section");
-            section.className = "bi-integrated-conditions";
-            const label = document.createElement("strong");
-            label.textContent = "Conditions";
-            section.append(label);
-            member.append(section);
-        }
-        section.append(editor);
-    }
-    dashboard.hidden = true;
-}
-
-function ensureStateSlot(member: HTMLElement): HTMLElement {
-    let slot = member.querySelector<HTMLElement>(":scope > .bi-integrated-state");
-    if (!slot) {
-        slot = document.createElement("section");
-        slot.className = "bi-integrated-state";
-        member.append(slot);
-    }
-    return slot;
 }
 
 function enhanceSetup(root: HTMLElement): void {
@@ -635,8 +547,8 @@ function ensureActedControl(row: HTMLElement, combatantId: string, round: number
         const text = document.createElement("span");
         text.textContent = "Acted";
         label.append(input, text);
-        row.append(label);
     }
+    mountEncounterCardSlot(row, "acted", label);
 
     const input = label.querySelector<HTMLInputElement>("input[data-role='acted-toggle']")!;
     input.checked = actedRoundByCombatant.get(combatantId) === round;
@@ -710,11 +622,7 @@ function paintQuickStats(
         if (defenses.childElementCount) panel.append(defenses);
     }
 
-    const stateSlot = row.querySelector<HTMLElement>(":scope > .bi-integrated-state");
-    const conditions = row.querySelector<HTMLElement>(":scope > .bi-integrated-conditions");
-    if (stateSlot) row.insertBefore(panel, stateSlot);
-    else if (conditions) row.insertBefore(panel, conditions);
-    else if (!existing) row.append(panel);
+    mountEncounterCardSlot(row, "quick-stats", panel);
 }
 
 function appendFact(container: HTMLElement, label: string, value: string | null): void {
