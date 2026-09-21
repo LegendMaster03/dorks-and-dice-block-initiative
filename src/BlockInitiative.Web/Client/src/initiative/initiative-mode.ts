@@ -158,7 +158,7 @@ function updateSetupCopy(root: HTMLElement): void {
         }
     }
 
-    const blockRule = root.querySelector<HTMLElement>("header details");
+    const blockRule = root.querySelector<HTMLElement>("[data-role='block-rule-copy']");
     if (blockRule) blockRule.hidden = standard;
 
     const previewButton = root.querySelector<HTMLButtonElement>("[data-action='preview']");

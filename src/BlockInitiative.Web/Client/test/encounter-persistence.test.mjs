@@ -4,6 +4,11 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import {
+    EncounterChangeTracker,
+    persistAutomaticEncounterIfChanged
+} from "../.test-dist/persistence/encounter-change-tracker.js";
+
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 async function source(relativePath) {
@@ -68,4 +73,101 @@ test("named encounter saves are separate from automatic recovery", async () => {
     assert.match(coordinator, /Named saves are kept/);
     assert.match(storage, /export function readNamedEncounters/);
     assert.match(storage, /export function writeNamedEncounters/);
+});
+
+
+function persistenceSnapshot(overrides = {}) {
+    return {
+        version: 1,
+        savedAt: "2026-09-21T12:00:00.000Z",
+        view: "setup",
+        campaignId: null,
+        groupMode: "average",
+        players: [],
+        enemyGroups: [],
+        kaiju: [],
+        otherSides: [],
+        preview: null,
+        state: null,
+        runnerCombat: {},
+        rulesCoreLinks: [],
+        ...overrides
+    };
+}
+
+test("passive initial page capture does not create automatic encounter state", () => {
+    const initial = persistenceSnapshot();
+    const tracker = new EncounterChangeTracker(initial);
+    const writes = [];
+
+    const result = persistAutomaticEncounterIfChanged(
+        { ...initial, savedAt: "2026-09-21T12:01:00.000Z" },
+        tracker,
+        snapshot => {
+            writes.push(snapshot);
+            return true;
+        });
+
+    assert.equal(result, "unchanged");
+    assert.equal(writes.length, 0);
+});
+
+test("restoration does not rewrite an unchanged saved encounter", () => {
+    const restored = persistenceSnapshot({
+        view: "running",
+        players: [{ id: "player-1", name: "Aster" }]
+    });
+    const tracker = new EncounterChangeTracker(restored);
+    let writeCount = 0;
+
+    const result = persistAutomaticEncounterIfChanged(
+        { ...restored, savedAt: "2026-09-21T12:02:00.000Z" },
+        tracker,
+        () => {
+            writeCount += 1;
+            return true;
+        });
+
+    assert.equal(result, "unchanged");
+    assert.equal(writeCount, 0);
+});
+
+test("real encounter mutation saves once and only then signals a saved result", () => {
+    const initial = persistenceSnapshot();
+    const tracker = new EncounterChangeTracker(initial);
+    const writes = [];
+    const changed = persistenceSnapshot({
+        savedAt: "2026-09-21T12:03:00.000Z",
+        players: [{ id: "player-1", name: "Aster" }]
+    });
+
+    const firstResult = persistAutomaticEncounterIfChanged(
+        changed,
+        tracker,
+        snapshot => {
+            writes.push(snapshot);
+            return true;
+        });
+    const repeatedResult = persistAutomaticEncounterIfChanged(
+        { ...changed, savedAt: "2026-09-21T12:04:00.000Z" },
+        tracker,
+        snapshot => {
+            writes.push(snapshot);
+            return true;
+        });
+
+    assert.equal(firstResult, "saved");
+    assert.equal(repeatedResult, "unchanged");
+    assert.equal(writes.length, 1);
+});
+
+test("restore completion keeps its restoration message until a real mutation", async () => {
+    const coordinator = await source("../src/encounter-persistence.ts");
+    const completion = coordinator.match(
+        /onComplete: \(\) => \{[\s\S]*?\n        \},\n        onFailure:/)?.[0] ?? "";
+
+    assert.match(completion, /Saved encounter restored/);
+    assert.doesNotMatch(completion, /scheduleSave/);
+    assert.match(coordinator, /if \(result === "unchanged"\) return;/);
+    assert.match(coordinator, /if \(result === "saved"\)/);
 });

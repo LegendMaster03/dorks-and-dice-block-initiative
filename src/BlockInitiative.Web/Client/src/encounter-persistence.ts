@@ -2,6 +2,10 @@ import {
     captureEncounter
 } from "./persistence/encounter-capture";
 import {
+    EncounterChangeTracker,
+    persistAutomaticEncounterIfChanged
+} from "./persistence/encounter-change-tracker";
+import {
     EncounterRestoreSession
 } from "./persistence/encounter-restore";
 import type {
@@ -28,6 +32,7 @@ let initialized = false;
 let resetting = false;
 let saveTimer: number | null = null;
 let restoreSession: EncounterRestoreSession | null = null;
+let changeTracker: EncounterChangeTracker | null = null;
 let lastPreview: PreviewDetail | null = null;
 let lastState: StateDetail | null = null;
 const rulesCoreLinks = new Map<string, SavedRulesCoreLink>();
@@ -48,6 +53,9 @@ export function initializeEncounterPersistence(): void {
 
         restoreSession = createRestoreSession(root, savedEncounter);
     }
+
+    changeTracker = new EncounterChangeTracker(
+        savedEncounter ?? captureCurrentEncounter(root));
 
     root.addEventListener("input", () => scheduleSave(root));
     root.addEventListener("change", () => scheduleSave(root));
@@ -254,15 +262,24 @@ function scheduleSave(root: HTMLElement): void {
 function saveNow(root: HTMLElement): void {
     if (resetting || restoreSession) return;
     const snapshot = captureCurrentEncounter(root);
-    if (writeAutomaticEncounter(snapshot)) {
+    changeTracker ??= new EncounterChangeTracker(snapshot);
+
+    const result = persistAutomaticEncounterIfChanged(
+        snapshot,
+        changeTracker,
+        writeAutomaticEncounter);
+    if (result === "unchanged") return;
+
+    if (result === "saved") {
         setPersistenceStatus(
             root,
             "Encounter saved in this browser. It will remain until you reset it.");
-    } else {
-        setPersistenceStatus(
-            root,
-            "Browser storage is unavailable, so this encounter can not be saved through reloads.");
+        return;
     }
+
+    setPersistenceStatus(
+        root,
+        "Browser storage is unavailable, so this encounter can not be saved through reloads.");
 }
 
 function captureCurrentEncounter(root: HTMLElement): SavedEncounter {
@@ -283,7 +300,6 @@ function createRestoreSession(
             setPersistenceStatus(
                 root,
                 "Saved encounter restored. Changes continue saving until you reset it.");
-            scheduleSave(root);
         },
         onFailure: error => {
             restoreSession = null;
