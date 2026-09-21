@@ -1,3 +1,5 @@
+import { mountEncounterCardSlot } from "./encounter-card-renderer";
+import { ensureRunnerConditionEditor } from "./condition-tracking-ui";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
 
 type CombatantPreview = {
@@ -52,9 +54,8 @@ function ensureInitiativeDisplay(card: HTMLElement, combatant: CombatantPreview)
     if (!display) {
         display = document.createElement("div");
         display.className = "bi-card-initiative";
-        const acted = card.querySelector<HTMLElement>(":scope > .bi-acted-toggle");
-        acted ? card.insertBefore(display, acted) : card.append(display);
     }
+    mountEncounterCardSlot(card, "initiative", display);
 
     display.replaceChildren();
     const total = document.createElement("strong");
@@ -93,7 +94,10 @@ function ensureContextMenu(root: HTMLElement, card: HTMLElement, combatantId: st
         const heading = document.createElement("strong");
         heading.className = "bi-card-context-heading";
         heading.textContent = "Conditions";
-        menu.append(heading);
+        const note = document.createElement("div");
+        note.className = "bi-note";
+        note.textContent = "Track conditions here. Block Initiative does not enforce condition effects.";
+        menu.append(heading, note);
 
         trigger.onclick = event => {
             event.stopPropagation();
@@ -104,8 +108,8 @@ function ensureContextMenu(root: HTMLElement, card: HTMLElement, combatantId: st
         };
 
         wrapper.append(trigger, menu);
-        card.append(wrapper);
     }
+    mountEncounterCardSlot(card, "context", wrapper);
 
     const menu = wrapper.querySelector<HTMLElement>(":scope > .bi-card-context-menu");
     if (!menu) return;
@@ -117,21 +121,9 @@ function ensureContextMenu(root: HTMLElement, card: HTMLElement, combatantId: st
         menu.append(conditionSection);
     }
 
-    const editors = Array.from(root.querySelectorAll<HTMLElement>(`[data-condition-editor-for='${cssEscape(combatantId)}']`));
-    const editor = editors[editors.length - 1];
-    if (editor && editor.parentElement !== conditionSection) {
-        for (const stale of editors.slice(0, -1)) stale.remove();
+    const editor = ensureRunnerConditionEditor(root, combatantId);
+    if (editor.parentElement !== conditionSection) {
         conditionSection.replaceChildren(editor);
-    }
-
-    if (!conditionSection.querySelector("[data-condition-editor-for]")) {
-        const note = conditionSection.querySelector<HTMLElement>(":scope > .bi-card-context-empty")
-            ?? document.createElement("div");
-        note.className = "bi-card-context-empty bi-muted";
-        note.textContent = "Condition controls are loading.";
-        if (!note.isConnected) conditionSection.append(note);
-    } else {
-        conditionSection.querySelector(":scope > .bi-card-context-empty")?.remove();
     }
 }
 
@@ -153,9 +145,8 @@ function refreshConditionPresentation(card: HTMLElement): void {
     if (!summary) {
         summary = document.createElement("div");
         summary.className = "bi-card-condition-summary";
-        const quickStats = card.querySelector<HTMLElement>(":scope > .bi-quick-stats");
-        quickStats ? card.insertBefore(summary, quickStats) : card.append(summary);
     }
+    mountEncounterCardSlot(card, "condition-summary", summary);
 
     const signature = conditionButtons.map(button => button.textContent ?? "").join("\u0000");
     if (summary.dataset.conditionSummarySignature === signature) return;

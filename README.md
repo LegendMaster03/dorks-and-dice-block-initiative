@@ -22,7 +22,7 @@ The current implementation establishes the initiative engine and a manual encoun
 
 The UI deliberately separates ordinary encounter setup from advanced mechanics. Character sheets are not required for manual use. Encounter setup, the current running position, HP, conditions, Kaiju state, and the active view are automatically restored from browser-local storage after a reload. A DM can also create named browser-local encounter saves and later load or delete them without disturbing other named saves. These are local to the current browser; server-side and cross-device encounter storage are not implemented.
 
-Kaiju-specific turn-state mechanics such as Chaos Threshold, Vulnerable Areas, behaviours, Death Throes, and Finishing Blow are not yet implemented. The `kaiju` block type exists so those mechanics can attach to a real special block instead of being folded into a standard enemy block.
+Kaiju-specific combat tracking is implemented as a dedicated module rather than folded into ordinary enemy HP. It tracks Chaos Threshold, Vulnerable Areas, Behaviour / phase, Rampage, Death Throes, Finishing Blow state, defeat state, and DM overrides. Those values are included in automatic and named encounter saves.
 
 ## Stack
 

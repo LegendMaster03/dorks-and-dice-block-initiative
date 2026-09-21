@@ -1,4 +1,4 @@
-export type ConditionMatchKind = "resolved" | "source";
+export type RulesCoreMatchKind = "resolved" | "source";
 
 export interface RuleBrowserLink {
     toolSlug: string;
@@ -6,8 +6,8 @@ export interface RuleBrowserLink {
     routeIdentity: string;
 }
 
-export interface ConditionSearchMatch {
-    kind: ConditionMatchKind;
+export interface RulesCoreSearchMatch {
+    kind: RulesCoreMatchKind;
     id: string;
     conceptKey: string | null;
     sourceEntityId: string;
@@ -42,31 +42,46 @@ interface SourceEntitySummary {
 
 const gateway = "/tool-host/rules-core/api/upstream";
 
-export async function searchRulesCoreConditions(query: string, limit = 10): Promise<ConditionSearchMatch[]> {
+export async function searchRulesCoreEntity(
+    entityType: string,
+    query: string,
+    limit: number,
+    unavailableMessage: string
+): Promise<RulesCoreSearchMatch[]> {
     const normalized = query.trim();
     if (normalized.length < 2) return [];
 
-    const encoded = encodeURIComponent(normalized);
-    const resolvedUrl = `${gateway}/api/rules?entityType=condition&q=${encoded}&limit=${limit}`;
-    const sourceUrl = `${gateway}/api/sources/entities?entityType=condition&q=${encoded}&limit=${limit}`;
+    const encodedType = encodeURIComponent(entityType);
+    const encodedQuery = encodeURIComponent(normalized);
+    const resolvedPath = `/api/rules?entityType=${encodedType}&q=${encodedQuery}&limit=${limit}`;
+    const sourcePath = `/api/sources/entities?entityType=${encodedType}&q=${encodedQuery}&limit=${limit}`;
 
     const [resolvedResult, sourceResult] = await Promise.allSettled([
-        getJson<ResolvedCatalogResponse>(resolvedUrl, "Rules Core resolved condition search"),
-        getJson<SourceEntitySummary[]>(sourceUrl, "Rules Core source condition search")
+        getRulesCoreJson<ResolvedCatalogResponse>(
+            resolvedPath,
+            `Rules Core resolved ${entityType} search`),
+        getRulesCoreJson<SourceEntitySummary[]>(
+            sourcePath,
+            `Rules Core source ${entityType} search`)
     ]);
 
     if (resolvedResult.status === "rejected" && sourceResult.status === "rejected") {
-        throw new Error("Rules Core condition lookup is not available right now. You can still add the condition manually.");
+        throw new Error(unavailableMessage);
     }
 
-    const matches: ConditionSearchMatch[] = [];
+    const matches: RulesCoreSearchMatch[] = [];
     const seenSourceIds = new Set<string>();
 
     if (resolvedResult.status === "fulfilled") {
-        const rules = Array.isArray(resolvedResult.value?.rules) ? resolvedResult.value.rules : [];
+        const rules = Array.isArray(resolvedResult.value?.rules)
+            ? resolvedResult.value.rules
+            : [];
+
         for (const rule of rules) {
-            if (typeof rule?.entityType !== "string" || rule.entityType.toLowerCase() !== "condition") continue;
+            if (typeof rule?.entityType !== "string"
+                || rule.entityType.toLowerCase() !== entityType.toLowerCase()) continue;
             if (!rule.conceptKey || !rule.sourceEntityId || !rule.displayName) continue;
+
             matches.push({
                 kind: "resolved",
                 id: `rule:${rule.conceptKey}`,
@@ -86,8 +101,10 @@ export async function searchRulesCoreConditions(query: string, limit = 10): Prom
     if (sourceResult.status === "fulfilled") {
         const entities = Array.isArray(sourceResult.value) ? sourceResult.value : [];
         for (const entity of entities) {
-            if (typeof entity?.entityType !== "string" || entity.entityType.toLowerCase() !== "condition") continue;
+            if (typeof entity?.entityType !== "string"
+                || entity.entityType.toLowerCase() !== entityType.toLowerCase()) continue;
             if (!entity.entityId || !entity.name || seenSourceIds.has(entity.entityId)) continue;
+
             matches.push({
                 kind: "source",
                 id: `source:${entity.entityId}`,
@@ -106,17 +123,14 @@ export async function searchRulesCoreConditions(query: string, limit = 10): Prom
     return matches;
 }
 
-export function toHostedToolHref(link: RuleBrowserLink | null | undefined): string | null {
-    const slug = link?.toolSlug?.trim();
-    const relativePath = link?.toolRelativePath?.trim();
-    if (!slug || !relativePath || !relativePath.startsWith("/")) return null;
-    return `/tools/${encodeURIComponent(slug)}${relativePath}`;
-}
-
-async function getJson<T>(url: string, label: string): Promise<T> {
+export async function getRulesCoreJson<T>(
+    path: string,
+    label: string,
+    accessDeniedMessage = "Rules Core access is required for this operation."
+): Promise<T> {
     let response: Response;
     try {
-        response = await fetch(url, {
+        response = await fetch(`${gateway}${path}`, {
             credentials: "same-origin",
             headers: { Accept: "application/json" }
         });
@@ -126,7 +140,7 @@ async function getJson<T>(url: string, label: string): Promise<T> {
 
     if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-            throw new Error("Rules Core condition lookup requires access to the Rules Core tool or source package.");
+            throw new Error(accessDeniedMessage);
         }
         throw new Error(`${label} returned HTTP ${response.status}.`);
     }
@@ -138,4 +152,11 @@ async function getJson<T>(url: string, label: string): Promise<T> {
     } catch {
         throw new Error(`${label} returned an unreadable response.`);
     }
+}
+
+export function toHostedToolHref(link: RuleBrowserLink | null | undefined): string | null {
+    const slug = link?.toolSlug?.trim();
+    const relativePath = link?.toolRelativePath?.trim();
+    if (!slug || !relativePath || !relativePath.startsWith("/")) return null;
+    return `/tools/${encodeURIComponent(slug)}${relativePath}`;
 }

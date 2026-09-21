@@ -1,23 +1,23 @@
 namespace BlockInitiative.Core.Initiative;
 
 /// <summary>
-/// A contiguous run in initiative order belonging to one side. MemberOrder is
-/// deliberately separate from the combatants' initiative totals so tactical
-/// reordering does not falsify the underlying rolls.
+/// Core contract for one encounter turn.
+///
+/// The base class owns invariants shared by every block kind: stable identity,
+/// alliance membership, member ordering, and merge provenance. Concrete block
+/// modules define the ruleset identity for the turn.
 /// </summary>
-public sealed class TurnBlock
+public abstract class TurnBlock
 {
-    internal TurnBlock(
+    protected TurnBlock(
         string id,
         string allianceId,
-        TurnBlockType blockType,
         IEnumerable<string> memberIds,
         IEnumerable<string>? memberOrder = null,
         IEnumerable<string>? sourceBlockIds = null)
     {
         Id = id;
         AllianceId = allianceId;
-        BlockType = blockType;
         MemberIds = memberIds.ToArray();
         MemberOrder = (memberOrder ?? MemberIds).ToArray();
         SourceBlockIds = (sourceBlockIds ?? new[] { id }).ToArray();
@@ -30,10 +30,9 @@ public sealed class TurnBlock
     public string AllianceId { get; }
 
     /// <summary>
-    /// Describes the member block types inside this side turn. Mixed means the
-    /// turn contains both standard and Kaiju members.
+    /// Identifies the concrete rules module represented by this turn.
     /// </summary>
-    public TurnBlockType BlockType { get; }
+    public abstract TurnBlockType BlockType { get; }
 
     public IReadOnlyList<string> MemberIds { get; }
 
@@ -43,12 +42,15 @@ public sealed class TurnBlock
 
     public bool IsMerged => SourceBlockIds.Count > 1;
 
+    /// <summary>
+    /// Returns the same concrete block kind with a different tactical member
+    /// order. Underlying initiative facts and block membership are unchanged.
+    /// </summary>
     public TurnBlock WithMemberOrder(IEnumerable<string> memberOrder)
     {
         var order = memberOrder.ToArray();
         ValidateOrder(order);
-
-        return new TurnBlock(Id, AllianceId, BlockType, MemberIds, order, SourceBlockIds);
+        return Recreate(order);
     }
 
     internal TurnBlock MergeWith(TurnBlock other)
@@ -59,17 +61,20 @@ public sealed class TurnBlock
                 "Only turn blocks belonging to the same side can be merged.");
         }
 
-        return new TurnBlock(
+        return TurnBlockFactory.Create(
             Id,
             AllianceId,
-            CombineBlockTypes(BlockType, other.BlockType),
+            TurnBlockFactory.CombineTypes(BlockType, other.BlockType),
             MemberIds.Concat(other.MemberIds),
             MemberOrder.Concat(other.MemberOrder),
             SourceBlockIds.Concat(other.SourceBlockIds));
     }
 
-    internal static TurnBlockType CombineBlockTypes(TurnBlockType first, TurnBlockType second)
-        => first == second ? first : TurnBlockType.Mixed;
+    /// <summary>
+    /// Recreates this block as the same concrete module while preserving its
+    /// identity, membership, and merge provenance.
+    /// </summary>
+    protected abstract TurnBlock Recreate(IReadOnlyList<string> memberOrder);
 
     private void ValidateOrder(IReadOnlyList<string> order)
     {

@@ -14,7 +14,9 @@ This persistence is local browser persistence. It is not account synchronization
 
 ## Persisted state
 
-The browser snapshot retains the encounter roster and stable combatant IDs, player/enemy/other-side grouping, tactical-group mode and shared rolls, campaign association, initiative preview/manual ordering, current round and active block, ordinary HP, Kaiju state, tracked condition names/notes and available rule links, and projected Rules Core monster information already handed to the tool.
+An encounter save is a complete encounter snapshot. The browser snapshot retains the encounter roster and stable combatant IDs, every Standard and Kaiju block, player/enemy/other-side grouping, tactical-group mode and shared rolls, campaign association, initiative preview/manual ordering, current round and active block, ordinary HP, complete Kaiju combat state, tracked condition names/notes and available rule links, and projected Rules Core monster information already handed to the tool.
+
+Block type is not a persistence filter. A Kaiju block is part of the encounter and is saved/restored with the same completeness requirement as a Standard block.
 
 When a running encounter is restored, Block Initiative rebuilds the roster and initiative preview, starts the encounter, and advances through the deterministic turn-state API until it reaches the saved round and active turn. This keeps the existing application and server initiative engine authoritative rather than introducing a second client-only initiative implementation.
 

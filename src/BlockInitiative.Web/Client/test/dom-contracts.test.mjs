@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseHTML } from "linkedom";
 
-import { initializeConditionLayoutUi } from "../.test-dist/condition-layout-ui.js";
+import { collectEncounterCards, mountEncounterCardSlot, mountEncounterCardState, removeEncounterCardState, renderEncounterCard, renderEncounterCardMetrics } from "../.test-dist/encounter-card-renderer.js";
 import { initializeHealthControlUi } from "../.test-dist/health-control-ui.js";
 import { requestEnhancement } from "../.test-dist/render-lifecycle.js";
 
@@ -55,38 +55,119 @@ test("health controls bind by semantic field identity instead of visible labels"
     assert.equal(current.value, "20");
 });
 
-test("condition layout matches combatants by identity even when health rows are out of order", async () => {
-    root.innerHTML = `
-<section data-combat-dashboard>
-  <div data-condition-dashboard>
-    <article class="bi-condition-dashboard-row" data-combatant-id="alpha">
-      <div data-condition-editor-for="alpha"><button>Alpha condition</button></div>
-    </article>
-    <article class="bi-condition-dashboard-row" data-combatant-id="beta">
-      <div data-condition-editor-for="beta"><button>Beta condition</button></div>
-    </article>
-  </div>
-  <article class="bi-health-row" data-combatant-id="beta"></article>
-  <article class="bi-health-row" data-combatant-id="alpha"></article>
-</section>`;
+test("encounter card renderer owns canonical slot order and replacement", () => {
+    const card = document.createElement("article");
+    card.className = "bi-runner-member";
 
-    initializeConditionLayoutUi();
-    window.dispatchEvent(new CustomEvent("block-initiative:preview", {
-        detail: {
-            response: {
-                orderedCombatants: [
-                    { id: "alpha", name: "Alpha", allianceId: "enemies", blockType: "standard" },
-                    { id: "beta", name: "Beta", allianceId: "enemies", blockType: "standard" }
-                ]
-            }
-        }
-    }));
-    await settle();
+    const quickStats = document.createElement("section");
+    const context = document.createElement("div");
+    const identity = document.createElement("div");
+    const metrics = document.createElement("div");
+    const acted = document.createElement("label");
+    const initiative = document.createElement("div");
 
-    const alpha = root.querySelector(".bi-health-row[data-combatant-id='alpha']");
-    const beta = root.querySelector(".bi-health-row[data-combatant-id='beta']");
-    assert.ok(alpha?.querySelector("[data-condition-editor-for='alpha']"));
-    assert.ok(beta?.querySelector("[data-condition-editor-for='beta']"));
-    assert.equal(alpha?.querySelector("[data-condition-editor-for='beta']"), null);
-    assert.equal(beta?.querySelector("[data-condition-editor-for='alpha']"), null);
+    mountEncounterCardSlot(card, "quick-stats", quickStats);
+    mountEncounterCardSlot(card, "context", context);
+    mountEncounterCardSlot(card, "identity", identity);
+    mountEncounterCardSlot(card, "metrics", metrics);
+    mountEncounterCardSlot(card, "acted", acted);
+    mountEncounterCardSlot(card, "initiative", initiative);
+
+    assert.deepEqual(
+        Array.from(card.children).map(element => element.dataset.cardSlot),
+        ["identity", "initiative", "acted", "context", "metrics", "quick-stats"]
+    );
+
+    const replacement = document.createElement("section");
+    mountEncounterCardSlot(card, "quick-stats", replacement);
+    assert.equal(card.querySelectorAll(":scope > [data-card-slot='quick-stats']").length, 1);
+    assert.equal(card.querySelector(":scope > [data-card-slot='quick-stats']"), replacement);
+});
+
+
+test("encounter card renderer reuses stateful cards across block rebuilds", () => {
+    const stack = document.createElement("div");
+    const first = renderEncounterCard(undefined, { id: "alpha", name: "Alpha", meta: [] });
+    const hpEditor = document.createElement("div");
+    hpEditor.className = "bi-hp-editor";
+    const state = document.createElement("section");
+    state.append(hpEditor);
+    mountEncounterCardSlot(first, "state", state);
+    stack.append(first);
+
+    const reusable = collectEncounterCards(stack);
+    stack.replaceChildren();
+
+    const rebuilt = renderEncounterCard(reusable.get("alpha"), {
+        id: "alpha",
+        name: "Alpha renamed",
+        meta: ["Enemy"]
+    });
+    stack.append(rebuilt);
+
+    assert.equal(rebuilt, first);
+    assert.equal(rebuilt.querySelector(".bi-hp-editor"), hpEditor);
+    assert.equal(rebuilt.querySelector("[data-card-slot='identity'] strong")?.textContent, "Alpha renamed");
+});
+
+
+test("encounter card renderer owns keyed combat state within the state slot", () => {
+    const card = renderEncounterCard(undefined, { id: "alpha", name: "Alpha", meta: [] });
+    const firstHealth = document.createElement("article");
+    const replacementHealth = document.createElement("article");
+    const kaiju = document.createElement("section");
+
+    mountEncounterCardState(card, "health", firstHealth);
+    mountEncounterCardState(card, "kaiju", kaiju);
+    mountEncounterCardState(card, "health", replacementHealth);
+
+    const state = card.querySelector("[data-card-slot='state']");
+    assert.ok(state);
+    assert.equal(state.querySelectorAll(":scope > [data-card-state='health']").length, 1);
+    assert.equal(state.querySelector(":scope > [data-card-state='health']"), replacementHealth);
+    assert.equal(state.querySelector(":scope > [data-card-state='kaiju']"), kaiju);
+
+    removeEncounterCardState(card, "health");
+    assert.equal(state.querySelector("[data-card-state='health']"), null);
+    assert.equal(state.querySelector("[data-card-state='kaiju']"), kaiju);
+});
+
+
+test("encounter card renderer owns AC speed and HP metric composition", () => {
+    const card = renderEncounterCard(undefined, { id: "alpha", name: "Alpha", meta: [] });
+    const healthRow = document.createElement("article");
+    healthRow.className = "bi-health-row";
+    const editor = document.createElement("div");
+    editor.className = "bi-hp-editor";
+    healthRow.append(editor);
+    mountEncounterCardState(card, "health", healthRow);
+
+    renderEncounterCardMetrics(card, { speed: "30 ft.", armorClass: "17" });
+
+    const metrics = card.querySelector("[data-card-slot='metrics']");
+    assert.ok(metrics);
+    assert.equal(metrics.querySelector("[data-stat='ac'] strong")?.textContent, "17");
+    assert.match(metrics.textContent ?? "", /Speed 30 ft\./);
+    assert.equal(metrics.querySelector(".bi-hp-editor"), editor);
+    assert.equal(healthRow.hidden, true);
+});
+
+
+test("encounter card renderer drops card-owned HP when health tracking is removed", () => {
+    const card = renderEncounterCard(undefined, { id: "alpha", name: "Alpha", meta: [] });
+    const healthRow = document.createElement("article");
+    const editor = document.createElement("div");
+    editor.className = "bi-hp-editor";
+    healthRow.append(editor);
+    mountEncounterCardState(card, "health", healthRow);
+
+    renderEncounterCardMetrics(card, { speed: null, armorClass: "17" });
+    assert.equal(card.querySelector(".bi-hp-editor"), editor);
+
+    removeEncounterCardState(card, "health");
+    renderEncounterCardMetrics(card, { speed: null, armorClass: "17" });
+
+    assert.equal(card.querySelector(".bi-hp-editor"), null);
+    assert.equal(card.querySelector(".bi-card-secondary-health"), null);
+    assert.equal(card.querySelector("[data-stat='ac'] strong")?.textContent, "17");
 });

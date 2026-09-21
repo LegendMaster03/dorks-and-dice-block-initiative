@@ -10,9 +10,12 @@ public static class InitiativeEngine
     {
         var source = combatants.ToArray();
         ValidateCombatants(source);
+        var modeStrategy = InitiativeModeStrategyFactory.Resolve(mode);
 
         var byId = source.ToDictionary(combatant => combatant.Id, StringComparer.Ordinal);
-        var tacticalGroupInitiatives = BuildTacticalGroupInitiatives(source, tacticalGroupMode);
+        var tacticalGroupInitiatives = TacticalGroupInitiativeResolver.BuildInitiatives(
+            source,
+            tacticalGroupMode);
         var placements = source
             .Select((combatant, index) => new InitiativePlacement(
                 combatant,
@@ -37,21 +40,20 @@ public static class InitiativeEngine
         {
             ordered = placements
                 .OrderByDescending(placement => placement.EffectiveInitiative)
-                .ThenBy(placement => TacticalGroupSortIndex(placement, placements, tacticalGroupMode))
+                .ThenBy(placement => TacticalGroupInitiativeResolver.SortIndex(
+                    placement,
+                    placements,
+                    tacticalGroupMode))
                 .ThenBy(placement => placement.SourceIndex)
                 .ToArray();
 
-            issues.AddRange(mode == InitiativeMode.Standard
-                ? FindStandardTieIssues(ordered, tacticalGroupMode)
-                : FindOpposingTieIssues(ordered));
+            issues.AddRange(modeStrategy.FindTieIssues(
+                ordered,
+                tacticalGroupMode));
         }
 
-        var blocks = mode == InitiativeMode.Standard
-            ? BuildStandardTurns(ordered)
-            : BuildBlocks(ordered);
-        var cyclicMerge = mode == InitiativeMode.Block
-            ? BuildCyclicMergePlan(blocks)
-            : null;
+        var blocks = modeStrategy.BuildTurns(ordered);
+        var cyclicMerge = modeStrategy.BuildCyclicMergePlan(blocks);
 
         return new InitiativeLayout(
             source,
@@ -86,225 +88,10 @@ public static class InitiativeEngine
             return controller.InitiativeTotal;
         }
 
-        var tacticalKey = GetTacticalGroupKey(combatant);
+        var tacticalKey = TacticalGroupRules.GetKey(combatant);
         return tacticalKey is not null && tacticalGroupInitiatives.TryGetValue(tacticalKey, out var groupInitiative)
             ? groupInitiative
             : combatant.InitiativeTotal;
-    }
-
-    private static IReadOnlyDictionary<TacticalGroupKey, decimal> BuildTacticalGroupInitiatives(
-        IReadOnlyList<CombatantInitiative> combatants,
-        TacticalGroupInitiativeMode mode)
-    {
-        if (mode == TacticalGroupInitiativeMode.Individual)
-        {
-            return new Dictionary<TacticalGroupKey, decimal>();
-        }
-
-        var result = new Dictionary<TacticalGroupKey, decimal>();
-        var grouped = combatants
-            .Where(combatant => combatant.ControllerId is null)
-            .Select(combatant => new { Combatant = combatant, Key = GetTacticalGroupKey(combatant) })
-            .Where(value => value.Key is not null)
-            .GroupBy(value => value.Key!);
-
-        foreach (var group in grouped)
-        {
-            var members = group.Select(value => value.Combatant).ToArray();
-            if (mode == TacticalGroupInitiativeMode.SharedGroupRoll)
-            {
-                var distinctRolls = members
-                    .Select(member => member.InitiativeTotal)
-                    .Distinct()
-                    .ToArray();
-                if (distinctRolls.Length != 1)
-                {
-                    throw new ArgumentException(
-                        $"Tactical group '{group.Key.TacticalGroupId}' uses one shared roll, but its members do not have the same initiative total.",
-                        nameof(combatants));
-                }
-
-                result[group.Key] = distinctRolls[0];
-                continue;
-            }
-
-            result[group.Key] = members.Average(member => member.InitiativeTotal);
-        }
-
-        return result;
-    }
-
-    private static int TacticalGroupSortIndex(
-        InitiativePlacement placement,
-        IReadOnlyList<InitiativePlacement> placements,
-        TacticalGroupInitiativeMode mode)
-    {
-        if (mode == TacticalGroupInitiativeMode.Individual)
-        {
-            return placement.SourceIndex;
-        }
-
-        var key = GetTacticalGroupKey(placement.Combatant);
-        if (key is null || placement.Combatant.ControllerId is not null)
-        {
-            return placement.SourceIndex;
-        }
-
-        return placements
-            .Where(candidate => candidate.Combatant.ControllerId is null
-                && Equals(GetTacticalGroupKey(candidate.Combatant), key))
-            .Min(candidate => candidate.SourceIndex);
-    }
-
-    private static TacticalGroupKey? GetTacticalGroupKey(CombatantInitiative combatant)
-        => string.IsNullOrWhiteSpace(combatant.TacticalGroupId)
-            ? null
-            : new TacticalGroupKey(
-                combatant.AllianceId,
-                combatant.BlockType,
-                combatant.TacticalGroupId.Trim());
-
-    private static IReadOnlyList<TurnBlock> BuildStandardTurns(
-        IReadOnlyList<InitiativePlacement> ordered)
-        => ordered
-            .Select((placement, index) => CreateBlock(
-                index,
-                placement.Combatant.AllianceId,
-                placement.Combatant.BlockType,
-                new[] { placement.Combatant.Id }))
-            .ToArray();
-
-    private static IReadOnlyList<TurnBlock> BuildBlocks(
-        IReadOnlyList<InitiativePlacement> ordered)
-    {
-        if (ordered.Count == 0)
-        {
-            return Array.Empty<TurnBlock>();
-        }
-
-        var blocks = new List<TurnBlock>();
-        var memberIds = new List<string>();
-        var allianceId = ordered[0].Combatant.AllianceId;
-        var blockType = ordered[0].Combatant.BlockType;
-
-        foreach (var placement in ordered)
-        {
-            if (!string.Equals(
-                    allianceId,
-                    placement.Combatant.AllianceId,
-                    StringComparison.Ordinal))
-            {
-                blocks.Add(CreateBlock(blocks.Count, allianceId, blockType, memberIds));
-                memberIds = new List<string>();
-                allianceId = placement.Combatant.AllianceId;
-                blockType = placement.Combatant.BlockType;
-            }
-            else
-            {
-                blockType = TurnBlock.CombineBlockTypes(blockType, placement.Combatant.BlockType);
-            }
-
-            memberIds.Add(placement.Combatant.Id);
-        }
-
-        blocks.Add(CreateBlock(blocks.Count, allianceId, blockType, memberIds));
-        return blocks;
-    }
-
-    private static TurnBlock CreateBlock(
-        int zeroBasedIndex,
-        string allianceId,
-        TurnBlockType blockType,
-        IEnumerable<string> memberIds)
-    {
-        return new TurnBlock(
-            $"block-{zeroBasedIndex + 1}",
-            allianceId,
-            blockType,
-            memberIds);
-    }
-
-    private static CyclicMergePlan? BuildCyclicMergePlan(
-        IReadOnlyList<TurnBlock> blocks)
-    {
-        if (blocks.Count < 2)
-        {
-            return null;
-        }
-
-        var top = blocks[0];
-        var bottom = blocks[^1];
-
-        return string.Equals(top.AllianceId, bottom.AllianceId, StringComparison.Ordinal)
-            ? new CyclicMergePlan(
-                top.Id,
-                bottom.Id,
-                top.AllianceId,
-                TurnBlock.CombineBlockTypes(top.BlockType, bottom.BlockType))
-            : null;
-    }
-
-    private static IEnumerable<InitiativeIssue> FindStandardTieIssues(
-        IReadOnlyList<InitiativePlacement> ordered,
-        TacticalGroupInitiativeMode tacticalGroupMode)
-    {
-        foreach (var tieGroup in ordered.GroupBy(placement => placement.EffectiveInitiative))
-        {
-            var tied = tieGroup.ToArray();
-            if (tied.Length < 2)
-            {
-                continue;
-            }
-
-            if (tacticalGroupMode != TacticalGroupInitiativeMode.Individual
-                && BelongToSameTacticalGroup(tied))
-            {
-                continue;
-            }
-
-            yield return new InitiativeIssue(
-                InitiativeIssueCode.TieRequiresAdjudication,
-                $"Initiative {tieGroup.Key} is tied. The displayed input order is not an adjudicated tie result; "
-                + "supply a manual order override before advancing combat.",
-                tied.Select(placement => placement.Combatant.Id).ToArray());
-        }
-    }
-
-    private static bool BelongToSameTacticalGroup(IReadOnlyList<InitiativePlacement> tied)
-    {
-        var key = GetTacticalGroupKey(tied[0].Combatant);
-        return key is not null
-            && tied.All(placement => Equals(GetTacticalGroupKey(placement.Combatant), key));
-    }
-
-    private static IEnumerable<InitiativeIssue> FindOpposingTieIssues(
-        IReadOnlyList<InitiativePlacement> ordered)
-    {
-        foreach (var tieGroup in ordered.GroupBy(placement => placement.EffectiveInitiative))
-        {
-            var tied = tieGroup.ToArray();
-            if (tied.Length < 2)
-            {
-                continue;
-            }
-
-            var alliances = tied
-                .Select(placement => placement.Combatant.AllianceId)
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-
-            if (alliances.Length < 2)
-            {
-                continue;
-            }
-
-            yield return new InitiativeIssue(
-                InitiativeIssueCode.OpposingTieRequiresAdjudication,
-                $"Initiative {tieGroup.Key} is tied across opposing alliances. "
-                + "The displayed input order is not an adjudicated tie result; "
-                + "supply a manual order override before advancing combat.",
-                tied.Select(placement => placement.Combatant.Id).ToArray());
-        }
     }
 
     private static void ValidateCombatants(IReadOnlyList<CombatantInitiative> combatants)
@@ -368,8 +155,4 @@ public static class InitiativeEngine
         }
     }
 
-    private sealed record TacticalGroupKey(
-        string AllianceId,
-        TurnBlockType BlockType,
-        string TacticalGroupId);
 }

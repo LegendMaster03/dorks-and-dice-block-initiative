@@ -1,10 +1,6 @@
+import { toHostedToolHref } from "./integrations/rules-core/client";
+import type { RuleBrowserLink } from "./integrations/rules-core/client";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
-
-type RuleBrowserLink = {
-    toolSlug: string;
-    toolRelativePath: string;
-    routeIdentity: string;
-};
 
 type PreviewResponse = {
     blocks: Array<{
@@ -146,9 +142,3 @@ function decorateName(container: HTMLElement, href: string | undefined): void {
     container.replaceChildren(link);
 }
 
-function toHostedToolHref(link: RuleBrowserLink | null | undefined): string | null {
-    const slug = link?.toolSlug?.trim();
-    const relativePath = link?.toolRelativePath?.trim();
-    if (!slug || !relativePath || !relativePath.startsWith("/")) return null;
-    return `/tools/${encodeURIComponent(slug)}${relativePath}`;
-}
