@@ -1,7 +1,7 @@
 import { defenseRows, mergeMonsterCombatStats } from "./encounter-card-model";
 import { collectEncounterCards, mountEncounterCardSlot, renderEncounterCard } from "./encounter-card-renderer";
-import { abilityKeys, projectMonsterCombatStats } from "./monster-combat-stats";
-import type { AbilityKey, MonsterCombatStats } from "./monster-combat-stats";
+import { abilityKeys, projectMonsterCombatStats } from "./roster/monster-combat-stats";
+import type { AbilityKey, MonsterCombatStats } from "./roster/monster-combat-stats";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
 
 type CombatantPreview = {

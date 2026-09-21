@@ -1,4 +1,4 @@
-import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
+import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
 
 let initialized = false;
 let clickInstalled = false;

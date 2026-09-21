@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { defenseRows, mergeMonsterCombatStats } from "../.test-dist/encounter-card-model.js";
-import { projectMonsterCombatStats } from "../.test-dist/monster-combat-stats.js";
+import { projectMonsterCombatStats } from "../.test-dist/roster/monster-combat-stats.js";
 
 test("projects 5e-style combat card stats", () => {
     const stats = projectMonsterCombatStats({

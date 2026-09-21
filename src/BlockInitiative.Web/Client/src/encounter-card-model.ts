@@ -1,4 +1,4 @@
-import type { MonsterCombatStats } from "./monster-combat-stats";
+import type { MonsterCombatStats } from "./roster/monster-combat-stats";
 
 export interface QuickStatsDefenseRow {
     label: string;

@@ -1,5 +1,5 @@
 import { mountEncounterCardSlot } from "./encounter-card-renderer";
-import { ensureRunnerConditionEditor } from "./condition-tracking-ui";
+import { ensureRunnerConditionEditor } from "./conditions/condition-tracking-ui";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
 
 type CombatantPreview = {

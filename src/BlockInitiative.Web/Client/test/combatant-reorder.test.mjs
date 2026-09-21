@@ -6,7 +6,7 @@ import {
     moveCombatantByOffset,
     sameMembers,
     sameOrder
-} from "../.test-dist/combatant-reorder.js";
+} from "../.test-dist/initiative/combatant-reorder.js";
 
 test("moves a combatant before or after another combatant without losing members", () => {
     const order = ["p1", "p2", "e1", "e2"];

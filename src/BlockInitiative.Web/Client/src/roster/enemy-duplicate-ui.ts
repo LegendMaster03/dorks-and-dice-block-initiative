@@ -1,4 +1,4 @@
-import { afterNextEnhancement, registerAfterRender, requestEnhancement } from "./render-lifecycle";
+import { afterNextEnhancement, registerAfterRender, requestEnhancement } from "../render-lifecycle";
 
 let initialized = false;
 

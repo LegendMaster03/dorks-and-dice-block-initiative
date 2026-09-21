@@ -44,7 +44,7 @@ test("combat state mounts directly into renderer-owned card state", async () => 
 
 test("setup initiative modifier is restored to the primary Mod column after combat-stats enhancement", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-    const source = await readFile(path.resolve(testDirectory, "../src/combatant-field-ui.ts"), "utf8");
+    const source = await readFile(path.resolve(testDirectory, "../src/roster/combatant-field-ui.ts"), "utf8");
 
     assert.match(source, /registerAfterRender\("combatant-fields",\s*20/);
     assert.match(source, /registerAfterRender\("combatant-field-placement",\s*130/);
@@ -118,7 +118,7 @@ test("encounter runner exposes reversible advancement through stable action iden
 
 test("enemy duplication does not reschedule enhancement for every input or change event", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-    const source = await readFile(path.resolve(testDirectory, "../src/enemy-duplicate-ui.ts"), "utf8");
+    const source = await readFile(path.resolve(testDirectory, "../src/roster/enemy-duplicate-ui.ts"), "utf8");
 
     assert.doesNotMatch(source, /root\.addEventListener\(\s*["']input["']/);
     assert.doesNotMatch(source, /root\.addEventListener\(\s*["']change["']/);
@@ -177,7 +177,7 @@ test("encounter card modules delegate direct-child ordering to the card renderer
 
 test("runner conditions are composed directly into card context without dashboard relays", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-    const tracking = await readFile(path.resolve(testDirectory, "../src/condition-tracking-ui.ts"), "utf8");
+    const tracking = await readFile(path.resolve(testDirectory, "../src/conditions/condition-tracking-ui.ts"), "utf8");
     const affordances = await readFile(path.resolve(testDirectory, "../src/encounter-card-affordances-ui.ts"), "utf8");
     const quickStats = await readFile(path.resolve(testDirectory, "../src/combatant-quick-stats-ui.ts"), "utf8");
     const runtime = await readFile(path.resolve(testDirectory, "../src/frontend-runtime.ts"), "utf8");
@@ -206,7 +206,7 @@ test("runner card structure does not rebuild for round or active-turn changes al
 test("retired runner dashboard relays are absent from active frontend modules", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
     const tracking = await readFile(
-        path.resolve(testDirectory, "../src/condition-tracking-ui.ts"),
+        path.resolve(testDirectory, "../src/conditions/condition-tracking-ui.ts"),
         "utf8");
     const coordinator = await readFile(
         path.resolve(testDirectory, "../src/combat-state-ui.ts"),
@@ -245,7 +245,7 @@ test("Kaiju state refresh is deferred and scoped to the affected combatant", asy
 
 test("condition tracking does not retain obsolete runner turn-state bookkeeping", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-    const source = await readFile(path.resolve(testDirectory, "../src/condition-tracking-ui.ts"), "utf8");
+    const source = await readFile(path.resolve(testDirectory, "../src/conditions/condition-tracking-ui.ts"), "utf8");
 
     assert.doesNotMatch(source, /TurnStateDetail|lastTurnState/);
     assert.doesNotMatch(source, /block-initiative:state/);
@@ -292,4 +292,66 @@ test("application orchestrator delegates preview and runner lifecycles to module
     assert.doesNotMatch(app, /function renderRunnerState\(/);
     assert.match(preview, /export function renderInitiativePreview/);
     assert.match(runner, /export class EncounterRunnerController/);
+});
+
+
+test("condition tracking separates state, editor rendering, and lifecycle projection", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const model = await readFile(
+        path.resolve(testDirectory, "../src/conditions/condition-model.ts"),
+        "utf8");
+    const editor = await readFile(
+        path.resolve(testDirectory, "../src/conditions/condition-editor.ts"),
+        "utf8");
+    const tracking = await readFile(
+        path.resolve(testDirectory, "../src/conditions/condition-tracking-ui.ts"),
+        "utf8");
+
+    assert.match(model, /const trackedConditions = new Map/);
+    assert.match(editor, /searchRulesCoreConditions/);
+    assert.match(tracking, /registerAfterRender\(\s*"condition-tracking"/);
+    assert.doesNotMatch(tracking, /searchRulesCoreConditions/);
+    assert.doesNotMatch(tracking, /const trackedConditions = new Map/);
+});
+
+
+test("application bootstrap delegates roster ownership to the roster domain", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const app = await readFile(
+        path.resolve(testDirectory, "../src/app.ts"),
+        "utf8");
+    const roster = await readFile(
+        path.resolve(testDirectory, "../src/roster/roster-controller.ts"),
+        "utf8");
+    const monsters = await readFile(
+        path.resolve(testDirectory, "../src/roster/monster-roster.ts"),
+        "utf8");
+
+    assert.match(app, /new RosterController\(/);
+    assert.match(roster, /export class RosterController/);
+    assert.match(monsters, /export class MonsterRosterService/);
+    assert.doesNotMatch(app, /function addCombatant\(/);
+    assert.doesNotMatch(app, /searchRulesCoreMonsters/);
+    assert.doesNotMatch(roster, /searchRulesCoreMonsters/);
+});
+
+
+test("roster core composes monster and tactical-group modules", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const roster = await readFile(
+        path.resolve(testDirectory, "../src/roster/roster-controller.ts"),
+        "utf8");
+    const monsters = await readFile(
+        path.resolve(testDirectory, "../src/roster/monster-roster.ts"),
+        "utf8");
+    const groups = await readFile(
+        path.resolve(testDirectory, "../src/roster/tactical-group-roster.ts"),
+        "utf8");
+
+    assert.match(roster, /new MonsterRosterService\(/);
+    assert.match(roster, /new TacticalGroupRosterService\(/);
+    assert.match(monsters, /export class MonsterRosterService/);
+    assert.match(groups, /export class TacticalGroupRosterService/);
+    assert.doesNotMatch(roster, /private addTacticalGroup\(/);
+    assert.doesNotMatch(roster, /private updateGroupSummary\(/);
 });
