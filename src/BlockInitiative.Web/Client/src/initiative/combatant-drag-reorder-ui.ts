@@ -14,6 +14,9 @@ import type {
 } from "../api";
 import { moveCombatantByOffset, sameMembers, sameOrder } from "./combatant-reorder";
 import {
+    replaceEncounterRunnerSession
+} from "../application/runner-session-events";
+import {
     clearCombatantReorderHistory,
     combatantReorderBaselineOrder,
     combatantReorderBaselineRequest,
@@ -443,6 +446,11 @@ async function applyOrder(
                         previousState.cyclicMergeCompleted
                 });
 
+        replaceEncounterRunnerSession({
+            request: previewResult.request,
+            preview: previewResult.response,
+            state: stateResult.response
+        });
         publishInitiativePreview(previewResult);
         publishInitiativeTurnState(stateResult);
 
