@@ -61,7 +61,7 @@ export function captureEncounter(
             "[data-role='enemy-method']")?.value;
 
     return {
-        version: 3,
+        version: 4,
         savedAt: new Date().toISOString(),
         view: captureView(root, context.lastState),
         campaignId: root.dataset.campaignId ?? null,
@@ -224,6 +224,12 @@ function captureCombatant(card: HTMLElement): SavedCombatant {
         templateId: card.dataset.templateId ?? null,
         instanceNumber: card.dataset.instanceNumber ?? null,
         autoName: card.dataset.autoName ?? null,
+        manualDuplicateKey:
+            card.dataset.manualDuplicateKey ?? null,
+        manualDuplicateBase:
+            card.dataset.manualDuplicateBase ?? null,
+        manualDuplicateIndex:
+            card.dataset.manualDuplicateIndex ?? null,
         monsterMetaText:
             card.querySelector<HTMLElement>(
                 "[data-role='monster-meta']")?.textContent
