@@ -548,3 +548,25 @@ test("runner transitions and reorder operations share one bidirectional mutation
         reorder,
         /handle\.disabled =[\s\S]*mutationLocked/);
 });
+
+
+test("preview generation is single-flight and ignores stale roster revisions", async () => {
+    const app =
+        await source("../src/app.ts");
+
+    assert.match(
+        app,
+        /if \(!previewUrl \|\| busy\) return;/);
+    assert.match(
+        app,
+        /rosterRevision \+= 1/);
+    assert.match(
+        app,
+        /const requestRosterRevision =[\s\S]*rosterRevision/);
+    assert.match(
+        app,
+        /requestRosterRevision !== rosterRevision[\s\S]*return;/);
+    assert.match(
+        app,
+        /requestSequence === previewRequestSequence[\s\S]*busy = false/);
+});
