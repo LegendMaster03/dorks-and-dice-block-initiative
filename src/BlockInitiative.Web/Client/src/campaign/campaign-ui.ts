@@ -73,6 +73,12 @@ export function initializeCampaignUi(): void {
     void initializeHostedCampaigns();
 
     async function initializeHostedCampaigns(): Promise<void> {
+        panel.hidden = false;
+        select.disabled = true;
+        importButton.disabled = true;
+        status.textContent =
+            "Checking signed-in campaign access…";
+
         try {
             hostContext = await loadToolHostContext(contextUrl!);
             if (!hostContext.user) {
@@ -88,10 +94,29 @@ export function initializeCampaignUi(): void {
                 ? "This account has no active campaigns. Manual encounter setup remains available."
                 : `${campaignSummaries.length} active campaign${campaignSummaries.length === 1 ? " is" : "s are"} available.`;
         } catch (error) {
-            if (panel.hidden) return;
-            status.textContent = campaignErrorMessage(error);
+            hostContext = null;
             select.disabled = true;
+            importButton.disabled = true;
+            renderCampaignRetry(error);
         }
+    }
+
+    function renderCampaignRetry(error: unknown): void {
+        status.replaceChildren();
+
+        const text = document.createElement("span");
+        text.textContent =
+            campaignErrorMessage(error) + " ";
+
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.className =
+            "btn btn-sm btn-outline-secondary";
+        retry.textContent = "Retry campaign access";
+        retry.onclick =
+            () => void initializeHostedCampaigns();
+
+        status.append(text, retry);
     }
 
     async function selectCampaign(campaignId: string): Promise<void> {
