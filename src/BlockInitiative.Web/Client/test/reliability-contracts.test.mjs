@@ -461,3 +461,57 @@ test("invalid condition levels do not erase valid state or get stored as no leve
         editor,
         /if \(!input\.value\.trim\(\)\) return null;[\s\S]*\?\? undefined/);
 });
+
+
+test("async Rules Core searches are invalidated by every new input state", async () => {
+    const conditions =
+        await source("../src/conditions/condition-editor.ts");
+    const monsters =
+        await source("../src/roster/monster-roster.ts");
+
+    assert.match(
+        conditions,
+        /const current = \+\+sequence;[\s\S]*query\.length < 2/);
+    assert.match(
+        monsters,
+        /const sequence =[\s\S]*searchSequences\.set\(card, sequence\);[\s\S]*queryText\.length < 2/);
+});
+
+test("monster template selection can not overwrite a newer edit", async () => {
+    const monsters =
+        await source("../src/roster/monster-roster.ts");
+
+    assert.match(
+        monsters,
+        /selectionSequence[\s\S]*await loadMonsterTemplate\(match\)[\s\S]*!card\.isConnected/);
+    assert.match(
+        monsters,
+        /this\.searchSequences\.get\(card\)[\s\S]*!== selectionSequence/);
+    assert.match(
+        monsters,
+        /card\.dataset\.templateId[\s\S]*!template[\s\S]*clearMonsterMetadata/);
+});
+
+test("restored template-backed enemies duplicate without dropping template identity", async () => {
+    const duplicate =
+        await source("../src/roster/enemy-duplicate-ui.ts");
+
+    assert.match(
+        duplicate,
+        /duplicateRestoredTemplateEnemy\(/);
+    assert.match(
+        duplicate,
+        /target\.dataset\.templateId = templateId/);
+    assert.match(
+        duplicate,
+        /templateNameUpdate/);
+    assert.match(
+        duplicate,
+        /copyInputField\([\s\S]*"rules-reference"/);
+    assert.match(
+        duplicate,
+        /copyQuickStatsWhenReady\(source, target\)/);
+    assert.match(
+        duplicate,
+        /copyHealthWhenReady\(source, target\)/);
+});

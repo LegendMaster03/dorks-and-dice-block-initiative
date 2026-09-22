@@ -270,6 +270,7 @@ function buildConditionPicker(
     let sequence = 0;
     search.addEventListener("input", () => {
         const query = search.value.trim();
+        const current = ++sequence;
         manual.disabled = query.length === 0;
         results.replaceChildren();
 
@@ -290,7 +291,6 @@ function buildConditionPicker(
             return;
         }
 
-        const current = ++sequence;
         status.textContent = "Searching Rules Core…";
         timer = window.setTimeout(() => {
             void searchRulesCoreConditions(query)

@@ -111,8 +111,14 @@ function duplicateCandidates(group: HTMLElement): DuplicateCandidate[] {
         const templateId = card.dataset.templateId?.trim();
         const manualKey = card.dataset.manualDuplicateKey?.trim();
         const originalClone = card.querySelector<HTMLButtonElement>("[data-action='clone-monster']");
-        const templateBase = originalClone?.textContent?.trim().replace(/^\+ Another\s+/, "") ?? "";
-        const baseName = card.dataset.manualDuplicateBase?.trim() || templateBase || name;
+        const templateBase =
+            originalClone?.textContent?.trim()
+                .replace(/^\+ Another\s+/, "")
+            ?? "";
+        const baseName =
+            card.dataset.manualDuplicateBase?.trim()
+            || templateBase
+            || restoredTemplateBaseName(card, name);
         const key = templateId ? `template:${templateId}` : manualKey ? `manual:${manualKey}` : `card:${card.dataset.id}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -123,14 +129,232 @@ function duplicateCandidates(group: HTMLElement): DuplicateCandidate[] {
 }
 
 function duplicateEnemy(group: HTMLElement, source: HTMLElement): void {
-    const templateClone = source.querySelector<HTMLButtonElement>("[data-action='clone-monster']");
-    if (source.dataset.templateId && templateClone?.onclick) {
-        templateClone.click();
-        scheduleToolRoot();
+    const templateId =
+        source.dataset.templateId?.trim();
+    const templateClone =
+        source.querySelector<HTMLButtonElement>(
+            "[data-action='clone-monster']");
+
+    if (templateId) {
+        if (templateClone?.onclick) {
+            templateClone.click();
+            scheduleToolRoot();
+            return;
+        }
+
+        duplicateRestoredTemplateEnemy(
+            group,
+            source,
+            templateId);
         return;
     }
 
     duplicateManualEnemy(group, source);
+}
+
+function duplicateRestoredTemplateEnemy(
+    group: HTMLElement,
+    source: HTMLElement,
+    templateId: string
+): void {
+    const sourceName =
+        source.querySelector<HTMLInputElement>(
+            "[data-field='name']");
+    const addDifferent =
+        group.querySelector<HTMLButtonElement>(
+            "[data-action='add-member']");
+    if (!sourceName
+        || !addDifferent
+        || !sourceName.value.trim()) {
+        return;
+    }
+
+    const baseName =
+        restoredTemplateBaseName(
+            source,
+            sourceName.value.trim());
+    const matching =
+        Array.from(
+            group.querySelectorAll<HTMLElement>(
+                "[data-role='group-members'] .bi-entry[data-id]"))
+            .filter(card =>
+                card.dataset.templateId === templateId);
+
+    if (!source.dataset.instanceNumber) {
+        source.dataset.instanceNumber = "1";
+        source.dataset.autoName = "true";
+        setTemplateName(
+            source,
+            sourceName,
+            `${baseName} 1`);
+    }
+
+    const usedIndexes =
+        matching
+            .map(card =>
+                Number(
+                    card.dataset.instanceNumber
+                    ?? 0))
+            .filter(index =>
+                Number.isInteger(index)
+                && index > 0);
+    const nextIndex =
+        Math.max(1, ...usedIndexes) + 1;
+
+    const membersBefore =
+        new Set(
+            Array.from(
+                group.querySelectorAll<HTMLElement>(
+                    "[data-role='group-members'] .bi-entry[data-id]"))
+                .map(card => card.dataset.id)
+                .filter((id): id is string =>
+                    Boolean(id)));
+
+    addDifferent.click();
+
+    const target =
+        Array.from(
+            group.querySelectorAll<HTMLElement>(
+                "[data-role='group-members'] .bi-entry[data-id]"))
+            .find(card =>
+                Boolean(card.dataset.id)
+                && !membersBefore.has(
+                    card.dataset.id!));
+    if (!target) return;
+
+    target.dataset.templateId = templateId;
+    target.dataset.autoName = "true";
+    target.dataset.instanceNumber =
+        String(nextIndex);
+
+    const targetName =
+        target.querySelector<HTMLInputElement>(
+            "[data-field='name']");
+    if (targetName) {
+        setTemplateName(
+            target,
+            targetName,
+            `${baseName} ${nextIndex}`);
+    }
+
+    copyInputField(
+        source,
+        target,
+        "modifier");
+    copyInputField(
+        source,
+        target,
+        "rules-reference");
+    copyMonsterMetadata(source, target);
+    copyHealthWhenReady(source, target);
+    copyQuickStatsWhenReady(source, target);
+    scheduleToolRoot();
+}
+
+function restoredTemplateBaseName(
+    card: HTMLElement,
+    name: string
+): string {
+    const instance =
+        card.dataset.instanceNumber?.trim();
+    if (!instance) return name;
+
+    const suffix = ` ${instance}`;
+    return name.endsWith(suffix)
+        ? name.slice(0, -suffix.length).trim()
+            || name
+        : name;
+}
+
+function setTemplateName(
+    card: HTMLElement,
+    input: HTMLInputElement,
+    value: string
+): void {
+    card.dataset.templateNameUpdate = "true";
+    try {
+        setInputValue(input, value);
+    } finally {
+        delete card.dataset.templateNameUpdate;
+    }
+}
+
+function copyInputField(
+    source: HTMLElement,
+    target: HTMLElement,
+    field: string
+): void {
+    const from =
+        source.querySelector<HTMLInputElement>(
+            `[data-field='${field}']`);
+    const to =
+        target.querySelector<HTMLInputElement>(
+            `[data-field='${field}']`);
+    if (from && to) {
+        setInputValue(to, from.value);
+    }
+}
+
+function copyMonsterMetadata(
+    source: HTMLElement,
+    target: HTMLElement
+): void {
+    const from =
+        source.querySelector<HTMLElement>(
+            "[data-role='monster-meta']");
+    const to =
+        target.querySelector<HTMLElement>(
+            "[data-role='monster-meta']");
+    if (!from || !to) return;
+
+    to.textContent = from.textContent;
+    to.hidden = from.hidden;
+}
+
+function copyQuickStatsWhenReady(
+    source: HTMLElement,
+    target: HTMLElement
+): void {
+    const copy = (): boolean => {
+        const sourcePanel =
+            source.querySelector<HTMLElement>(
+                "[data-quick-stats-setup]");
+        const targetPanel =
+            target.querySelector<HTMLElement>(
+                "[data-quick-stats-setup]");
+        if (!sourcePanel || !targetPanel) {
+            return false;
+        }
+
+        for (const from of sourcePanel
+            .querySelectorAll<HTMLInputElement>(
+                "[data-quick-stat]")) {
+            const key = from.dataset.quickStat;
+            if (!key) continue;
+            const to =
+                targetPanel.querySelector<HTMLInputElement>(
+                    `[data-quick-stat='${cssEscape(key)}']`);
+            if (to && from.value) {
+                setInputValue(to, from.value);
+            }
+        }
+
+        return true;
+    };
+
+    if (copy()) return;
+    afterNextEnhancement(() => { copy(); });
+}
+
+function cssEscape(value: string): string {
+    if (typeof CSS !== "undefined"
+        && typeof CSS.escape === "function") {
+        return CSS.escape(value);
+    }
+
+    return value.replace(
+        /[\\'"\]\[]/g,
+        match => `\\${match}`);
 }
 
 function duplicateManualEnemy(group: HTMLElement, source: HTMLElement): void {
