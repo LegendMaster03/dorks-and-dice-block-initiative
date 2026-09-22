@@ -768,6 +768,9 @@ function queueMissingTemplateStats(root: HTMLElement): void {
                 templateRetryAfter.set(
                     templateId,
                     Date.now() + templateRetryDelayMs);
+                window.setTimeout(
+                    () => requestEnhancement(),
+                    templateRetryDelayMs);
             })
             .finally(() => {
                 pendingTemplates.delete(templateId);
