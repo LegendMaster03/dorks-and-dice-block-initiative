@@ -445,3 +445,19 @@ test("combatant reorder locks runner navigation until its async replacement fini
         reorder,
         /finally \{[\s\S]*setEncounterRunnerMutationLock\([\s\S]*"combatant-reorder",[\s\S]*false/);
 });
+
+
+test("invalid condition levels do not erase valid state or get stored as no level", async () => {
+    const editor =
+        await source("../src/conditions/condition-editor.ts");
+
+    assert.match(
+        editor,
+        /if \(parsed === undefined\) return;[\s\S]*updateConditionLevel/);
+    assert.match(
+        editor,
+        /if \(parsedLevel === undefined\) \{[\s\S]*level\.reportValidity\(\);[\s\S]*return;/);
+    assert.match(
+        editor,
+        /if \(!input\.value\.trim\(\)\) return null;[\s\S]*\?\? undefined/);
+});
