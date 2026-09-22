@@ -62,6 +62,9 @@ export type SavedCombatant = {
     templateId: string | null;
     instanceNumber: string | null;
     autoName: string | null;
+    manualDuplicateKey: string | null;
+    manualDuplicateBase: string | null;
+    manualDuplicateIndex: string | null;
     monsterMetaText: string;
     setupAreaCount: number;
     setupControls: SavedControl[];
@@ -121,7 +124,7 @@ export type SavedRulesCoreLink = Record<string, unknown> & {
 };
 
 export type SavedEncounter = {
-    version: 3;
+    version: 4;
     savedAt: string;
     view: SavedView;
     campaignId: string | null;
