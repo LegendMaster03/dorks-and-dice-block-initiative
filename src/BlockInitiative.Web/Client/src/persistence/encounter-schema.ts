@@ -35,6 +35,7 @@ export type SavedCombatant = {
     name: string;
     initiative: string;
     modifier: string;
+    armorClass: string;
     blockType: CombatantBlockType;
     controllerId: string;
     rulesReference: string;

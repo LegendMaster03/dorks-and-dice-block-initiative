@@ -67,9 +67,11 @@ function ensureArmorClassField(card: HTMLElement): void {
     const sourceWrap = source?.closest<HTMLElement>(".bi-field") ?? null;
     const existing = card.querySelector<HTMLElement>(":scope > .bi-entry-main > .bi-setup-ac");
     const blockType = card.querySelector<HTMLSelectElement>("[data-field='block-type']")?.value;
-    const standardNonPlayer = card.dataset.alliance !== "players" && blockType === "standard";
+    const isPlayer = card.dataset.alliance === "players";
+    const standardCombatant = blockType === "standard";
+    const supported = standardCombatant && (isPlayer || Boolean(source && sourceWrap));
 
-    if (!standardNonPlayer || !source || !sourceWrap) {
+    if (!supported) {
         existing?.remove();
         if (sourceWrap) sourceWrap.hidden = false;
         return;
@@ -78,7 +80,7 @@ function ensureArmorClassField(card: HTMLElement): void {
     const main = card.querySelector<HTMLElement>(":scope > .bi-entry-main");
     const initiativeWrap = main?.querySelector<HTMLElement>(":scope > [data-role='initiative-wrap']");
     if (!main || !initiativeWrap) {
-        sourceWrap.hidden = false;
+        if (sourceWrap) sourceWrap.hidden = false;
         return;
     }
 
@@ -96,30 +98,39 @@ function ensureArmorClassField(card: HTMLElement): void {
     }
 
     const input = field.querySelector<HTMLInputElement>("[data-role='setup-armor-class']")!;
-    input.placeholder = source.placeholder;
-    if (input.value !== source.value) input.value = source.value;
+    input.placeholder = source?.placeholder || "e.g. 15";
+    if (source && input.value !== source.value) input.value = source.value;
     input.oninput = () => {
-        source.value = input.value;
+        if (source) source.value = input.value;
     };
     input.onchange = () => {
+        if (!source) return;
         source.value = input.value;
         source.dispatchEvent(new Event("change", { bubbles: true }));
     };
 
-    sourceWrap.hidden = true;
+    if (sourceWrap) sourceWrap.hidden = true;
     if (field.parentElement !== main || field.previousElementSibling !== initiativeWrap) {
         initiativeWrap.after(field);
     }
 }
-
 function ensureArmorClassHeaders(root: HTMLElement): void {
-    for (const header of root.querySelectorAll<HTMLElement>(".bi-enemy-roster-header")) {
+    for (const header of root.querySelectorAll<HTMLElement>(
+        ".bi-player-roster-header,.bi-enemy-roster-header"
+    )) {
         if (header.querySelector(":scope > [data-role='setup-ac-header']")) continue;
+
         const label = document.createElement("span");
         label.dataset.role = "setup-ac-header";
         label.textContent = "AC";
-        const hp = Array.from(header.children).find(child => child.textContent?.trim() === "HP") ?? null;
-        hp ? header.insertBefore(label, hp) : header.append(label);
+
+        const hp = Array.from(header.children)
+            .find(child => child.textContent?.trim() === "HP")
+            ?? null;
+        const action = header.lastElementChild;
+        if (hp) header.insertBefore(label, hp);
+        else if (action) header.insertBefore(label, action);
+        else header.append(label);
     }
 }
 
@@ -156,21 +167,27 @@ function installStyles(documentRef: Document): void {
     const style = documentRef.createElement("style");
     style.dataset.role = "encounter-setup-polish-ui-style";
     style.textContent = `
+.block-initiative-app.bi-dense-tracker .bi-player-roster-header{grid-template-columns:minmax(16rem,36rem) 5rem 13rem 4.5rem auto}
 .block-initiative-app.bi-dense-tracker .bi-enemy-roster-header{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 4.5rem 6rem auto}
+.block-initiative-app.bi-dense-tracker .bi-player-entry{grid-template-columns:minmax(16rem,36rem) 5rem 13rem 4.5rem auto}
 .block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 4.5rem 6rem auto}
-.block-initiative-app.bi-dense-tracker .bi-enemy-entry .bi-setup-ac{grid-column:4;grid-row:1;width:4.5rem}
-.block-initiative-app.bi-dense-tracker .bi-enemy-entry .bi-setup-ac input{width:4.5rem;max-width:4.5rem}
+.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac{grid-column:4;grid-row:1;width:4.5rem}
+.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac input{width:4.5rem;max-width:4.5rem}
 .block-initiative-app.bi-dense-tracker .bi-enemy-entry>[data-combat-setup='standard']{grid-column:5;grid-row:1}
+.block-initiative-app.bi-dense-tracker .bi-player-entry>.bi-entry-main>button[data-action='remove']{grid-column:5;grid-row:1}
 .block-initiative-app.bi-dense-tracker .bi-enemy-entry>.bi-entry-main>button[data-action='remove']{grid-column:6;grid-row:1}
 @media(max-width:880px){
+  .block-initiative-app.bi-dense-tracker .bi-player-entry,
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(14rem,1fr) 5rem 13rem 4.5rem auto}
-  .block-initiative-app.bi-dense-tracker .bi-enemy-entry .bi-setup-ac{grid-column:4;grid-row:1}
+  .block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac{grid-column:4;grid-row:1}
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry>[data-combat-setup='standard']{grid-column:1/5;grid-row:2}
+  .block-initiative-app.bi-dense-tracker .bi-player-entry>.bi-entry-main>button[data-action='remove'],
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry>.bi-entry-main>button[data-action='remove']{grid-column:5;grid-row:1}
 }
 @media(max-width:650px){
+  .block-initiative-app.bi-dense-tracker .bi-player-entry,
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(9rem,1fr) auto}
-  .block-initiative-app.bi-dense-tracker .bi-enemy-entry .bi-setup-ac{grid-column:1;grid-row:3}
+  .block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac{grid-column:1;grid-row:3}
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry>[data-combat-setup='standard']{grid-column:1/-1;grid-row:4}
 }
 `;

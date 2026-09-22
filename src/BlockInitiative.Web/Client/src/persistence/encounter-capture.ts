@@ -179,6 +179,7 @@ function captureCombatant(card: HTMLElement): SavedCombatant {
             card.querySelector<HTMLInputElement>(
                 "[data-field='modifier']")?.value
             ?? "",
+        armorClass: captureArmorClass(card),
         blockType,
         controllerId:
             card.querySelector<HTMLSelectElement>(
@@ -204,6 +205,16 @@ function captureCombatant(card: HTMLElement): SavedCombatant {
             panel ? captureControls(panel) : [],
         conditions: captureConditions(card)
     };
+}
+
+function captureArmorClass(card: HTMLElement): string {
+    return card.querySelector<HTMLInputElement>(
+        ":scope > .bi-entry-main [data-role='setup-armor-class']"
+    )?.value
+        ?? card.querySelector<HTMLInputElement>(
+            ":scope > [data-quick-stats-setup] [data-quick-stat='armor-class']"
+        )?.value
+        ?? "";
 }
 
 function captureConditions(card: HTMLElement): SavedCondition[] {

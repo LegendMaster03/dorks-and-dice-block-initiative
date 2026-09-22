@@ -54,17 +54,23 @@ test("setup initiative modifier is restored to the primary Mod column after comb
     assert.doesNotMatch(source, /primaryFieldsReady === "true"\) continue/);
 });
 
-test("setup AC is shown between initiative and HP without moving the combat-stats source field", async () => {
+test("setup AC is shown for players and enemies without moving the monster combat-stats source field", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
     const source = await readFile(path.resolve(testDirectory, "../src/encounter-setup-polish-ui.ts"), "utf8");
+    const quickStats = await readFile(path.resolve(testDirectory, "../src/combatant-quick-stats-ui.ts"), "utf8");
 
     assert.match(source, /registerAfterRender\("encounter-setup-polish",\s*135/);
+    assert.match(source, /const isPlayer = card\.dataset\.alliance === "players"/);
     assert.match(source, /data-quick-stat='armor-class'/);
-    assert.match(source, /sourceWrap\.hidden = true/);
+    assert.match(source, /if \(sourceWrap\) sourceWrap\.hidden = true/);
     assert.match(source, /initiativeWrap\.after\(field\)/);
-    assert.match(source, /setup-ac-header/);
+    assert.match(source, /\.bi-player-roster-header,\.bi-enemy-roster-header/);
+    assert.match(source, /grid-template-columns:minmax\(16rem,36rem\) 5rem 13rem 4\.5rem auto/);
     assert.match(source, /grid-template-columns:minmax\(16rem,34rem\) 5rem 13rem 4\.5rem 6rem auto/);
+    assert.match(source, /\.bi-player-entry>\.bi-entry-main>button\[data-action='remove'\]\{grid-column:5;grid-row:1\}/);
     assert.match(source, /\[data-combat-setup='standard'\]\{grid-column:5;grid-row:1\}/);
+    assert.match(quickStats, /card\.dataset\.alliance \?\? ""\) === "players"/);
+    assert.match(quickStats, /data-role='setup-armor-class'/);
 });
 
 test("encounter AC metric is visually larger than the generic secondary metric", async () => {

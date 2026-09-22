@@ -477,6 +477,37 @@ function setHealthInput(input: HTMLInputElement, value: string): void {
 }
 
 function readManualStats(card: HTMLElement): MonsterCombatStats | null {
+    if ((card.dataset.alliance ?? "") === "players") {
+        const armorClass =
+            card.querySelector<HTMLInputElement>(
+                ":scope > .bi-entry-main [data-role='setup-armor-class']"
+            )?.value.trim()
+            ?? "";
+        if (!armorClass) return null;
+
+        const abilities = {} as MonsterCombatStats["abilities"];
+        for (const key of abilityKeys) {
+            abilities[key] = {
+                score: null,
+                modifier: null,
+                save: null
+            };
+        }
+
+        return {
+            armorClass,
+            maxHp: null,
+            speed: null,
+            initiativeModifier: null,
+            abilities,
+            vulnerabilities: null,
+            resistances: null,
+            immunities: null,
+            conditionImmunities: null,
+            damageReduction: null
+        };
+    }
+
     const panel = card.querySelector<HTMLElement>(":scope > [data-quick-stats-setup]");
     if (!panel) return null;
 

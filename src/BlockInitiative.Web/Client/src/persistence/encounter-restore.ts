@@ -621,8 +621,14 @@ function restoreEnhancementState(
         const card =
             root.querySelector<HTMLElement>(
                 `.bi-entry[data-id='${cssEscape(combatant.id)}']`);
+        if (!card) continue;
+
+        restoreArmorClass(
+            card,
+            combatant.armorClass ?? "");
+
         const panel =
-            card?.querySelector<HTMLElement>(
+            card.querySelector<HTMLElement>(
                 "[data-combat-setup]");
         if (!panel) continue;
 
@@ -634,6 +640,20 @@ function restoreEnhancementState(
 
         applyControls(panel, combatant.setupControls);
     }
+}
+
+function restoreArmorClass(
+    card: HTMLElement,
+    armorClass: string
+): void {
+    const input =
+        card.querySelector<HTMLInputElement>(
+            ":scope > .bi-entry-main [data-role='setup-armor-class']")
+        ?? card.querySelector<HTMLInputElement>(
+            ":scope > [data-quick-stats-setup] [data-quick-stat='armor-class']");
+    if (!input) return;
+
+    setInputAndDispatch(input, armorClass);
 }
 
 function resizeKaijuAreas(

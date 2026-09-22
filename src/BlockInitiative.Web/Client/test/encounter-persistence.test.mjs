@@ -44,7 +44,13 @@ test("encounter snapshot captures progression, health, conditions, campaign cont
     assert.match(capture, /"current-hp"/);
     assert.match(capture, /"max-hp"/);
     assert.match(capture, /\.bi-condition-chip-wrap/);
+    assert.match(capture, /armorClass:\s*captureArmorClass\(card\)/);
+    assert.match(capture, /data-role='setup-armor-class'/);
+    assert.match(capture, /data-quick-stat='armor-class'/);
     assert.match(capture, /kaijuList[\s\S]*directCards\(kaijuList\)\.map\(captureCombatant\)/);
+    assert.match(restore, /restoreArmorClass/);
+    assert.match(restore, /combatant\.armorClass \?\? ""/);
+    assert.match(restore, /data-role='setup-armor-class'/);
     assert.match(restore, /data-role='campaign-select'/);
     assert.match(restore, /setRuntimeManualOrder/);
 });
