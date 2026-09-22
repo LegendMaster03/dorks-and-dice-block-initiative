@@ -3,7 +3,7 @@ import {
     ensureKaijuCombatSetup,
     initializeKaijuCombatState,
     pruneKaijuCombatStates,
-    setKaijuCombatRound,
+    setKaijuCombatTurn,
     syncKaijuCombatState
 } from "./combat/kaiju-combat-state";
 import {
@@ -53,7 +53,10 @@ export function initializeCombatStateUi(): void {
 
     window.addEventListener("block-initiative:state", event => {
         lastTurnState = (event as CustomEvent<TurnStateDetail>).detail;
-        setKaijuCombatRound(lastTurnState.response.round);
+        setKaijuCombatTurn(
+            lastTurnState.response.round,
+            lastTurnState.response.activeBlockId,
+            root);
         requestEnhancement();
     });
 
