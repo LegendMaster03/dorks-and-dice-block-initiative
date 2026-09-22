@@ -1,6 +1,12 @@
 import { readKaijuRuntimeMetadata } from "../combat/kaiju-combat-state";
 import { captureActedRounds } from "../combatant-turn-markers";
 import {
+    captureCombatantReorderRuntime
+} from "../initiative/combatant-reorder-state";
+import {
+    getInitiativeMode
+} from "../initiative/initiative-mode";
+import {
     checkboxByText,
     combatInput,
     controlKey,
@@ -52,10 +58,11 @@ export function captureEncounter(
             "[data-role='enemy-method']")?.value;
 
     return {
-        version: 1,
+        version: 2,
         savedAt: new Date().toISOString(),
         view: captureView(root, context.lastState),
         campaignId: root.dataset.campaignId ?? null,
+        initiativeMode: getInitiativeMode(),
         groupMode:
             groupMode === "individual" || groupMode === "shared"
                 ? groupMode
@@ -83,7 +90,9 @@ export function captureEncounter(
         runnerCombat:
             captureRunnerCombat(root, context.lastPreview),
         rulesCoreLinks: Array.from(context.rulesCoreLinks),
-        actedRounds: captureActedRounds()
+        actedRounds: captureActedRounds(),
+        reorderRuntime:
+            captureCombatantReorderRuntime()
     };
 }
 
