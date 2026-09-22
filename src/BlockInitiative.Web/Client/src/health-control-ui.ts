@@ -276,7 +276,13 @@ function applyAdjustment(currentField: HTMLElement, maxField: HTMLElement, amoun
     const base = current !== null
         ? current
         : fallbackMax ?? 0;
-    let next = direction < 0 ? Math.max(0, base - amount) : base + amount;
+    let next = direction < 0
+        ? Math.max(
+            TRACKER_LIMITS.min,
+            base - amount)
+        : Math.min(
+            TRACKER_LIMITS.max,
+            base + amount);
 
     if (direction > 0 && fallbackMax !== null) {
         next = Math.min(next, fallbackMax);

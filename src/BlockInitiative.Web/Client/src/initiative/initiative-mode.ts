@@ -44,6 +44,18 @@ export function getInitiativeMode(): InitiativeMode {
     return initiativeMode;
 }
 
+export function setInitiativeMode(
+    mode: InitiativeMode,
+    persist = true
+): void {
+    initiativeMode =
+        mode === "standard"
+            ? "standard"
+            : "block";
+    if (persist) writeStoredMode(initiativeMode);
+    requestEnhancement();
+}
+
 export function initializeInitiativeModeUi(): void {
     const root = document.getElementById("tool-root");
     if (!(root instanceof HTMLElement) || initialized) return;
@@ -58,8 +70,7 @@ export function initializeInitiativeModeUi(): void {
         const nextMode: InitiativeMode = target.value === "standard" ? "standard" : "block";
         if (nextMode === initiativeMode) return;
 
-        initiativeMode = nextMode;
-        writeStoredMode(nextMode);
+        setInitiativeMode(nextMode);
 
         // The base app already owns the setup invalidation path. Re-dispatching
         // the existing initiative-method change event clears stale preview/runner

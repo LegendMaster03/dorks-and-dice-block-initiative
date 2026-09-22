@@ -4,6 +4,12 @@ import {
 } from "../combat/kaiju-combat-state";
 import { restoreActedRounds } from "../combatant-turn-markers";
 import {
+    restoreCombatantReorderRuntime
+} from "../initiative/combatant-reorder-state";
+import {
+    setInitiativeMode
+} from "../initiative/initiative-mode";
+import {
     NON_NEGATIVE_TRACKER_LIMITS,
     parseBoundedNumber,
     POSITIVE_TRACKER_LIMITS
@@ -130,6 +136,8 @@ export class EncounterRestoreSession {
 
     public async start(): Promise<void> {
         try {
+            setInitiativeMode(
+                this.saved.initiativeMode);
             clearRoster(this.root);
             const legacySharedMode =
                 this.saved.groupMode === "shared";
@@ -286,7 +294,9 @@ export class EncounterRestoreSession {
             this.saved.runnerCombat,
             this.lastPreview);
         restoreActedRounds(
-            this.saved.actedRounds ?? {});
+            this.saved.actedRounds);
+        restoreCombatantReorderRuntime(
+            this.saved.reorderRuntime);
 
         requestEnhancement();
         await nextTask();

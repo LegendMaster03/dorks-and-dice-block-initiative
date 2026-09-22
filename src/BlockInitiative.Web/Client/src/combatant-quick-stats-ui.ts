@@ -67,6 +67,8 @@ type HealthSnapshot = {
 const gateway = "/tool-host/rules-core/api/upstream";
 const templateStats = new Map<string, MonsterCombatStats | null>();
 const pendingTemplates = new Set<string>();
+const templateRetryAfter = new Map<string, number>();
+const templateRetryDelayMs = 5_000;
 let lastPreview: PreviewDetail | null = null;
 let lastState: StateDetail | null = null;
 let statsHidden = false;
@@ -741,24 +743,48 @@ function collectTemplateIds(root: HTMLElement): Map<string, string> {
 }
 
 function queueMissingTemplateStats(root: HTMLElement): void {
+    const now = Date.now();
+
     for (const templateId of collectTemplateIds(root).values()) {
-        if (templateStats.has(templateId) || pendingTemplates.has(templateId)) continue;
+        if (templateStats.has(templateId)
+            || pendingTemplates.has(templateId)
+            || (templateRetryAfter.get(templateId) ?? 0) > now) {
+            continue;
+        }
+
         pendingTemplates.add(templateId);
-        void loadTemplateStats(templateId).then(stats => {
-            // A successful template-load event is authoritative. Do not let a
-            // slower fallback request overwrite combat stats that already came
-            // from the Rules Core detail used to create the combatant.
-            if (!templateStats.has(templateId)) templateStats.set(templateId, stats);
-        }).finally(() => {
-            pendingTemplates.delete(templateId);
-            requestEnhancement();
-        });
+        void loadTemplateStats(templateId)
+            .then(stats => {
+                templateRetryAfter.delete(templateId);
+
+                // A successful template-load event is authoritative. Do not let a
+                // slower fallback request overwrite combat stats that already came
+                // from the Rules Core detail used to create the combatant.
+                if (!templateStats.has(templateId)) {
+                    templateStats.set(templateId, stats);
+                }
+            })
+            .catch(() => {
+                templateRetryAfter.set(
+                    templateId,
+                    Date.now() + templateRetryDelayMs);
+                window.setTimeout(
+                    () => requestEnhancement(),
+                    templateRetryDelayMs);
+            })
+            .finally(() => {
+                pendingTemplates.delete(templateId);
+                requestEnhancement();
+            });
     }
 }
 
-async function loadTemplateStats(templateId: string): Promise<MonsterCombatStats | null> {
+async function loadTemplateStats(
+    templateId: string
+): Promise<MonsterCombatStats | null> {
     const separator = templateId.indexOf(":");
     if (separator <= 0) return null;
+
     const kind = templateId.slice(0, separator);
     const id = templateId.slice(separator + 1);
     if (!id) return null;
@@ -770,18 +796,23 @@ async function loadTemplateStats(templateId: string): Promise<MonsterCombatStats
             : null;
     if (!path) return null;
 
-    try {
-        const response = await fetch(`${gateway}${path}`, {
-            credentials: "same-origin",
-            headers: { Accept: "application/json" }
-        });
-        if (!response.ok) return null;
-        const detail = await response.json() as RulesCoreDetail;
-        if (!isRecord(detail.document)) return null;
-        return projectMonsterCombatStats(detail.document, detail.editionDisplayName ?? "");
-    } catch {
-        return null;
+    const response = await fetch(`${gateway}${path}`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+    });
+
+    if (response.status === 404) return null;
+    if (!response.ok) {
+        throw new Error(
+            `Rules Core combat stats returned HTTP ${response.status}.`);
     }
+
+    const detail = await response.json() as RulesCoreDetail;
+    if (!isRecord(detail.document)) return null;
+
+    return projectMonsterCombatStats(
+        detail.document,
+        detail.editionDisplayName ?? "");
 }
 
 function collectHealth(root: HTMLElement, combatants: CombatantPreview[]): Map<string, HealthSnapshot> {

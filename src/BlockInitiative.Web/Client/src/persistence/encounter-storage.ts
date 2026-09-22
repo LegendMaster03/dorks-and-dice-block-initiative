@@ -1,3 +1,6 @@
+import {
+    normalizeSavedEncounter
+} from "./encounter-migration";
 import type {
     NamedEncounterSave,
     SavedEncounter,
@@ -5,23 +8,35 @@ import type {
 } from "./encounter-schema";
 
 const automaticStorageKey =
+    "dorks-and-dice:block-initiative:encounter:v2";
+const legacyAutomaticStorageKey =
     "dorks-and-dice:block-initiative:encounter:v1";
 const namedStorageKey =
+    "dorks-and-dice:block-initiative:named-encounters:v2";
+const legacyNamedStorageKey =
     "dorks-and-dice:block-initiative:named-encounters:v1";
 
 export function readAutomaticEncounter(): SavedEncounter | null {
     try {
-        const raw = window.localStorage.getItem(automaticStorageKey);
-        if (!raw) return null;
+        const current =
+            readSavedEncounterAt(automaticStorageKey);
+        if (current) return current;
 
-        const parsed = JSON.parse(raw) as unknown;
-        return isSavedEncounter(parsed) ? parsed : null;
+        const legacy =
+            readSavedEncounterAt(
+                legacyAutomaticStorageKey);
+        if (!legacy) return null;
+
+        writeAutomaticEncounter(legacy);
+        return legacy;
     } catch {
         return null;
     }
 }
 
-export function writeAutomaticEncounter(saved: SavedEncounter): boolean {
+export function writeAutomaticEncounter(
+    saved: SavedEncounter
+): boolean {
     try {
         window.localStorage.setItem(
             automaticStorageKey,
@@ -33,21 +48,31 @@ export function writeAutomaticEncounter(saved: SavedEncounter): boolean {
 }
 
 export function clearAutomaticEncounter(): void {
-    window.localStorage.removeItem(automaticStorageKey);
+    window.localStorage.removeItem(
+        automaticStorageKey);
+    window.localStorage.removeItem(
+        legacyAutomaticStorageKey);
 }
 
-export function readNamedEncounters(): NamedEncounterSave[] {
+export function readNamedEncounters():
+    NamedEncounterSave[] {
     try {
-        const raw = window.localStorage.getItem(namedStorageKey);
-        if (!raw) return [];
+        const current =
+            readNamedEncountersAt(
+                namedStorageKey);
+        if (current.length > 0
+            || window.localStorage.getItem(
+                namedStorageKey) !== null) {
+            return sortNamed(current);
+        }
 
-        const parsed = JSON.parse(raw) as unknown;
-        if (!Array.isArray(parsed)) return [];
-
-        return parsed
-            .filter(isNamedEncounterSave)
-            .sort((left, right) =>
-                right.savedAt.localeCompare(left.savedAt));
+        const legacy =
+            readNamedEncountersAt(
+                legacyNamedStorageKey);
+        if (legacy.length > 0) {
+            writeNamedEncounters(legacy);
+        }
+        return sortNamed(legacy);
     } catch {
         return [];
     }
@@ -69,17 +94,22 @@ export function writeNamedEncounters(
 export function cloneRulesCoreLink(
     value: unknown
 ): SavedRulesCoreLink | null {
-    if (!value || typeof value !== "object") return null;
+    if (!value || typeof value !== "object") {
+        return null;
+    }
 
     const templateId =
-        (value as { templateId?: unknown }).templateId;
-    if (typeof templateId !== "string" || !templateId.trim()) {
+        (value as { templateId?: unknown })
+            .templateId;
+    if (typeof templateId !== "string"
+        || !templateId.trim()) {
         return null;
     }
 
     try {
         const cloned = JSON.parse(
-            JSON.stringify(value)) as Record<string, unknown>;
+            JSON.stringify(value)
+        ) as Record<string, unknown>;
         return {
             ...cloned,
             templateId: templateId.trim()
@@ -89,47 +119,89 @@ export function cloneRulesCoreLink(
     }
 }
 
-export function formatSavedAt(value: string): string {
+export function formatSavedAt(
+    value: string
+): string {
     const date = new Date(value);
     return Number.isNaN(date.getTime())
         ? value
         : date.toLocaleString();
 }
 
-function isNamedEncounterSave(
-    value: unknown
-): value is NamedEncounterSave {
-    if (!value || typeof value !== "object") return false;
+function readSavedEncounterAt(
+    key: string
+): SavedEncounter | null {
+    try {
+        const raw =
+            window.localStorage.getItem(key);
+        if (!raw) return null;
 
-    const candidate = value as Partial<NamedEncounterSave>;
-    return typeof candidate.id === "string"
-        && candidate.id.trim().length > 0
-        && typeof candidate.name === "string"
-        && candidate.name.trim().length > 0
-        && typeof candidate.savedAt === "string"
-        && isSavedEncounter(candidate.encounter);
+        const parsed =
+            JSON.parse(raw) as unknown;
+        return normalizeSavedEncounter(parsed);
+    } catch {
+        return null;
+    }
 }
 
-function isSavedEncounter(
-    value: unknown
-): value is SavedEncounter {
-    if (!value || typeof value !== "object") return false;
+function readNamedEncountersAt(
+    key: string
+): NamedEncounterSave[] {
+    try {
+        const raw =
+            window.localStorage.getItem(key);
+        if (!raw) return [];
 
-    const candidate = value as Partial<SavedEncounter>;
-    return candidate.version === 1
-        && typeof candidate.savedAt === "string"
-        && (
-            candidate.view === "setup"
-            || candidate.view === "preview"
-            || candidate.view === "running"
-            || candidate.view === "editing"
-        )
-        && Array.isArray(candidate.players)
-        && Array.isArray(candidate.enemyGroups)
-        && Array.isArray(candidate.kaiju)
-        && Array.isArray(candidate.otherSides)
-        && Boolean(
-            candidate.runnerCombat
-            && typeof candidate.runnerCombat === "object")
-        && Array.isArray(candidate.rulesCoreLinks);
+        const parsed =
+            JSON.parse(raw) as unknown;
+        if (!Array.isArray(parsed)) return [];
+
+        return parsed.flatMap(rawSave => {
+            const save =
+                normalizeNamedEncounter(rawSave);
+            return save ? [save] : [];
+        });
+    } catch {
+        return [];
+    }
+}
+
+function normalizeNamedEncounter(
+    value: unknown
+): NamedEncounterSave | null {
+    if (!value
+        || typeof value !== "object") {
+        return null;
+    }
+
+    const candidate =
+        value as Partial<NamedEncounterSave>;
+    if (typeof candidate.id !== "string"
+        || !candidate.id.trim()
+        || typeof candidate.name !== "string"
+        || !candidate.name.trim()
+        || typeof candidate.savedAt !== "string") {
+        return null;
+    }
+
+    const encounter =
+        normalizeSavedEncounter(
+            candidate.encounter);
+    if (!encounter) return null;
+
+    return {
+        id: candidate.id,
+        name: candidate.name,
+        savedAt: candidate.savedAt,
+        encounter
+    };
+}
+
+function sortNamed(
+    saves: NamedEncounterSave[]
+): NamedEncounterSave[] {
+    return [...saves].sort(
+        (left, right) =>
+            right.savedAt.localeCompare(
+                left.savedAt));
 }

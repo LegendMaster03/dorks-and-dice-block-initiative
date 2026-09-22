@@ -178,3 +178,37 @@ test("encounter card renderer drops card-owned HP when health tracking is remove
     assert.equal(card.querySelector(".bi-card-secondary-health"), null);
     assert.equal(card.querySelector("[data-stat='ac'] strong")?.textContent, "17");
 });
+
+test("compact HP damage can enter negative hit points", async () => {
+    root.innerHTML = `
+<section data-combat-setup="standard">
+  <div class="bi-combat-grid">
+    <div class="bi-field" data-combat-field="max-hp">
+      <label>Max HP</label>
+      <input type="number" data-combat-field="max-hp" value="10">
+    </div>
+    <div class="bi-field" data-combat-field="current-hp">
+      <label>Current HP</label>
+      <input type="number" data-combat-field="current-hp" value="2">
+    </div>
+  </div>
+</section>`;
+
+    await settle();
+
+    const editor = root.querySelector(".bi-hp-editor");
+    assert.ok(editor);
+
+    const amount = editor.querySelector("input[title='Amount to add to or subtract from current HP']");
+    assert.ok(amount);
+    amount.value = "5";
+
+    const subtract = Array.from(editor.querySelectorAll("button"))
+        .find(button => button.getAttribute("aria-label") === "Subtract HP modifier");
+    assert.ok(subtract);
+    subtract.click();
+
+    const current = root.querySelector("input[data-combat-field='current-hp']");
+    assert.equal(current.value, "-3");
+});
+

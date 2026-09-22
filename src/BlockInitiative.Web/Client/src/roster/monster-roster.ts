@@ -22,7 +22,8 @@ export type MonsterRosterCallbacks = {
 
 export class MonsterRosterService {
     private readonly templates = new Map<string, MonsterTemplate>();
-    private searchSequence = 0;
+    private readonly searchSequences =
+        new WeakMap<HTMLElement, number>();
     private searchEnabled = false;
 
     public constructor(
@@ -61,7 +62,9 @@ export class MonsterRosterService {
                 return;
             }
 
-            const sequence = ++this.searchSequence;
+            const sequence =
+                (this.searchSequences.get(card) ?? 0) + 1;
+            this.searchSequences.set(card, sequence);
             timer = window.setTimeout(
                 () => void this.renderMonsterMatches(
                     card,
@@ -229,7 +232,8 @@ export class MonsterRosterService {
             const matches =
                 await searchRulesCoreMonsters(queryText);
 
-            if (sequence !== this.searchSequence
+            if (sequence
+                    !== (this.searchSequences.get(card) ?? 0)
                 || field<HTMLInputElement>(
                     card,
                     "name").value.trim()
@@ -256,7 +260,10 @@ export class MonsterRosterService {
 
             box.hidden = false;
         } catch (error) {
-            if (sequence !== this.searchSequence) return;
+            if (sequence
+                !== (this.searchSequences.get(card) ?? 0)) {
+                return;
+            }
 
             box.replaceChildren();
             const warning = document.createElement("div");

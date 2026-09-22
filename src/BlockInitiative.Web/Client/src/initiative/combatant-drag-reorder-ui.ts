@@ -1,7 +1,9 @@
 import {
     getRuntimeManualOrder,
-    loadInitiativeTurnState,
-    previewInitiative,
+    publishInitiativePreview,
+    publishInitiativeTurnState,
+    requestInitiativePreview,
+    requestInitiativeTurnState,
     setRuntimeManualOrder
 } from "../api";
 import type {
@@ -11,6 +13,15 @@ import type {
     InitiativeTurnStateResponse
 } from "../api";
 import { moveCombatantByOffset, sameMembers, sameOrder } from "./combatant-reorder";
+import {
+    clearCombatantReorderHistory,
+    combatantReorderBaselineOrder,
+    combatantReorderBaselineRequest,
+    combatantReorderHistory,
+    popCombatantReorderHistory,
+    pushCombatantReorderHistory,
+    resetCombatantReorderRuntime
+} from "./combatant-reorder-state";
 import { initiativePreviewUrl, initiativeStateUrl, loadToolHostContext } from "../host";
 import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
 
@@ -45,14 +56,10 @@ type DragSession = {
 let initialized = false;
 let lastPreview: PreviewDetail | null = null;
 let lastState: StateDetail | null = null;
-let baselineRequest: InitiativePreviewRequest | null = null;
-let baselineOrder: string[] | null = null;
-let reorderHistory: string[][] = [];
 let applying = false;
 let dragSession: DragSession | null = null;
 let pendingFocusId: string | null = null;
 let liveRegion: HTMLElement | null = null;
-let endpointsPromise: Promise<Endpoints> | null = null;
 
 export function initializeCombatantDragReorderUi(): void {
     const root = document.getElementById("tool-root");
@@ -61,7 +68,6 @@ export function initializeCombatantDragReorderUi(): void {
 
     installStyles(root.ownerDocument);
     liveRegion = ensureLiveRegion(root);
-    endpointsPromise = resolveEndpoints(root);
 
     window.addEventListener("block-initiative:preview", event => {
         const detail = (event as CustomEvent<PreviewDetail>).detail;
@@ -79,9 +85,9 @@ export function initializeCombatantDragReorderUi(): void {
         // a new or explicitly resumed encounter state. Treat that order as the
         // reset point and start a fresh undo history.
         if (!applying && detail.request.advanceCount === 0) {
-            baselineRequest = previewRequestFrom(detail.request);
-            baselineOrder = stateOrder(detail.response);
-            reorderHistory = [];
+            resetCombatantReorderRuntime(
+                previewRequestFrom(detail.request),
+                stateOrder(detail.response));
         }
 
         requestEnhancement();
@@ -305,7 +311,8 @@ function ensureReorderControls(runner: HTMLElement, root: HTMLElement): void {
         undo.textContent = "Undo reorder";
         undo.title = "Undo the most recent combatant drag or keyboard reorder.";
         undo.onclick = () => {
-            const target = reorderHistory[reorderHistory.length - 1];
+            const history = combatantReorderHistory();
+            const target = history[history.length - 1];
             if (target) void applyOrder(target, null, "undo");
         };
         controls.insertBefore(undo, controls.firstChild);
@@ -319,7 +326,14 @@ function ensureReorderControls(runner: HTMLElement, root: HTMLElement): void {
         reset.textContent = "Reset order";
         reset.title = "Restore the initiative order from when this encounter state was started or resumed.";
         reset.onclick = () => {
-            if (baselineOrder) void applyOrder(baselineOrder, null, "reset");
+            const baselineOrder =
+                combatantReorderBaselineOrder();
+            if (baselineOrder) {
+                void applyOrder(
+                    baselineOrder,
+                    null,
+                    "reset");
+            }
         };
         const undo = controls.querySelector<HTMLElement>("[data-action='undo-combatant-reorder']");
         undo?.after(reset);
@@ -342,8 +356,19 @@ function updateReorderControls(runner: HTMLElement): void {
     const current = currentStateOrder();
     const undo = runner.querySelector<HTMLButtonElement>("[data-action='undo-combatant-reorder']");
     const reset = runner.querySelector<HTMLButtonElement>("[data-action='reset-combatant-order']");
-    if (undo) undo.disabled = applying || reorderHistory.length === 0;
-    if (reset) reset.disabled = applying || !baselineOrder || sameOrder(current, baselineOrder);
+    const history = combatantReorderHistory();
+    const baselineOrder =
+        combatantReorderBaselineOrder();
+    if (undo) {
+        undo.disabled =
+            applying || history.length === 0;
+    }
+    if (reset) {
+        reset.disabled =
+            applying
+            || !baselineOrder
+            || sameOrder(current, baselineOrder);
+    }
 
     for (const handle of runner.querySelectorAll<HTMLButtonElement>(".bi-drag-handle")) {
         handle.disabled = applying;
@@ -355,7 +380,7 @@ async function applyOrder(
     focusId: string | null,
     historyMode: "push" | "undo" | "reset"
 ): Promise<void> {
-    if (applying || !lastPreview || !lastState || !endpointsPromise) return;
+    if (applying || !lastPreview || !lastState) return;
 
     const current = currentStateOrder();
     const expectedIds = lastPreview.response.orderedCombatants.map(combatant => combatant.id);
@@ -372,7 +397,9 @@ async function applyOrder(
         return;
     }
 
-    const requestBase = baselineRequest ?? previewRequestFrom(lastPreview.request);
+    const requestBase =
+        combatantReorderBaselineRequest()
+        ?? previewRequestFrom(lastPreview.request);
     const previousRuntime = getRuntimeManualOrder();
     const previousOrder = [...current];
     const previousState = lastState.response;
@@ -380,32 +407,57 @@ async function applyOrder(
     requestEnhancement();
 
     try {
-        const endpoints = await endpointsPromise;
+        const root =
+            document.getElementById("tool-root");
+        if (!(root instanceof HTMLElement)) {
+            throw new Error(
+                "Block Initiative tool root is unavailable.");
+        }
+
+        const endpoints =
+            await resolveEndpoints(root);
         setRuntimeManualOrder(order);
         const request: InitiativePreviewRequest = {
             ...requestBase,
             combatants: requestBase.combatants.map(combatant => ({ ...combatant })),
             manualOrderOverride: [...order]
         };
-        const preview = await previewInitiative(endpoints.previewUrl, request);
-        if (preview.requiresAdjudication) {
-            throw new Error("The reordered initiative still requires a DM ruling.");
+        const previewResult =
+            await requestInitiativePreview(
+                endpoints.previewUrl,
+                request);
+        if (previewResult.response.requiresAdjudication) {
+            throw new Error(
+                "The reordered initiative still requires a DM ruling.");
         }
 
-        await loadInitiativeTurnState(endpoints.stateUrl, {
-            ...request,
-            advanceCount: 0,
-            resumeRound: previousState.round,
-            resumeActiveCombatantId: anchor,
-            resumeCyclicMergeCompleted: previousState.cyclicMergeCompleted
-        });
+        const stateResult =
+            await requestInitiativeTurnState(
+                endpoints.stateUrl,
+                {
+                    ...request,
+                    advanceCount: 0,
+                    resumeRound: previousState.round,
+                    resumeActiveCombatantId: anchor,
+                    resumeCyclicMergeCompleted:
+                        previousState.cyclicMergeCompleted
+                });
 
-        if (historyMode === "push") reorderHistory.push(previousOrder);
-        else if (historyMode === "undo") reorderHistory.pop();
-        else reorderHistory = [];
+        publishInitiativePreview(previewResult);
+        publishInitiativeTurnState(stateResult);
+
+        if (historyMode === "push") {
+            pushCombatantReorderHistory(
+                previousOrder);
+        } else if (historyMode === "undo") {
+            popCombatantReorderHistory();
+        } else {
+            clearCombatantReorderHistory();
+        }
 
         pendingFocusId = focusId;
-        const blockCount = lastState?.response.blocks.length ?? preview.blocks.length;
+        const blockCount =
+            stateResult.response.blocks.length;
         announce(`Initiative order updated. ${blockCount} block${blockCount === 1 ? "" : "s"} now derived from the DM order.`);
     } catch (error) {
         setRuntimeManualOrder(previousRuntime);

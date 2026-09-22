@@ -37,6 +37,10 @@ let initialized = false;
 
 export function initializeRulesCoreLinkUi(): void {
     if (initialized) return;
+
+    const root =
+        document.getElementById("tool-root");
+    if (!(root instanceof HTMLElement)) return;
     initialized = true;
 
     window.addEventListener("block-initiative:rules-core-template-link", event => {
@@ -66,18 +70,31 @@ export function initializeRulesCoreLinkUi(): void {
         requestEnhancement();
     });
 
-    registerAfterRender("rules-core-links", 110, decorateCombatantNames);
+    registerAfterRender(
+        "rules-core-links",
+        110,
+        () => decorateCombatantNames(root));
 }
 
-function decorateCombatantNames(): void {
-    const linksByCombatant = collectCombatantLinks();
-    decoratePreviewNames(linksByCombatant);
-    decorateRunnerNames(linksByCombatant);
+function decorateCombatantNames(
+    root: HTMLElement
+): void {
+    const linksByCombatant =
+        collectCombatantLinks(root);
+    decoratePreviewNames(
+        root,
+        linksByCombatant);
+    decorateRunnerNames(
+        root,
+        linksByCombatant);
 }
 
-function collectCombatantLinks(): Map<string, string> {
+function collectCombatantLinks(
+    root: HTMLElement
+): Map<string, string> {
     const result = new Map<string, string>();
-    for (const card of document.querySelectorAll<HTMLElement>(".bi-entry[data-id][data-template-id]")) {
+    for (const card of root.querySelectorAll<HTMLElement>(
+        ".bi-entry[data-id][data-template-id]")) {
         const combatantId = card.dataset.id;
         const templateId = card.dataset.templateId;
         if (!combatantId || !templateId) continue;
@@ -87,9 +104,14 @@ function collectCombatantLinks(): Map<string, string> {
     return result;
 }
 
-function decoratePreviewNames(linksByCombatant: Map<string, string>): void {
+function decoratePreviewNames(
+    root: HTMLElement,
+    linksByCombatant: Map<string, string>
+): void {
     if (!lastPreview) return;
-    const blocks = Array.from(document.querySelectorAll<HTMLElement>(".bi-block"));
+    const blocks = Array.from(
+        root.querySelectorAll<HTMLElement>(
+            ".bi-block"));
     lastPreview.blocks.forEach((block, blockIndex) => {
         const blockElement = blocks[blockIndex];
         if (!blockElement) return;
@@ -103,29 +125,50 @@ function decoratePreviewNames(linksByCombatant: Map<string, string>): void {
     });
 }
 
-function decorateRunnerNames(linksByCombatant: Map<string, string>): void {
-    if (!lastState?.activeBlockId) return;
-    const active = lastState.blocks.find(block => block.id === lastState!.activeBlockId);
-    if (!active) return;
+function decorateRunnerNames(
+    root: HTMLElement,
+    linksByCombatant: Map<string, string>
+): void {
+    if (!lastState) return;
 
-    const rows = Array.from(document.querySelectorAll<HTMLElement>(".bi-runner-member"));
-    active.memberOrder.forEach((combatantId, memberIndex) => {
-        const row = rows[memberIndex];
-        const name = row?.firstElementChild;
-        if (!(name instanceof HTMLElement)) return;
-        decorateName(name, linksByCombatant.get(combatantId));
-    });
+    for (const card of root.querySelectorAll<HTMLElement>(
+        ".bi-runner-member[data-combatant-id]")) {
+        const combatantId =
+            card.dataset.combatantId;
+        if (!combatantId) continue;
+
+        const name =
+            card.querySelector<HTMLElement>(
+                ":scope > [data-card-slot='identity'] > strong");
+        if (!name) continue;
+
+        decorateName(
+            name,
+            linksByCombatant.get(combatantId));
+    }
 }
 
-function decorateName(container: HTMLElement, href: string | undefined): void {
-    const existing = container.querySelector<HTMLAnchorElement>(":scope > a[data-rules-core-link]");
+function decorateName(
+    container: HTMLElement,
+    href: string | undefined
+): void {
+    const existing =
+        container.querySelector<HTMLAnchorElement>(
+            ":scope > a[data-rules-core-link]");
+
     if (!href) {
-        if (existing) container.replaceChildren(document.createTextNode(existing.textContent ?? ""));
+        if (existing) {
+            existing.replaceWith(
+                document.createTextNode(
+                    existing.textContent ?? ""));
+        }
         return;
     }
 
     if (existing) {
-        if (existing.getAttribute("href") !== href) existing.setAttribute("href", href);
+        if (existing.getAttribute("href") !== href) {
+            existing.setAttribute("href", href);
+        }
         return;
     }
 
@@ -137,7 +180,8 @@ function decorateName(container: HTMLElement, href: string | undefined): void {
     link.href = href;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.title = "Open this combatant in Rules Core";
+    link.title =
+        "Open this combatant in Rules Core";
     link.textContent = text;
     container.replaceChildren(link);
 }

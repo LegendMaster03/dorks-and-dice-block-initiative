@@ -87,3 +87,112 @@ test("removed combatants are pruned from module-owned runtime maps", async () =>
     assert.match(conditions, /pruneConditions/);
     assert.match(quickStats, /pruneActedRounds/);
 });
+
+test("saved encounters restore initiative mode and reorder runtime", async () => {
+    const schema =
+        await source("../src/persistence/encounter-schema.ts");
+    const capture =
+        await source("../src/persistence/encounter-capture.ts");
+    const restore =
+        await source("../src/persistence/encounter-restore.ts");
+
+    assert.match(schema, /version: 2/);
+    assert.match(schema, /initiativeMode: InitiativeMode/);
+    assert.match(schema, /reorderRuntime: CombatantReorderRuntimeSnapshot/);
+    assert.match(capture, /getInitiativeMode\(\)/);
+    assert.match(capture, /captureCombatantReorderRuntime\(\)/);
+    assert.match(restore, /setInitiativeMode\(/);
+    assert.match(restore, /restoreCombatantReorderRuntime\(/);
+});
+
+test("combatant reorder publishes preview and state only after both requests succeed", async () => {
+    const api = await source("../src/api.ts");
+    const reorder =
+        await source("../src/initiative/combatant-drag-reorder-ui.ts");
+
+    assert.match(api, /export async function requestInitiativePreview/);
+    assert.match(api, /export async function requestInitiativeTurnState/);
+    assert.match(api, /export function publishInitiativePreview/);
+    assert.match(api, /export function publishInitiativeTurnState/);
+
+    const apply = reorder.match(
+        /async function applyOrder\([\s\S]*?\n\}/)?.[0] ?? "";
+    assert.match(apply, /requestInitiativePreview/);
+    assert.match(apply, /requestInitiativeTurnState/);
+    assert.match(
+        apply,
+        /requestInitiativeTurnState[\s\S]*publishInitiativePreview[\s\S]*publishInitiativeTurnState/);
+    assert.doesNotMatch(reorder, /endpointsPromise/);
+});
+
+test("Rules Core runner links use combatant identity without replacing card metadata", async () => {
+    const links =
+        await source("../src/rules-core-link-ui.ts");
+
+    assert.match(
+        links,
+        /\.bi-runner-member\[data-combatant-id\]/);
+    assert.match(
+        links,
+        /card\.dataset\.combatantId/);
+    assert.match(
+        links,
+        /\[data-card-slot='identity'\] > strong/);
+    assert.doesNotMatch(
+        links,
+        /active\.memberOrder\.forEach/);
+    assert.match(
+        links,
+        /existing\.replaceWith\(/);
+});
+
+test("monster autocomplete sequences searches independently per card", async () => {
+    const monsters =
+        await source("../src/roster/monster-roster.ts");
+
+    assert.match(
+        monsters,
+        /new WeakMap<HTMLElement, number>/);
+    assert.match(
+        monsters,
+        /this\.searchSequences\.get\(card\)/);
+    assert.doesNotMatch(
+        monsters,
+        /private searchSequence = 0/);
+});
+
+test("Tool Host and Rules Core transient failures remain retryable", async () => {
+    const host = await source("../src/host.ts");
+    const app = await source("../src/app.ts");
+    const campaign =
+        await source("../src/campaign/campaign-ui.ts");
+    const quickStats =
+        await source("../src/combatant-quick-stats-ui.ts");
+
+    assert.match(host, /contextRequests\.delete\(url\)/);
+    assert.match(host, /getJsonWithRetry/);
+    assert.match(app, /Retry connection/);
+    assert.match(campaign, /Retry campaign access/);
+    assert.match(quickStats, /templateRetryAfter/);
+    assert.match(
+        quickStats,
+        /\.catch\(\(\) => \{[\s\S]*templateRetryAfter\.set/);
+    assert.doesNotMatch(
+        quickStats,
+        /catch \{[\s\S]*return null;[\s\S]*\n\}/);
+});
+
+test("browser persistence reads normalized v2 saves and migrates v1 keys", async () => {
+    const storage =
+        await source("../src/persistence/encounter-storage.ts");
+    const migration =
+        await source("../src/persistence/encounter-migration.ts");
+
+    assert.match(storage, /encounter:v2/);
+    assert.match(storage, /encounter:v1/);
+    assert.match(storage, /normalizeSavedEncounter/);
+    assert.match(migration, /candidate\.version !== 1/);
+    assert.match(migration, /version: 2/);
+    assert.match(migration, /normalizeRunnerCombat/);
+});
+
