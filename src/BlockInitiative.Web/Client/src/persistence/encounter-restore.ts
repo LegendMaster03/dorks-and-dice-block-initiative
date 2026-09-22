@@ -131,7 +131,6 @@ export class EncounterRestoreSession {
     public async start(): Promise<void> {
         try {
             clearRoster(this.root);
-            restoreActedRounds(this.saved.actedRounds ?? {});
             const legacySharedMode =
                 this.saved.groupMode === "shared";
             restoreGroupMode(this.root, this.saved.groupMode);
@@ -286,6 +285,8 @@ export class EncounterRestoreSession {
             this.root,
             this.saved.runnerCombat,
             this.lastPreview);
+        restoreActedRounds(
+            this.saved.actedRounds ?? {});
 
         requestEnhancement();
         await nextTask();
