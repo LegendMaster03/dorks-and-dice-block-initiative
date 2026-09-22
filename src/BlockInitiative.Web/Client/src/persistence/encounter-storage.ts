@@ -131,29 +131,39 @@ export function formatSavedAt(
 function readSavedEncounterAt(
     key: string
 ): SavedEncounter | null {
-    const raw =
-        window.localStorage.getItem(key);
-    if (!raw) return null;
+    try {
+        const raw =
+            window.localStorage.getItem(key);
+        if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as unknown;
-    return normalizeSavedEncounter(parsed);
+        const parsed =
+            JSON.parse(raw) as unknown;
+        return normalizeSavedEncounter(parsed);
+    } catch {
+        return null;
+    }
 }
 
 function readNamedEncountersAt(
     key: string
 ): NamedEncounterSave[] {
-    const raw =
-        window.localStorage.getItem(key);
-    if (!raw) return [];
+    try {
+        const raw =
+            window.localStorage.getItem(key);
+        if (!raw) return [];
 
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
+        const parsed =
+            JSON.parse(raw) as unknown;
+        if (!Array.isArray(parsed)) return [];
 
-    return parsed.flatMap(rawSave => {
-        const save =
-            normalizeNamedEncounter(rawSave);
-        return save ? [save] : [];
-    });
+        return parsed.flatMap(rawSave => {
+            const save =
+                normalizeNamedEncounter(rawSave);
+            return save ? [save] : [];
+        });
+    } catch {
+        return [];
+    }
 }
 
 function normalizeNamedEncounter(
