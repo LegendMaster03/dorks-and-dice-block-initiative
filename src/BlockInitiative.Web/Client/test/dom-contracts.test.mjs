@@ -142,11 +142,18 @@ test("encounter card renderer owns AC speed and HP metric composition", () => {
     healthRow.append(editor);
     mountEncounterCardState(card, "health", healthRow);
 
-    renderEncounterCardMetrics(card, { speed: "30 ft.", armorClass: "17" });
+    renderEncounterCardMetrics(card, {
+        speed: "30 ft.",
+        armorClass: "17",
+        touchArmorClass: "13",
+        flatFootedArmorClass: "15"
+    });
 
     const metrics = card.querySelector("[data-card-slot='metrics']");
     assert.ok(metrics);
     assert.equal(metrics.querySelector("[data-stat='ac'] strong")?.textContent, "17");
+    assert.equal(metrics.querySelector("[data-stat='touch-ac'] strong")?.textContent, "13");
+    assert.equal(metrics.querySelector("[data-stat='flat-footed-ac'] strong")?.textContent, "15");
     assert.match(metrics.textContent ?? "", /Speed 30 ft\./);
     assert.equal(metrics.querySelector(".bi-hp-editor"), editor);
     assert.equal(healthRow.hidden, true);

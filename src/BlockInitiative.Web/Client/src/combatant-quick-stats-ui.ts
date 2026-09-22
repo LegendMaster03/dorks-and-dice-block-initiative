@@ -343,6 +343,8 @@ function ensureManualStatsSetup(card: HTMLElement): HTMLElement {
     basics.className = "bi-quick-stats-entry-grid";
     basics.append(
         textEntryField("AC", "armor-class", "e.g. 15"),
+        textEntryField("Touch AC", "touch-armor-class", "e.g. 12"),
+        textEntryField("Flat-Footed AC", "flat-footed-armor-class", "e.g. 13"),
         textEntryField("Speed", "speed", "e.g. 30 ft.")
     );
 
@@ -419,6 +421,11 @@ function textEntryField(labelText: string, key: string, placeholder: string): HT
 
 function applyImportedPlaceholders(panel: HTMLElement, stats: MonsterCombatStats): void {
     setPlaceholder(panel, "armor-class", stats.armorClass);
+    setPlaceholder(panel, "touch-armor-class", stats.touchArmorClass);
+    setPlaceholder(
+        panel,
+        "flat-footed-armor-class",
+        stats.flatFootedArmorClass);
     setPlaceholder(panel, "speed", stats.speed);
     setPlaceholder(panel, "vulnerabilities", stats.vulnerabilities);
     setPlaceholder(panel, "resistances", stats.resistances);
@@ -479,11 +486,16 @@ function setHealthInput(input: HTMLInputElement, value: string): void {
 function readManualStats(card: HTMLElement): MonsterCombatStats | null {
     if ((card.dataset.alliance ?? "") === "players") {
         const armorClass =
-            card.querySelector<HTMLInputElement>(
-                ":scope > .bi-entry-main [data-role='setup-armor-class']"
-            )?.value.trim()
-            ?? "";
-        if (!armorClass) return null;
+            readSetupArmorClass(card, "setup-armor-class");
+        const touchArmorClass =
+            readSetupArmorClass(card, "setup-touch-armor-class");
+        const flatFootedArmorClass =
+            readSetupArmorClass(card, "setup-flat-footed-armor-class");
+        if (!armorClass
+            && !touchArmorClass
+            && !flatFootedArmorClass) {
+            return null;
+        }
 
         const abilities = {} as MonsterCombatStats["abilities"];
         for (const key of abilityKeys) {
@@ -496,6 +508,8 @@ function readManualStats(card: HTMLElement): MonsterCombatStats | null {
 
         return {
             armorClass,
+            touchArmorClass,
+            flatFootedArmorClass,
             maxHp: null,
             speed: null,
             initiativeModifier: null,
@@ -524,6 +538,10 @@ function readManualStats(card: HTMLElement): MonsterCombatStats | null {
 
     const stats: MonsterCombatStats = {
         armorClass: readInputText(panel, "armor-class"),
+        touchArmorClass:
+            readInputText(panel, "touch-armor-class"),
+        flatFootedArmorClass:
+            readInputText(panel, "flat-footed-armor-class"),
         maxHp: null,
         speed: readInputText(panel, "speed"),
         initiativeModifier: null,
@@ -537,6 +555,8 @@ function readManualStats(card: HTMLElement): MonsterCombatStats | null {
 
     const hasScalar = [
         stats.armorClass,
+        stats.touchArmorClass,
+        stats.flatFootedArmorClass,
         stats.speed,
         stats.vulnerabilities,
         stats.resistances,
@@ -545,6 +565,18 @@ function readManualStats(card: HTMLElement): MonsterCombatStats | null {
         stats.damageReduction
     ].some(Boolean);
     return hasScalar || hasAbilityValue ? stats : null;
+}
+
+function readSetupArmorClass(
+    card: HTMLElement,
+    role: string
+): string | null {
+    const value =
+        card.querySelector<HTMLInputElement>(
+            `:scope > .bi-entry-main [data-role='${role}']`
+        )?.value.trim()
+        ?? "";
+    return value || null;
 }
 
 function readInputText(panel: HTMLElement, key: string): string | null {
@@ -620,6 +652,14 @@ function paintQuickStats(
     const facts = document.createElement("div");
     facts.className = "bi-quick-facts";
     appendFact(facts, "AC", stats?.armorClass ?? null);
+    appendFact(
+        facts,
+        "Touch AC",
+        stats?.touchArmorClass ?? null);
+    appendFact(
+        facts,
+        "Flat-Footed AC",
+        stats?.flatFootedArmorClass ?? null);
     appendFact(facts, "Speed", stats?.speed ?? null);
     appendFact(facts, "Init", initiative === null ? null : signed(initiative));
     if (facts.childElementCount) panel.append(facts);

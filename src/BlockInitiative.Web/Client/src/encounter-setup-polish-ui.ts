@@ -54,64 +54,113 @@ export function initializeEncounterSetupPolishUi(): void {
 
 function enhanceSetup(root: HTMLElement): void {
     for (const card of root.querySelectorAll<HTMLElement>(".bi-entry[data-id]")) {
-        ensureArmorClassField(card);
+        ensureArmorClassFields(card);
     }
     ensureArmorClassHeaders(root);
     relabelSetupAction(root);
 }
 
-function ensureArmorClassField(card: HTMLElement): void {
-    const source = card.querySelector<HTMLInputElement>(
-        ":scope > [data-quick-stats-setup] [data-quick-stat='armor-class']"
-    );
-    const sourceWrap = source?.closest<HTMLElement>(".bi-field") ?? null;
-    const existing = card.querySelector<HTMLElement>(":scope > .bi-entry-main > .bi-setup-ac");
-    const blockType = card.querySelector<HTMLSelectElement>("[data-field='block-type']")?.value;
+function ensureArmorClassFields(card: HTMLElement): void {
+    const sourcePanel =
+        card.querySelector<HTMLElement>(
+            ":scope > [data-quick-stats-setup]");
     const isPlayer = card.dataset.alliance === "players";
-    const standardCombatant = blockType === "standard";
-    const supported = standardCombatant && (isPlayer || Boolean(source && sourceWrap));
+    let group =
+        card.querySelector<HTMLElement>(
+            ":scope > .bi-entry-main > .bi-setup-ac-group");
 
-    if (!supported) {
-        existing?.remove();
-        if (sourceWrap) sourceWrap.hidden = false;
+    if (!isPlayer && !sourcePanel) {
+        group?.remove();
         return;
     }
 
-    const main = card.querySelector<HTMLElement>(":scope > .bi-entry-main");
-    const initiativeWrap = main?.querySelector<HTMLElement>(":scope > [data-role='initiative-wrap']");
-    if (!main || !initiativeWrap) {
-        if (sourceWrap) sourceWrap.hidden = false;
-        return;
+    const main =
+        card.querySelector<HTMLElement>(
+            ":scope > .bi-entry-main");
+    const initiativeWrap =
+        main?.querySelector<HTMLElement>(
+            ":scope > [data-role='initiative-wrap']");
+    if (!main || !initiativeWrap) return;
+
+    if (!group) {
+        group = document.createElement("div");
+        group.className = "bi-setup-ac-group";
+        group.setAttribute("aria-label", "Armor Class");
     }
 
-    let field = existing;
-    if (!field) {
-        field = document.createElement("div");
-        field.className = "bi-field bi-setup-ac";
-        const label = document.createElement("label");
-        label.textContent = "AC";
-        const input = document.createElement("input");
-        input.type = "text";
-        input.inputMode = "numeric";
-        input.dataset.role = "setup-armor-class";
-        field.append(label, input);
+    const definitions = [
+        {
+            quickStat: "armor-class",
+            role: "setup-armor-class",
+            label: "AC",
+            placeholder: "e.g. 15"
+        },
+        {
+            quickStat: "touch-armor-class",
+            role: "setup-touch-armor-class",
+            label: "Touch",
+            placeholder: "e.g. 12"
+        },
+        {
+            quickStat: "flat-footed-armor-class",
+            role: "setup-flat-footed-armor-class",
+            label: "Flat-Footed",
+            placeholder: "e.g. 13"
+        }
+    ] as const;
+
+    for (const definition of definitions) {
+        const source =
+            sourcePanel?.querySelector<HTMLInputElement>(
+                `[data-quick-stat='${definition.quickStat}']`)
+            ?? null;
+        const sourceWrap =
+            source?.closest<HTMLElement>(".bi-field")
+            ?? null;
+
+        let field =
+            group.querySelector<HTMLElement>(
+                `[data-ac-kind='${definition.quickStat}']`);
+        if (!field) {
+            field = document.createElement("div");
+            field.className = "bi-field bi-setup-ac";
+            field.dataset.acKind = definition.quickStat;
+
+            const label = document.createElement("label");
+            label.textContent = definition.label;
+            const input = document.createElement("input");
+            input.type = "text";
+            input.inputMode = "numeric";
+            input.dataset.role = definition.role;
+            field.append(label, input);
+            group.append(field);
+        }
+
+        const input =
+            field.querySelector<HTMLInputElement>(
+                `[data-role='${definition.role}']`)!;
+        input.placeholder =
+            source?.placeholder
+            || definition.placeholder;
+        if (source && input.value !== source.value) {
+            input.value = source.value;
+        }
+        input.oninput = () => {
+            if (source) source.value = input.value;
+        };
+        input.onchange = () => {
+            if (!source) return;
+            source.value = input.value;
+            source.dispatchEvent(
+                new Event("change", { bubbles: true }));
+        };
+
+        if (sourceWrap) sourceWrap.hidden = true;
     }
 
-    const input = field.querySelector<HTMLInputElement>("[data-role='setup-armor-class']")!;
-    input.placeholder = source?.placeholder || "e.g. 15";
-    if (source && input.value !== source.value) input.value = source.value;
-    input.oninput = () => {
-        if (source) source.value = input.value;
-    };
-    input.onchange = () => {
-        if (!source) return;
-        source.value = input.value;
-        source.dispatchEvent(new Event("change", { bubbles: true }));
-    };
-
-    if (sourceWrap) sourceWrap.hidden = true;
-    if (field.parentElement !== main || field.previousElementSibling !== initiativeWrap) {
-        initiativeWrap.after(field);
+    if (group.parentElement !== main
+        || group.previousElementSibling !== initiativeWrap) {
+        initiativeWrap.after(group);
     }
 }
 function ensureArmorClassHeaders(root: HTMLElement): void {
@@ -122,7 +171,7 @@ function ensureArmorClassHeaders(root: HTMLElement): void {
 
         const label = document.createElement("span");
         label.dataset.role = "setup-ac-header";
-        label.textContent = "AC";
+        label.textContent = "AC / Touch / Flat-Footed";
 
         const hp = Array.from(header.children)
             .find(child => child.textContent?.trim() === "HP")
@@ -167,28 +216,30 @@ function installStyles(documentRef: Document): void {
     const style = documentRef.createElement("style");
     style.dataset.role = "encounter-setup-polish-ui-style";
     style.textContent = `
-.block-initiative-app.bi-dense-tracker .bi-player-roster-header{grid-template-columns:minmax(16rem,36rem) 5rem 13rem 4.5rem auto}
-.block-initiative-app.bi-dense-tracker .bi-enemy-roster-header{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 4.5rem 6rem auto}
-.block-initiative-app.bi-dense-tracker .bi-player-entry{grid-template-columns:minmax(16rem,36rem) 5rem 13rem 4.5rem auto}
-.block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 4.5rem 6rem auto}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac{grid-column:4;grid-row:1;width:4.5rem}
-.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac input{width:4.5rem;max-width:4.5rem}
+.block-initiative-app .bi-setup-ac-group{display:grid;grid-template-columns:4.25rem 4.25rem 5.5rem;gap:.3rem;align-items:end;min-width:14.6rem}
+.block-initiative-app .bi-setup-ac-group .bi-setup-ac input{min-width:0}
+.block-initiative-app.bi-dense-tracker .bi-player-roster-header{grid-template-columns:minmax(16rem,36rem) 5rem 13rem 14.6rem auto}
+.block-initiative-app.bi-dense-tracker .bi-enemy-roster-header{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 14.6rem 6rem auto}
+.block-initiative-app.bi-dense-tracker .bi-player-entry{grid-template-columns:minmax(16rem,36rem) 5rem 13rem 14.6rem auto}
+.block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(16rem,34rem) 5rem 13rem 14.6rem 6rem auto}
+.block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac-group{grid-column:4;grid-row:1}
 .block-initiative-app.bi-dense-tracker .bi-enemy-entry>[data-combat-setup='standard']{grid-column:5;grid-row:1}
 .block-initiative-app.bi-dense-tracker .bi-player-entry>.bi-entry-main>button[data-action='remove']{grid-column:5;grid-row:1}
 .block-initiative-app.bi-dense-tracker .bi-enemy-entry>.bi-entry-main>button[data-action='remove']{grid-column:6;grid-row:1}
-@media(max-width:880px){
+@media(max-width:1020px){
   .block-initiative-app.bi-dense-tracker .bi-player-entry,
-  .block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(14rem,1fr) 5rem 13rem 4.5rem auto}
-  .block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac{grid-column:4;grid-row:1}
+  .block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(14rem,1fr) 5rem 13rem 14.6rem auto}
+  .block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac-group{grid-column:4;grid-row:1}
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry>[data-combat-setup='standard']{grid-column:1/5;grid-row:2}
   .block-initiative-app.bi-dense-tracker .bi-player-entry>.bi-entry-main>button[data-action='remove'],
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry>.bi-entry-main>button[data-action='remove']{grid-column:5;grid-row:1}
 }
-@media(max-width:650px){
+@media(max-width:720px){
   .block-initiative-app.bi-dense-tracker .bi-player-entry,
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry{grid-template-columns:minmax(9rem,1fr) auto}
-  .block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac{grid-column:1;grid-row:3}
+  .block-initiative-app.bi-dense-tracker .bi-roster-entry .bi-setup-ac-group{grid-column:1/-1;grid-row:3}
   .block-initiative-app.bi-dense-tracker .bi-enemy-entry>[data-combat-setup='standard']{grid-column:1/-1;grid-row:4}
+  .block-initiative-app .bi-setup-ac-group{grid-template-columns:repeat(3,minmax(4rem,1fr));min-width:0;width:100%}
 }
 `;
     documentRef.head.append(style);
