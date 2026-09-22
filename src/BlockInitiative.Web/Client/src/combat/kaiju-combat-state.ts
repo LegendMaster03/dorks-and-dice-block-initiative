@@ -209,19 +209,19 @@ export function restoreKaijuRuntimeMetadata(
     state.finishingBlowTarget =
         metadata.finishingBlowTarget;
     state.areas =
-        metadata.areas.map((area, index) => ({
-            id:
-                state.areas[index]?.id
-                ?? crypto.randomUUID(),
-            name: area.name,
-            currentHp: area.currentHp,
-            maxHp: area.maxHp,
-            targetable: area.targetable,
-            exploitedOverride:
+        metadata.areas.map((area, index) => {
+            const existing =
                 state.areas[index]
-                    ?.exploitedOverride
-                ?? "auto"
-        }));
+                ?? newArea(index + 1);
+            existing.name = area.name;
+            existing.currentHp =
+                area.currentHp;
+            existing.maxHp =
+                area.maxHp;
+            existing.targetable =
+                area.targetable;
+            return existing;
+        });
 
     state.finishingBlowDamageByTurn =
         new Map(
@@ -302,7 +302,7 @@ export function ensureKaijuCombatSetup(
 
     const phase = panel.querySelector<HTMLInputElement>("[data-field='behaviour-phase']")!;
     phase.value = state.behaviourPhase;
-    phase.addEventListener("change", () => {
+    phase.addEventListener("input", () => {
         state.behaviourPhase = phase.value.trim();
     });
 
