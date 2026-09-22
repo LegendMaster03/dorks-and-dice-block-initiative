@@ -53,12 +53,24 @@ export type RunnerMutationLock = {
 
 const mutationEventName =
     "block-initiative:runner-mutation-lock";
+const activeMutationLocks =
+    new Set<string>();
+
+export function isEncounterRunnerMutationLocked(): boolean {
+    return activeMutationLocks.size > 0;
+}
 
 export function setEncounterRunnerMutationLock(
     source: string,
     locked: boolean
 ): void {
     if (!source.trim()) return;
+
+    if (locked) {
+        activeMutationLocks.add(source);
+    } else {
+        activeMutationLocks.delete(source);
+    }
 
     window.dispatchEvent(
         new CustomEvent<RunnerMutationLock>(

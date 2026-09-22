@@ -13,7 +13,8 @@ import {
 } from "./presentation";
 import {
     onEncounterRunnerMutationLock,
-    onEncounterRunnerSessionReplacement
+    onEncounterRunnerSessionReplacement,
+    setEncounterRunnerMutationLock
 } from "./runner-session-events";
 
 type RunnerSession = {
@@ -469,12 +470,18 @@ export class EncounterRunnerController {
     private beginTransition(): boolean {
         if (this.isMutationBlocked) return false;
         this.transitioning = true;
+        setEncounterRunnerMutationLock(
+            "encounter-runner",
+            true);
         this.syncActionAvailability();
         return true;
     }
 
     private endTransition(): void {
         this.transitioning = false;
+        setEncounterRunnerMutationLock(
+            "encounter-runner",
+            false);
         this.syncActionAvailability();
     }
 

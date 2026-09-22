@@ -495,6 +495,8 @@ test("monster template selection can not overwrite a newer edit", async () => {
 test("restored template-backed enemies duplicate without dropping template identity", async () => {
     const duplicate =
         await source("../src/roster/enemy-duplicate-ui.ts");
+    const monsters =
+        await source("../src/roster/monster-roster.ts");
 
     assert.match(
         duplicate,
@@ -520,4 +522,29 @@ test("restored template-backed enemies duplicate without dropping template ident
     assert.match(
         duplicate,
         /copyHealthWhenReady\(source, target\)/);
+});
+
+
+test("runner transitions and reorder operations share one bidirectional mutation lock", async () => {
+    const events =
+        await source("../src/application/runner-session-events.ts");
+    const runner =
+        await source("../src/application/encounter-runner.ts");
+    const reorder =
+        await source("../src/initiative/combatant-drag-reorder-ui.ts");
+
+    assert.match(events, /activeMutationLocks/);
+    assert.match(events, /isEncounterRunnerMutationLocked/);
+    assert.match(
+        runner,
+        /setEncounterRunnerMutationLock\([\s\S]*"encounter-runner",[\s\S]*true/);
+    assert.match(
+        runner,
+        /setEncounterRunnerMutationLock\([\s\S]*"encounter-runner",[\s\S]*false/);
+    assert.match(
+        reorder,
+        /isEncounterRunnerMutationLocked\(\)/);
+    assert.match(
+        reorder,
+        /handle\.disabled =[\s\S]*mutationLocked/);
 });
