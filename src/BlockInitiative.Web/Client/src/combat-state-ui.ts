@@ -3,7 +3,7 @@ import {
     ensureKaijuCombatSetup,
     initializeKaijuCombatState,
     pruneKaijuCombatStates,
-    setKaijuCombatRound,
+    setKaijuCombatTurn,
     syncKaijuCombatState
 } from "./combat/kaiju-combat-state";
 import {
@@ -52,8 +52,28 @@ export function initializeCombatStateUi(): void {
     });
 
     window.addEventListener("block-initiative:state", event => {
-        lastTurnState = (event as CustomEvent<TurnStateDetail>).detail;
-        setKaijuCombatRound(lastTurnState.response.round);
+        const detail =
+            (event as CustomEvent<TurnStateDetail>).detail;
+        if (!detail) return;
+
+        lastTurnState = detail;
+        const activeBlock =
+            detail.response.blocks.find(
+                block =>
+                    block.id
+                    === detail.response.activeBlockId);
+        const turnAnchor =
+            detail.request?.advanceCount === 0
+            && detail.request
+                .resumeActiveCombatantId
+                ? detail.request
+                    .resumeActiveCombatantId
+                : activeBlock?.memberOrder[0] ?? null;
+
+        setKaijuCombatTurn(
+            detail.response.round,
+            turnAnchor,
+            root);
         requestEnhancement();
     });
 

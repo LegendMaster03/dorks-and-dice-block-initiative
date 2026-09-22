@@ -1,4 +1,9 @@
 import { searchRulesCoreConditions } from "../integrations/rules-core/conditions";
+import {
+    applyNumberLimits,
+    parseBoundedNumber,
+    POSITIVE_TRACKER_LIMITS
+} from "../numeric-input-limits";
 import { toHostedToolHref } from "../integrations/rules-core/client";
 import type { ConditionSearchMatch } from "../integrations/rules-core/conditions";
 import {
@@ -6,6 +11,7 @@ import {
     conditionLabel,
     conditionsFor,
     removeCondition,
+    updateConditionLevel,
     updateConditionNote
 } from "./condition-model";
 import type { TrackedCondition } from "./condition-model";
@@ -95,6 +101,32 @@ function buildConditionChip(
     const title = document.createElement("strong");
     title.textContent = condition.name;
 
+    const levelField = document.createElement("div");
+    levelField.className = "bi-field";
+    const levelLabel = document.createElement("label");
+    levelLabel.textContent = "Level (optional)";
+    const level = document.createElement("input");
+    level.type = "number";
+    applyNumberLimits(
+        level,
+        POSITIVE_TRACKER_LIMITS);
+    level.value =
+        condition.level === null
+            ? ""
+            : String(condition.level);
+    level.addEventListener("input", () => {
+        const parsed =
+            readConditionLevel(level);
+        const updated = updateConditionLevel(
+            combatantId,
+            condition.id,
+            parsed);
+        if (!updated) return;
+        refreshConditionLabels(root, updated);
+        notifyConditionChange(root, combatantId, false);
+    });
+    levelField.append(levelLabel, level);
+
     const noteField = document.createElement("div");
     noteField.className = "bi-field";
     const noteLabel = document.createElement("label");
@@ -116,7 +148,9 @@ function buildConditionChip(
 
     const actions = document.createElement("div");
     actions.className = "bi-condition-menu-actions";
-    const href = toHostedToolHref(condition.browserLink);
+    const href =
+        toHostedToolHref(condition.browserLink)
+        ?? condition.browserHref;
     if (href) {
         const view = document.createElement("a");
         view.className = "btn btn-sm btn-outline-secondary";
@@ -136,7 +170,7 @@ function buildConditionChip(
         notifyConditionChange(root, combatantId, true);
     };
     actions.append(remove);
-    menu.append(title, noteField, actions);
+    menu.append(title, levelField, noteField, actions);
 
     chip.onclick = event => {
         event.stopPropagation();
@@ -172,6 +206,18 @@ function buildConditionPicker(
     search.autocomplete = "off";
     searchField.append(searchLabel, search);
 
+    const levelField = document.createElement("div");
+    levelField.className = "bi-field";
+    const levelLabel = document.createElement("label");
+    levelLabel.textContent = "Level (optional)";
+    const level = document.createElement("input");
+    level.type = "number";
+    applyNumberLimits(
+        level,
+        POSITIVE_TRACKER_LIMITS);
+    level.placeholder = "e.g. 2";
+    levelField.append(levelLabel, level);
+
     const noteField = document.createElement("div");
     noteField.className = "bi-field";
     const noteLabel = document.createElement("label");
@@ -200,8 +246,10 @@ function buildConditionPicker(
         addCondition(combatantId, {
             id: crypto.randomUUID(),
             name,
+            level: readConditionLevel(level),
             note: note.value.trim(),
             browserLink: null,
+            browserHref: null,
             origin: "manual"
         });
         closeAllConditionPopovers(picker.ownerDocument);
@@ -247,6 +295,7 @@ function buildConditionPicker(
                         results,
                         matches,
                         combatantId,
+                        level,
                         note,
                         root);
                     status.textContent = matches.length
@@ -269,6 +318,7 @@ function buildConditionPicker(
         event => event.stopPropagation());
     picker.append(
         searchField,
+        levelField,
         noteField,
         status,
         results,
@@ -294,6 +344,7 @@ function paintSearchResults(
     container: HTMLElement,
     matches: ConditionSearchMatch[],
     combatantId: string,
+    level: HTMLInputElement,
     note: HTMLInputElement,
     root: HTMLElement
 ): void {
@@ -318,8 +369,10 @@ function paintSearchResults(
             addCondition(combatantId, {
                 id: crypto.randomUUID(),
                 name: match.displayName,
+                level: readConditionLevel(level),
                 note: note.value.trim(),
                 browserLink: match.browserLink,
+                browserHref: null,
                 origin:
                     match.kind === "resolved"
                         ? "rules-core"
@@ -433,4 +486,13 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-condition-inline{margin-right:auto}
 `;
     documentRef.head.append(style);
+}
+
+
+function readConditionLevel(
+    input: HTMLInputElement
+): number | null {
+    return parseBoundedNumber(
+        input.value,
+        POSITIVE_TRACKER_LIMITS);
 }

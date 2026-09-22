@@ -27,7 +27,8 @@ export function normalizeSavedEncounter(
     const candidate = record(value);
     if (!candidate
         || (candidate.version !== 1
-            && candidate.version !== 2)
+            && candidate.version !== 2
+            && candidate.version !== 3)
         || typeof candidate.savedAt !== "string"
         || !isSavedView(candidate.view)
         || !Array.isArray(candidate.players)
@@ -71,7 +72,7 @@ export function normalizeSavedEncounter(
         ?? "block";
 
     return {
-        version: 2,
+        version: 3,
         savedAt: candidate.savedAt,
         view: candidate.view,
         campaignId:

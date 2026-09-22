@@ -96,7 +96,7 @@ test("saved encounters restore initiative mode and reorder runtime", async () =>
     const restore =
         await source("../src/persistence/encounter-restore.ts");
 
-    assert.match(schema, /version: 2/);
+    assert.match(schema, /version: 3/);
     assert.match(schema, /initiativeMode: InitiativeMode/);
     assert.match(schema, /reorderRuntime: CombatantReorderRuntimeSnapshot/);
     assert.match(capture, /getInitiativeMode\(\)/);
@@ -182,17 +182,110 @@ test("Tool Host and Rules Core transient failures remain retryable", async () =>
         /catch \{[\s\S]*return null;[\s\S]*\n\}/);
 });
 
-test("browser persistence reads normalized v2 saves and migrates v1 keys", async () => {
+test("browser persistence reads normalized v3 saves and migrates v1 and v2 keys", async () => {
     const storage =
         await source("../src/persistence/encounter-storage.ts");
     const migration =
         await source("../src/persistence/encounter-migration.ts");
 
+    assert.match(storage, /encounter:v3/);
     assert.match(storage, /encounter:v2/);
     assert.match(storage, /encounter:v1/);
     assert.match(storage, /normalizeSavedEncounter/);
     assert.match(migration, /candidate\.version !== 1/);
-    assert.match(migration, /version: 2/);
+    assert.match(migration, /version: 3/);
     assert.match(migration, /normalizeRunnerCombat/);
 });
 
+
+
+test("runner undo and reorder synchronize the authoritative runner session", async () => {
+    const runner =
+        await source("../src/application/encounter-runner.ts");
+    const reorder =
+        await source("../src/initiative/combatant-drag-reorder-ui.ts");
+    const events =
+        await source("../src/application/runner-session-events.ts");
+
+    assert.match(runner, /publishInitiativeTurnState\(\{/);
+    assert.match(runner, /onEncounterRunnerSessionReplacement/);
+    assert.match(reorder, /replaceEncounterRunnerSession\(\{/);
+    assert.match(events, /block-initiative:runner-session-replace/);
+});
+
+test("named-load reload and failed restore can not overwrite protected recovery", async () => {
+    const coordinator =
+        await source("../src/encounter-persistence.ts");
+
+    assert.match(coordinator, /navigationReloading = true/);
+    assert.match(coordinator, /autosaveSuspended = true/);
+    assert.match(
+        coordinator,
+        /!navigationReloading[\s\S]*!autosaveSuspended[\s\S]*saveNow\(root\)/);
+    assert.match(
+        coordinator,
+        /Automatic saving is paused to protect the stored snapshot/);
+});
+
+test("Kaiju finishing damage is keyed by turn and automatic defeat is latched", async () => {
+    const kaiju =
+        await source("../src/combat/kaiju-combat-state.ts");
+    const coordinator =
+        await source("../src/combat-state-ui.ts");
+
+    assert.match(kaiju, /finishingBlowDamageByTurn/);
+    assert.match(kaiju, /currentTurnKey/);
+    assert.match(kaiju, /state\.defeatedRound !== null[\s\S]*\? true/);
+    assert.match(
+        kaiju,
+        /state\.defeatedOverride === "off"[\s\S]*state\.defeatedRound = null/);
+    assert.match(coordinator, /setKaijuCombatTurn\(/);
+});
+
+test("conditions preserve level and Rules Core identity through persistence", async () => {
+    const model =
+        await source("../src/conditions/condition-model.ts");
+    const editor =
+        await source("../src/conditions/condition-editor.ts");
+    const schema =
+        await source("../src/persistence/encounter-schema.ts");
+    const capture =
+        await source("../src/persistence/encounter-capture.ts");
+    const restore =
+        await source("../src/persistence/encounter-restore.ts");
+
+    assert.match(model, /level: number \| null/);
+    assert.match(model, /browserHref: string \| null/);
+    assert.match(editor, /Level \(optional\)/);
+    assert.match(schema, /browserLink: RuleBrowserLink \| null/);
+    assert.match(capture, /conditionsFor\(combatantId\)/);
+    assert.match(restore, /addCondition\(/);
+});
+
+test("campaign persistence only accepts confirmed campaign selection", async () => {
+    const campaign =
+        await source("../src/campaign/campaign-ui.ts");
+    const restore =
+        await source("../src/persistence/encounter-restore.ts");
+
+    assert.match(campaign, /select\.value = ""/);
+    assert.doesNotMatch(
+        restore,
+        /root\.dataset\.campaignId = campaignId/);
+    assert.match(
+        restore,
+        /root\.dataset\.campaignId[\s\S]*=== campaignId/);
+});
+
+test("health maximum fields reject negative values while current HP may remain negative", async () => {
+    const standard =
+        await source("../src/combat/standard-combat-state.ts");
+    const kaiju =
+        await source("../src/combat/kaiju-combat-state.ts");
+
+    assert.match(standard, /NON_NEGATIVE_TRACKER_LIMITS/);
+    assert.match(standard, /TRACKER_LIMITS\.min/);
+    assert.match(standard, /At or below 0 HP/);
+    assert.match(kaiju, /"Chaos Threshold"[\s\S]*NON_NEGATIVE_TRACKER_LIMITS/);
+    assert.match(kaiju, /"Max HP"[\s\S]*NON_NEGATIVE_TRACKER_LIMITS/);
+});

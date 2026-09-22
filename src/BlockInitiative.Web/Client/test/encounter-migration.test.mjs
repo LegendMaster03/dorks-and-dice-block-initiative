@@ -24,13 +24,13 @@ function legacyEncounter(overrides = {}) {
     };
 }
 
-test("v1 encounters migrate to complete v2 defaults", () => {
+test("v1 encounters migrate to complete v3 defaults", () => {
     const migrated =
         normalizeSavedEncounter(
             legacyEncounter());
 
     assert.ok(migrated);
-    assert.equal(migrated.version, 2);
+    assert.equal(migrated.version, 3);
     assert.equal(migrated.initiativeMode, "block");
     assert.deepEqual(
         migrated.runnerCombat,
@@ -113,3 +113,35 @@ test("malformed nested turn-state blocks are not passed to restore", () => {
     assert.equal(migrated.state, null);
 });
 
+
+
+test("v2 acted markers and condition links migrate into v3 state", () => {
+    const migrated =
+        normalizeSavedEncounter({
+            ...legacyEncounter(),
+            version: 2,
+            actedRounds: {
+                "monster-1": 4
+            },
+            players: [{
+                id: "monster-1",
+                name: "Aster",
+                conditions: [{
+                    name: "Exhaustion",
+                    note: "legacy",
+                    href: "/tools/rules-core/conditions/exhaustion"
+                }]
+            }]
+        });
+
+    assert.ok(migrated);
+    assert.deepEqual(
+        migrated.actedRounds,
+        { "monster-1": [4] });
+    assert.equal(
+        migrated.players[0].conditions[0].browserHref,
+        "/tools/rules-core/conditions/exhaustion");
+    assert.equal(
+        migrated.players[0].conditions[0].origin,
+        "rules-core");
+});

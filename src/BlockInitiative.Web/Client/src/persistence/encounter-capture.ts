@@ -1,3 +1,6 @@
+import {
+    conditionsFor
+} from "../conditions/condition-model";
 import { readKaijuRuntimeMetadata } from "../combat/kaiju-combat-state";
 import { captureActedRounds } from "../combatant-turn-markers";
 import {
@@ -58,7 +61,7 @@ export function captureEncounter(
             "[data-role='enemy-method']")?.value;
 
     return {
-        version: 2,
+        version: 3,
         savedAt: new Date().toISOString(),
         view: captureView(root, context.lastState),
         campaignId: root.dataset.campaignId ?? null,
@@ -246,36 +249,22 @@ function captureArmorClass(
         )?.value
         ?? "";
 }
-function captureConditions(card: HTMLElement): SavedCondition[] {
-    const editor =
-        card.querySelector<HTMLElement>(
-            ":scope > .bi-condition-setup [data-condition-editor-for]");
-    if (!editor) return [];
+function captureConditions(
+    card: HTMLElement
+): SavedCondition[] {
+    const combatantId = card.dataset.id;
+    if (!combatantId) return [];
 
-    return Array.from(
-        editor.querySelectorAll<HTMLElement>(".bi-condition-chip-wrap"))
-        .map(wrapper => {
-            const menu =
-                wrapper.querySelector<HTMLElement>(
-                    ".bi-condition-menu");
-
-            return {
-                name:
-                    menu?.querySelector("strong")
-                        ?.textContent?.trim()
-                    ?? wrapper.querySelector(".bi-condition-chip")
-                        ?.textContent?.trim()
-                    ?? "Condition",
-                note:
-                    menu?.querySelector<HTMLInputElement>("input")
-                        ?.value.trim()
-                    ?? "",
-                href:
-                    menu?.querySelector<HTMLAnchorElement>("a[href]")
-                        ?.href
-                    ?? null
-            };
-        });
+    return conditionsFor(combatantId)
+        .map(condition => ({
+            id: condition.id,
+            name: condition.name,
+            level: condition.level,
+            note: condition.note,
+            browserLink: condition.browserLink,
+            browserHref: condition.browserHref,
+            origin: condition.origin
+        }));
 }
 
 function captureControls(scope: HTMLElement): SavedControl[] {
@@ -381,6 +370,10 @@ function captureRunnerCombat(
                             finishingSection,
                             "Damage this turn")?.value ?? ""
                         : "",
+            finishingDamageByTurn:
+                runtimeMetadata
+                    ?.finishingBlowDamageByTurn
+                ?? {},
             defeatedRound:
                 runtimeMetadata?.defeatedRound ?? null,
             areas:

@@ -5,8 +5,10 @@ export type ConditionOrigin = "rules-core" | "source" | "manual";
 export type TrackedCondition = {
     id: string;
     name: string;
+    level: number | null;
     note: string;
     browserLink: RuleBrowserLink | null;
+    browserHref: string | null;
     origin: ConditionOrigin;
 };
 
@@ -47,6 +49,19 @@ export function removeCondition(
     );
 }
 
+export function updateConditionLevel(
+    combatantId: string,
+    conditionId: string,
+    level: number | null
+): TrackedCondition | null {
+    const condition = conditionsFor(combatantId)
+        .find(candidate => candidate.id === conditionId);
+    if (!condition) return null;
+
+    condition.level = level;
+    return condition;
+}
+
 export function updateConditionNote(
     combatantId: string,
     conditionId: string,
@@ -61,7 +76,11 @@ export function updateConditionNote(
 }
 
 export function conditionLabel(condition: TrackedCondition): string {
-    return condition.note
-        ? `${condition.name} · ${condition.note}`
-        : condition.name;
+    return [
+        condition.name,
+        condition.level === null
+            ? ""
+            : `Level ${condition.level}`,
+        condition.note
+    ].filter(Boolean).join(" · ");
 }

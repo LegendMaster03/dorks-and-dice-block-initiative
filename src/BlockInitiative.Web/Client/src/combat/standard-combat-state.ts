@@ -1,4 +1,8 @@
 import {
+    NON_NEGATIVE_TRACKER_LIMITS,
+    TRACKER_LIMITS
+} from "../numeric-input-limits";
+import {
     mountEncounterCardState,
     removeEncounterCardState
 } from "../encounter-card-renderer";
@@ -51,13 +55,19 @@ export function ensureStandardCombatSetup(
 
     const grid = panel.querySelector<HTMLElement>(".bi-combat-grid")!;
     grid.append(
-        numberField("Max HP", state.maxHp, value => {
-            const oldMax = state.maxHp;
-            state.maxHp = value;
-            if (state.currentHp === null || state.currentHp === oldMax) {
-                state.currentHp = value;
-            }
-        }, "max-hp"),
+        numberField(
+            "Max HP",
+            state.maxHp,
+            value => {
+                const oldMax = state.maxHp;
+                state.maxHp = value;
+                if (state.currentHp === null
+                    || state.currentHp === oldMax) {
+                    state.currentHp = value;
+                }
+            },
+            "max-hp",
+            NON_NEGATIVE_TRACKER_LIMITS),
         numberField(
             "Current HP",
             state.currentHp,
@@ -125,11 +135,18 @@ function renderHealthRow(
             state.currentHp = value;
             paintHpStatus(status, state);
         }, "current-hp"),
-        numberField("Max HP", state.maxHp, value => {
-            state.maxHp = value;
-            if (state.currentHp === null) state.currentHp = value;
-            paintHpStatus(status, state);
-        }, "max-hp")
+        numberField(
+            "Max HP",
+            state.maxHp,
+            value => {
+                state.maxHp = value;
+                if (state.currentHp === null) {
+                    state.currentHp = value;
+                }
+                paintHpStatus(status, state);
+            },
+            "max-hp",
+            NON_NEGATIVE_TRACKER_LIMITS)
     );
 
     const amount = amountField();
@@ -137,8 +154,9 @@ function renderHealthRow(
         amount.wrapper,
         actionButton("Damage", "btn-outline-secondary", () => {
             state.currentHp = Math.max(
-                0,
-                (state.currentHp ?? state.maxHp ?? 0) - amount.value());
+                TRACKER_LIMITS.min,
+                (state.currentHp ?? state.maxHp ?? 0)
+                    - amount.value());
             paintHpStatus(status, state);
         }),
         actionButton("Heal", "btn-outline-secondary", () => {
@@ -170,5 +188,8 @@ function paintHpStatus(
         state.maxHp === null ? `HP ${current}` : `HP ${current} / ${state.maxHp}`,
         current <= 0));
 
-    if (current <= 0) container.append(statusBadge("0 HP", true));
+    if (current <= 0) {
+        container.append(
+            statusBadge("At or below 0 HP", true));
+    }
 }

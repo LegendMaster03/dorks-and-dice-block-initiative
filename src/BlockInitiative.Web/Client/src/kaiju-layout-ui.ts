@@ -267,8 +267,16 @@ function applyAdjustment(
         TRACKER_LIMITS);
     const base = currentValue ?? maxValue ?? 0;
 
-    let next = direction < 0 ? Math.max(0, base - amount) : base + amount;
-    if (direction > 0 && maxValue !== null) next = Math.min(next, maxValue);
+    let next = direction < 0
+        ? Math.max(
+            TRACKER_LIMITS.min,
+            base - amount)
+        : Math.min(
+            TRACKER_LIMITS.max,
+            base + amount);
+    if (direction > 0 && maxValue !== null) {
+        next = Math.min(next, maxValue);
+    }
 
     currentInput.value = String(next);
     currentInput.dispatchEvent(new Event("input", { bubbles: true }));

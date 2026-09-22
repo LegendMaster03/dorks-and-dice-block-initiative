@@ -155,6 +155,7 @@ export function initializeCampaignUi(): void {
             if (requestSequence !== campaignRequestSequence) return;
             campaignContext = null;
             delete appRoot.dataset.campaignId;
+            select.value = "";
             dispatchCampaignChange(appRoot, null);
             status.textContent = campaignErrorMessage(error);
         } finally {
@@ -196,7 +197,13 @@ function importCampaignCharacters(
     let added = 0;
 
     for (const character of missing) {
-        let card = firstBlankPlayerCard(playerContainer);
+        let card =
+            uniqueUnlinkedNameMatch(
+                playerContainer,
+                character.name,
+                missing)
+            ?? firstBlankPlayerCard(
+                playerContainer);
         if (!card) {
             addPlayerButton.click();
             card = playerCards(playerContainer).at(-1) ?? null;
@@ -220,6 +227,42 @@ function importCampaignCharacters(
 
 function playerCards(container: HTMLElement): HTMLElement[] {
     return Array.from(container.querySelectorAll<HTMLElement>(".bi-entry"));
+}
+
+function uniqueUnlinkedNameMatch(
+    container: HTMLElement,
+    name: string,
+    missing: readonly { characterId: string; name: string }[]
+): HTMLElement | null {
+    const normalized =
+        normalizeCharacterName(name);
+    const matchingCharacters =
+        missing.filter(character =>
+            normalizeCharacterName(
+                character.name) === normalized);
+    if (matchingCharacters.length !== 1) {
+        return null;
+    }
+
+    const cards =
+        playerCards(container)
+            .filter(card =>
+                !card.dataset.campaignCharacterId
+                && normalizeCharacterName(
+                    nameInput(card)?.value ?? "")
+                    === normalized);
+
+    return cards.length === 1
+        ? cards[0]
+        : null;
+}
+
+function normalizeCharacterName(
+    value: string
+): string {
+    return value
+        .trim()
+        .toLocaleLowerCase("en-US");
 }
 
 function firstBlankPlayerCard(container: HTMLElement): HTMLElement | null {

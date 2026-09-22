@@ -1,3 +1,6 @@
+import {
+    addCondition
+} from "../conditions/condition-model";
 import type { InitiativeTurnStateResponse } from "../api";
 import {
     restoreKaijuRuntimeMetadata
@@ -59,8 +62,6 @@ export class EncounterRestoreSession {
     private replayAdvances = 0;
     private lastPreview: PreviewDetail | null;
     private lastState: StateDetail | null;
-    private readonly restoredConditionLinks =
-        new Map<string, SavedCondition[]>();
 
     public constructor(
         private readonly root: HTMLElement,
@@ -69,7 +70,6 @@ export class EncounterRestoreSession {
     ) {
         this.lastPreview = saved.preview;
         this.lastState = saved.state;
-        this.cacheConditionLinks();
     }
 
     public handlePreview(detail: PreviewDetail | null): void {
@@ -96,42 +96,7 @@ export class EncounterRestoreSession {
     }
 
     public ensureConditionLinks(): void {
-        for (const [combatantId, conditions]
-            of this.restoredConditionLinks) {
-            const card = this.root.querySelector<HTMLElement>(
-                `.bi-entry[data-id='${cssEscape(combatantId)}']`);
-            const wrappers = Array.from(
-                card?.querySelectorAll<HTMLElement>(
-                    ":scope > .bi-condition-setup .bi-condition-chip-wrap")
-                ?? []);
-
-            conditions.forEach((condition, index) => {
-                if (!condition.href) return;
-
-                const wrapper = wrappers[index];
-                const menu =
-                    wrapper?.querySelector<HTMLElement>(
-                        ".bi-condition-menu");
-                const actions =
-                    menu?.querySelector<HTMLElement>(
-                        ".bi-condition-menu-actions");
-
-                if (!menu
-                    || !actions
-                    || actions.querySelector("a[href]")) {
-                    return;
-                }
-
-                const link = document.createElement("a");
-                link.className =
-                    "btn btn-sm btn-outline-secondary";
-                link.href = condition.href;
-                link.target = "_blank";
-                link.rel = "noopener noreferrer";
-                link.textContent = "View rule";
-                actions.prepend(link);
-            });
-        }
+        // Condition identity now lives in the model and survives rerenders.
     }
 
     public async start(): Promise<void> {
@@ -309,19 +274,6 @@ export class EncounterRestoreSession {
         }
 
         this.complete();
-    }
-
-    private cacheConditionLinks(): void {
-        this.restoredConditionLinks.clear();
-
-        for (const combatant of allSavedCombatants(this.saved)) {
-            if (combatant.conditions.some(
-                condition => condition.href)) {
-                this.restoredConditionLinks.set(
-                    combatant.id,
-                    combatant.conditions);
-            }
-        }
     }
 
     private complete(): void {
@@ -837,6 +789,8 @@ function restoreRunnerValuesIntoSetup(
                         kaiju.finishingDamageThisTurn,
                         NON_NEGATIVE_TRACKER_LIMITS)
                     ?? 0,
+                finishingBlowDamageByTurn:
+                    kaiju.finishingDamageByTurn,
                 defeatedRound:
                     typeof kaiju.defeatedRound === "number"
                     && parseBoundedNumber(
@@ -909,72 +863,31 @@ function setInputAndDispatch(
 }
 
 function restoreConditions(
-    root: HTMLElement,
+    _root: HTMLElement,
     saved: SavedEncounter,
-    ensureConditionLinks: () => void
+    _ensureConditionLinks: () => void
 ): void {
     for (const combatant of allSavedCombatants(saved)) {
         for (const condition of combatant.conditions) {
-            addManualCondition(
-                root,
+            addCondition(
                 combatant.id,
-                condition);
+                {
+                    id:
+                        condition.id
+                        || crypto.randomUUID(),
+                    name: condition.name,
+                    level: condition.level,
+                    note: condition.note,
+                    browserLink:
+                        condition.browserLink,
+                    browserHref:
+                        condition.browserHref,
+                    origin: condition.origin
+                });
         }
     }
 
-    ensureConditionLinks();
-}
-
-function addManualCondition(
-    root: HTMLElement,
-    combatantId: string,
-    condition: SavedCondition
-): void {
-    const card =
-        root.querySelector<HTMLElement>(
-            `.bi-entry[data-id='${cssEscape(combatantId)}']`);
-    const editor =
-        card?.querySelector<HTMLElement>(
-            ":scope > .bi-condition-setup "
-            + "[data-condition-editor-for]");
-    const add =
-        editor?.querySelector<HTMLButtonElement>(
-            ".bi-condition-add");
-
-    if (!editor || !add) return;
-
-    add.click();
-
-    const picker =
-        editor.querySelector<HTMLElement>(
-            ".bi-condition-picker");
-    const search =
-        picker?.querySelector<HTMLInputElement>(
-            "[data-role='condition-search']");
-    const inputs =
-        picker
-            ? Array.from(
-                picker.querySelectorAll<HTMLInputElement>(
-                    "input"))
-            : [];
-    const note =
-        inputs.find(input => input !== search) ?? null;
-
-    if (!picker || !search) return;
-
-    search.value = condition.name;
-    search.dispatchEvent(
-        new Event("input", { bubbles: true }));
-
-    if (note) note.value = condition.note;
-
-    const manual =
-        Array.from(
-            picker.querySelectorAll<HTMLButtonElement>(
-                "button"))
-        .find(button =>
-            button.textContent?.trim() === "Add manually");
-    manual?.click();
+    requestEnhancement();
 }
 
 function replayRulesCoreLinks(
@@ -993,8 +906,6 @@ async function restoreCampaignSelection(
     campaignId: string | null
 ): Promise<void> {
     if (!campaignId) return;
-
-    root.dataset.campaignId = campaignId;
 
     const found =
         await waitFor(() => {
@@ -1018,6 +929,18 @@ async function restoreCampaignSelection(
     select.value = campaignId;
     select.dispatchEvent(
         new Event("change", { bubbles: true }));
+
+    const restored =
+        await waitFor(
+            () =>
+                root.dataset.campaignId
+                    === campaignId,
+            5000);
+
+    if (!restored) {
+        select.value = "";
+        delete root.dataset.campaignId;
+    }
 }
 
 function restoreRunnerValues(

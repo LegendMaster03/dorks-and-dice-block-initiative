@@ -10,6 +10,12 @@ import type {
 import type {
     InitiativeMode
 } from "../initiative/initiative-mode";
+import type {
+    RuleBrowserLink
+} from "../integrations/rules-core/client";
+import type {
+    ConditionOrigin
+} from "../conditions/condition-model";
 
 export type SavedView = "setup" | "preview" | "running" | "editing";
 export type CombatantBlockType = "standard" | "kaiju";
@@ -31,9 +37,13 @@ export type SavedControl = {
 };
 
 export type SavedCondition = {
+    id: string;
     name: string;
+    level: number | null;
     note: string;
-    href: string | null;
+    browserLink: RuleBrowserLink | null;
+    browserHref: string | null;
+    origin: ConditionOrigin;
 };
 
 export type SavedCombatant = {
@@ -96,6 +106,7 @@ export type SavedKaijuRuntime = {
     behaviourPhase: string;
     finishingTarget: string;
     finishingDamageThisTurn: string;
+    finishingDamageByTurn: Record<string, number>;
     defeatedRound: number | null;
     areas: SavedKaijuAreaRuntime[];
 };
@@ -110,7 +121,7 @@ export type SavedRulesCoreLink = Record<string, unknown> & {
 };
 
 export type SavedEncounter = {
-    version: 2;
+    version: 3;
     savedAt: string;
     view: SavedView;
     campaignId: string | null;
@@ -124,7 +135,7 @@ export type SavedEncounter = {
     state: StateDetail | null;
     runnerCombat: SavedRunnerCombat;
     rulesCoreLinks: SavedRulesCoreLink[];
-    actedRounds: Record<string, number>;
+    actedRounds: Record<string, number[]>;
     reorderRuntime: CombatantReorderRuntimeSnapshot;
 };
 

@@ -4,7 +4,8 @@ import {
 } from "../encounter-card-renderer";
 import {
     NON_NEGATIVE_TRACKER_LIMITS,
-    POSITIVE_TRACKER_LIMITS
+    POSITIVE_TRACKER_LIMITS,
+    TRACKER_LIMITS
 } from "../numeric-input-limits";
 import { requestEnhancement } from "../render-lifecycle";
 import {
@@ -35,6 +36,7 @@ type KaijuState = {
     chaosCurrent: number | null;
     finishingBlowTarget: number | null;
     finishingBlowDamageThisTurn: number;
+    finishingBlowDamageByTurn: Map<string, number>;
     behaviourPhase: string;
     areas: AreaState[];
     rampageOverride: OverrideValue;
@@ -54,6 +56,7 @@ type KaijuEvaluation = {
 
 export type KaijuRuntimeMetadata = {
     finishingBlowDamageThisTurn: number;
+    finishingBlowDamageByTurn: Record<string, number>;
     defeatedRound: number | null;
 };
 
@@ -67,6 +70,7 @@ const refreshAfterEvaluation = new Set<string>();
 let resolvedEvaluateUrl: string | null = null;
 let resolvingEvaluateUrl: Promise<string> | null = null;
 let currentRound: number | null = null;
+let currentTurnKey: string | null = null;
 
 export function initializeKaijuCombatState(root: HTMLElement): void {
     void getEvaluateUrl(root).catch(() => {
@@ -74,8 +78,54 @@ export function initializeKaijuCombatState(root: HTMLElement): void {
     });
 }
 
-export function setKaijuCombatRound(round: number): void {
+export function setKaijuCombatTurn(
+    round: number,
+    turnAnchorId: string | null,
+    root: HTMLElement
+): void {
     currentRound = round;
+    const nextTurnKey =
+        turnAnchorId
+            ? turnKey(round, turnAnchorId)
+            : null;
+
+    if (nextTurnKey === currentTurnKey) return;
+
+    const previousTurnKey = currentTurnKey;
+    currentTurnKey = nextTurnKey;
+    let changed = false;
+
+    for (const [combatantId, state] of kaijuStates) {
+        if (previousTurnKey) {
+            state.finishingBlowDamageByTurn.set(
+                previousTurnKey,
+                state.finishingBlowDamageThisTurn);
+        }
+
+        const nextDamage =
+            nextTurnKey
+                ? state.finishingBlowDamageByTurn.get(
+                    nextTurnKey)
+                    ?? 0
+                : 0;
+
+        if (state.finishingBlowDamageThisTurn
+            !== nextDamage) {
+            state.finishingBlowDamageThisTurn =
+                nextDamage;
+            changed = true;
+        }
+
+        if (canEvaluateKaiju(state)) {
+            void evaluateKaiju(
+                combatantId,
+                state,
+                root,
+                true);
+        }
+    }
+
+    if (changed) notifyCombatStateChanged();
 }
 
 export function clearKaijuCombatState(combatantId: string): void {
@@ -114,6 +164,9 @@ export function readKaijuRuntimeMetadata(
         ? {
             finishingBlowDamageThisTurn:
                 state.finishingBlowDamageThisTurn,
+            finishingBlowDamageByTurn:
+                Object.fromEntries(
+                    state.finishingBlowDamageByTurn),
             defeatedRound: state.defeatedRound
         }
         : null;
@@ -126,8 +179,23 @@ export function restoreKaijuRuntimeMetadata(
     const state = kaijuStates.get(combatantId);
     if (!state) return;
 
+    state.finishingBlowDamageByTurn =
+        new Map(
+            Object.entries(
+                metadata.finishingBlowDamageByTurn));
     state.finishingBlowDamageThisTurn =
-        metadata.finishingBlowDamageThisTurn;
+        currentTurnKey
+            ? state.finishingBlowDamageByTurn.get(
+                currentTurnKey)
+                ?? metadata.finishingBlowDamageThisTurn
+            : metadata.finishingBlowDamageThisTurn;
+    if (currentTurnKey
+        && !state.finishingBlowDamageByTurn.has(
+            currentTurnKey)) {
+        state.finishingBlowDamageByTurn.set(
+            currentTurnKey,
+            state.finishingBlowDamageThisTurn);
+    }
     state.defeatedRound = metadata.defeatedRound;
 }
 
@@ -155,14 +223,24 @@ export function ensureKaijuCombatSetup(
 
     const basics = panel.querySelector<HTMLElement>("[data-role='kaiju-basics']")!;
     basics.append(
-        numberField("Chaos Threshold", state.chaosMax, value => {
-            const oldMax = state.chaosMax;
-            state.chaosMax = value;
-            if (state.chaosCurrent === null || state.chaosCurrent === oldMax) {
-                state.chaosCurrent = value;
-            }
-            void evaluateKaiju(combatantId, state, root, false);
-        }),
+        numberField(
+            "Chaos Threshold",
+            state.chaosMax,
+            value => {
+                const oldMax = state.chaosMax;
+                state.chaosMax = value;
+                if (state.chaosCurrent === null
+                    || state.chaosCurrent === oldMax) {
+                    state.chaosCurrent = value;
+                }
+                void evaluateKaiju(
+                    combatantId,
+                    state,
+                    root,
+                    false);
+            },
+            undefined,
+            NON_NEGATIVE_TRACKER_LIMITS),
         numberField("Current Chaos", state.chaosCurrent, value => {
             state.chaosCurrent = value;
             void evaluateKaiju(combatantId, state, root, false);
@@ -274,14 +352,24 @@ function renderSetupAreas(
                 area.name = value || "Vulnerable Area";
                 void evaluateKaiju(kaijuId, state, root, false);
             }),
-            numberField("Max HP", area.maxHp, value => {
-                const oldMax = area.maxHp;
-                area.maxHp = value;
-                if (area.currentHp === null || area.currentHp === oldMax) {
-                    area.currentHp = value;
-                }
-                void evaluateKaiju(kaijuId, state, root, false);
-            }),
+            numberField(
+                "Max HP",
+                area.maxHp,
+                value => {
+                    const oldMax = area.maxHp;
+                    area.maxHp = value;
+                    if (area.currentHp === null
+                        || area.currentHp === oldMax) {
+                        area.currentHp = value;
+                    }
+                    void evaluateKaiju(
+                        kaijuId,
+                        state,
+                        root,
+                        false);
+                },
+                undefined,
+                NON_NEGATIVE_TRACKER_LIMITS),
             numberField("Current HP", area.currentHp, value => {
                 area.currentHp = value;
                 void evaluateKaiju(kaijuId, state, root, false);
@@ -371,11 +459,22 @@ function renderKaiju(
             state.chaosCurrent = value;
             void evaluateKaiju(id, state, root, true);
         }),
-        numberField("Maximum", state.chaosMax, value => {
-            state.chaosMax = value;
-            if (state.chaosCurrent === null) state.chaosCurrent = value;
-            void evaluateKaiju(id, state, root, true);
-        })
+        numberField(
+            "Maximum",
+            state.chaosMax,
+            value => {
+                state.chaosMax = value;
+                if (state.chaosCurrent === null) {
+                    state.chaosCurrent = value;
+                }
+                void evaluateKaiju(
+                    id,
+                    state,
+                    root,
+                    true);
+            },
+            undefined,
+            NON_NEGATIVE_TRACKER_LIMITS)
     );
 
     const chaosAmount = amountField();
@@ -438,11 +537,22 @@ function renderKaiju(
                 area.currentHp = value;
                 void evaluateKaiju(id, state, root, true);
             }),
-            numberField("Max HP", area.maxHp, value => {
-                area.maxHp = value;
-                if (area.currentHp === null) area.currentHp = value;
-                void evaluateKaiju(id, state, root, true);
-            })
+            numberField(
+                "Max HP",
+                area.maxHp,
+                value => {
+                    area.maxHp = value;
+                    if (area.currentHp === null) {
+                        area.currentHp = value;
+                    }
+                    void evaluateKaiju(
+                        id,
+                        state,
+                        root,
+                        true);
+                },
+                undefined,
+                NON_NEGATIVE_TRACKER_LIMITS)
         );
 
         const amount = amountField();
@@ -450,8 +560,9 @@ function renderKaiju(
             amount.wrapper,
             actionButton("Apply damage", "btn-outline-secondary", () => {
                 area.currentHp = Math.max(
-                    0,
-                    (area.currentHp ?? area.maxHp ?? 0) - amount.value());
+                    TRACKER_LIMITS.min,
+                    (area.currentHp ?? area.maxHp ?? 0)
+                        - amount.value());
                 void evaluateKaiju(id, state, root, true);
             }),
             checkField("Targetable", area.targetable, value => {
@@ -488,13 +599,15 @@ function renderKaiju(
                 "Damage this turn",
                 state.finishingBlowDamageThisTurn,
                 value => {
-                    state.finishingBlowDamageThisTurn = value ?? 0;
+                    setFinishingBlowDamage(
+                        state,
+                        value ?? 0);
                     void evaluateKaiju(id, state, root, true);
                 },
                 undefined,
                 NON_NEGATIVE_TRACKER_LIMITS),
             actionButton("Reset turn damage", "btn-outline-secondary", () => {
-                state.finishingBlowDamageThisTurn = 0;
+                setFinishingBlowDamage(state, 0);
                 void evaluateKaiju(id, state, root, true);
             })
         );
@@ -574,7 +687,11 @@ async function performLatestKaijuEvaluation(
                 })),
                 rampageOverride: overrideBool(state.rampageOverride),
                 deathThroesOverride: overrideBool(state.deathThroesOverride),
-                defeatedOverride: overrideBool(state.defeatedOverride)
+                defeatedOverride:
+                    state.defeatedOverride === "auto"
+                    && state.defeatedRound !== null
+                        ? true
+                        : overrideBool(state.defeatedOverride)
             })
         });
 
@@ -611,6 +728,7 @@ async function performLatestKaijuEvaluation(
             state.defeatedRound = currentRound;
             notifyCombatStateChanged();
         } else if (!evaluation.defeated
+            && state.defeatedOverride === "off"
             && state.defeatedRound !== null) {
             state.defeatedRound = null;
             notifyCombatStateChanged();
@@ -736,6 +854,8 @@ function newKaijuState(): KaijuState {
         chaosCurrent: null,
         finishingBlowTarget: null,
         finishingBlowDamageThisTurn: 0,
+        finishingBlowDamageByTurn:
+            new Map<string, number>(),
         behaviourPhase: "",
         areas: [newArea(1)],
         rampageOverride: "auto",
@@ -743,6 +863,26 @@ function newKaijuState(): KaijuState {
         defeatedOverride: "auto",
         defeatedRound: null
     };
+}
+
+function setFinishingBlowDamage(
+    state: KaijuState,
+    damage: number
+): void {
+    state.finishingBlowDamageThisTurn = damage;
+    if (currentTurnKey) {
+        state.finishingBlowDamageByTurn.set(
+            currentTurnKey,
+            damage);
+    }
+    notifyCombatStateChanged();
+}
+
+function turnKey(
+    round: number,
+    turnAnchorId: string
+): string {
+    return `${round}:${turnAnchorId}`;
 }
 
 function newArea(index: number): AreaState {

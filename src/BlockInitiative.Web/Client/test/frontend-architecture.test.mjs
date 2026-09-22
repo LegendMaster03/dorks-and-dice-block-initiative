@@ -126,7 +126,9 @@ test("encounter runner exposes reversible advancement through stable action iden
         path.resolve(testDirectory, "../src/encounter-persistence.ts"),
         "utf8");
 
-    assert.match(runnerSource, /this\.history\.push\(this\.session\.state\)/);
+    assert.match(
+        runnerSource,
+        /this\.history\.push\([\s\S]*this\.session\.state/);
     assert.match(runnerSource, /private undoAdvance\(\)/);
     assert.match(runnerSource, /dataset\.action = "previous-turn"/);
     assert.match(runnerSource, /dataset\.action = "next-turn"/);

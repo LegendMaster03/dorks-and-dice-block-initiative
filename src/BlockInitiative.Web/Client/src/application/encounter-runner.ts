@@ -1,4 +1,7 @@
-import { loadInitiativeTurnState } from "../api";
+import {
+    publishInitiativeTurnState,
+    requestInitiativeTurnState
+} from "../api";
 import type {
     InitiativePreviewRequest,
     InitiativePreviewResponse,
@@ -8,6 +11,9 @@ import {
     createBlockBadges,
     friendlyAlliance
 } from "./presentation";
+import {
+    onEncounterRunnerSessionReplacement
+} from "./runner-session-events";
 
 type RunnerSession = {
     request: InitiativePreviewRequest;
@@ -39,6 +45,18 @@ export class EncounterRunnerController {
     public constructor(
         private readonly options: EncounterRunnerOptions
     ) {
+        onEncounterRunnerSessionReplacement(
+            detail => {
+                this.session = {
+                    request: clonePreviewRequest(
+                        detail.request),
+                    preview: detail.preview,
+                    state: detail.state
+                };
+                this.history = [];
+                this.editing = false;
+                this.render();
+            });
     }
 
     public get isEditing(): boolean {
@@ -58,15 +76,23 @@ export class EncounterRunnerController {
             '<section class="card card-body">Loading encounter…</section>';
 
         try {
-            const state = await loadInitiativeTurnState(
-                stateUrl,
-                {
-                    ...request,
-                    advanceCount: 0
-                });
+            const result =
+                await requestInitiativeTurnState(
+                    stateUrl,
+                    {
+                        ...request,
+                        advanceCount: 0
+                    });
 
-            this.session = { request, preview, state };
+            this.session = {
+                request:
+                    previewRequestFromStateRequest(
+                        result.request),
+                preview,
+                state: result.response
+            };
             this.history = [];
+            publishInitiativeTurnState(result);
             this.render();
         } catch (error) {
             this.options.setup.hidden = false;
@@ -101,18 +127,28 @@ export class EncounterRunnerController {
             '<section class="card card-body">Resuming encounter…</section>';
 
         try {
-            const state = await loadInitiativeTurnState(
-                stateUrl,
-                {
-                    ...request,
-                    advanceCount: 0,
-                    resumeRound: this.session.state.round,
-                    resumeActiveCombatantId: anchor,
-                    resumeCyclicMergeCompleted:
-                        this.session.state.cyclicMergeCompleted
-                });
+            const result =
+                await requestInitiativeTurnState(
+                    stateUrl,
+                    {
+                        ...request,
+                        advanceCount: 0,
+                        resumeRound:
+                            this.session.state.round,
+                        resumeActiveCombatantId:
+                            anchor,
+                        resumeCyclicMergeCompleted:
+                            this.session.state
+                                .cyclicMergeCompleted
+                    });
 
-            this.session = { request, preview, state };
+            this.session = {
+                request:
+                    previewRequestFromStateRequest(
+                        result.request),
+                preview,
+                state: result.response
+            };
             this.history = [];
             this.editing = false;
 
@@ -122,6 +158,7 @@ export class EncounterRunnerController {
             this.options.previewButton.textContent =
                 "Build initiative blocks";
             this.options.setup.hidden = true;
+            publishInitiativeTurnState(result);
             this.render();
         } catch (error) {
             this.options.setup.hidden = false;
@@ -144,22 +181,31 @@ export class EncounterRunnerController {
             '<section class="card card-body">Advancing encounter…</section>';
 
         try {
-            const state = await loadInitiativeTurnState(
-                stateUrl,
-                {
-                    ...this.session.request,
-                    advanceCount: 1,
-                    resumeRound: this.session.state.round,
-                    resumeActiveCombatantId: anchor,
-                    resumeCyclicMergeCompleted:
-                        this.session.state.cyclicMergeCompleted
-                });
+            const result =
+                await requestInitiativeTurnState(
+                    stateUrl,
+                    {
+                        ...this.session.request,
+                        advanceCount: 1,
+                        resumeRound:
+                            this.session.state.round,
+                        resumeActiveCombatantId:
+                            anchor,
+                        resumeCyclicMergeCompleted:
+                            this.session.state
+                                .cyclicMergeCompleted
+                    });
 
-            this.history.push(this.session.state);
+            this.history.push(
+                this.session.state);
             this.session = {
                 ...this.session,
-                state
+                request:
+                    previewRequestFromStateRequest(
+                        result.request),
+                state: result.response
             };
+            publishInitiativeTurnState(result);
             this.render();
         } catch (error) {
             this.render();
@@ -177,6 +223,13 @@ export class EncounterRunnerController {
             ...this.session,
             state: previous
         };
+        publishInitiativeTurnState({
+            request:
+                stateRequestForPublishedState(
+                    this.session.request,
+                    previous),
+            response: previous
+        });
         this.render();
     }
 
@@ -405,4 +458,56 @@ function message(text: string): HTMLElement {
     note.className = "bi-message bi-success";
     note.textContent = text;
     return note;
+}
+
+
+function previewRequestFromStateRequest(
+    request: import("../api").InitiativeTurnStateRequest
+): InitiativePreviewRequest {
+    return {
+        combatants:
+            request.combatants.map(
+                combatant => ({ ...combatant })),
+        manualOrderOverride:
+            request.manualOrderOverride
+                ? [...request.manualOrderOverride]
+                : null,
+        tacticalGroupMode:
+            request.tacticalGroupMode,
+        initiativeMode:
+            request.initiativeMode
+    };
+}
+
+function stateRequestForPublishedState(
+    request: InitiativePreviewRequest,
+    state: InitiativeTurnStateResponse
+): import("../api").InitiativeTurnStateRequest {
+    const active =
+        state.blocks.find(
+            block => block.id === state.activeBlockId);
+    return {
+        ...clonePreviewRequest(request),
+        advanceCount: 0,
+        resumeRound: state.round,
+        resumeActiveCombatantId:
+            active?.memberOrder[0] ?? null,
+        resumeCyclicMergeCompleted:
+            state.cyclicMergeCompleted
+    };
+}
+
+function clonePreviewRequest(
+    request: InitiativePreviewRequest
+): InitiativePreviewRequest {
+    return {
+        ...request,
+        combatants:
+            request.combatants.map(
+                combatant => ({ ...combatant })),
+        manualOrderOverride:
+            request.manualOrderOverride
+                ? [...request.manualOrderOverride]
+                : null
+    };
 }
