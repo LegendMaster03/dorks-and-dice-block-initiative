@@ -254,12 +254,21 @@ function ensurePersistenceBar(root: HTMLElement): void {
     reset.onclick = () => {
         if (!window.confirm("Reset this encounter? This clears the automatic recovery encounter from this browser and starts a blank encounter. Named saves are kept.")) return;
         resetting = true;
-        if (saveTimer !== null) window.clearTimeout(saveTimer);
+        if (saveTimer !== null) {
+            window.clearTimeout(saveTimer);
+            saveTimer = null;
+        }
+
         try {
             clearAutomaticEncounter();
         } catch {
-            // Reload still resets the current in-memory encounter when storage is unavailable.
+            resetting = false;
+            setPersistenceStatus(
+                root,
+                "Browser storage is unavailable, so the automatic recovery encounter could not be cleared. The current encounter was not reset.");
+            return;
         }
+
         window.location.reload();
     };
 
