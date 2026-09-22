@@ -1,7 +1,8 @@
-const actedRoundByCombatant = new Map<string, number>();
+const actedRoundsByCombatant =
+    new Map<string, Set<number>>();
 
 export function clearActedRounds(): void {
-    actedRoundByCombatant.clear();
+    actedRoundsByCombatant.clear();
 }
 
 export function setCombatantActed(
@@ -9,28 +10,62 @@ export function setCombatantActed(
     round: number,
     acted: boolean
 ): void {
-    if (acted) actedRoundByCombatant.set(combatantId, round);
-    else actedRoundByCombatant.delete(combatantId);
+    const rounds =
+        actedRoundsByCombatant.get(combatantId)
+        ?? new Set<number>();
+
+    if (acted) rounds.add(round);
+    else rounds.delete(round);
+
+    if (rounds.size > 0) {
+        actedRoundsByCombatant.set(
+            combatantId,
+            rounds);
+    } else {
+        actedRoundsByCombatant.delete(
+            combatantId);
+    }
 }
 
 export function isCombatantActed(
     combatantId: string,
     round: number
 ): boolean {
-    return actedRoundByCombatant.get(combatantId) === round;
+    return actedRoundsByCombatant
+        .get(combatantId)
+        ?.has(round)
+        ?? false;
 }
 
-export function captureActedRounds(): Record<string, number> {
-    return Object.fromEntries(actedRoundByCombatant);
+export function captureActedRounds():
+    Record<string, number[]> {
+    return Object.fromEntries(
+        [...actedRoundsByCombatant.entries()]
+            .map(([combatantId, rounds]) => [
+                combatantId,
+                [...rounds].sort(
+                    (left, right) => left - right)
+            ]));
 }
 
 export function restoreActedRounds(
-    saved: Readonly<Record<string, number>>
+    saved: Readonly<Record<string, readonly number[]>>
 ): void {
-    actedRoundByCombatant.clear();
-    for (const [combatantId, round] of Object.entries(saved)) {
-        if (Number.isInteger(round) && round >= 1) {
-            actedRoundByCombatant.set(combatantId, round);
+    actedRoundsByCombatant.clear();
+
+    for (const [combatantId, rawRounds]
+        of Object.entries(saved)) {
+        const rounds =
+            new Set(
+                rawRounds.filter(
+                    round =>
+                        Number.isInteger(round)
+                        && round >= 1));
+
+        if (rounds.size > 0) {
+            actedRoundsByCombatant.set(
+                combatantId,
+                rounds);
         }
     }
 }
@@ -38,9 +73,11 @@ export function restoreActedRounds(
 export function pruneActedRounds(
     activeCombatantIds: ReadonlySet<string>
 ): void {
-    for (const combatantId of actedRoundByCombatant.keys()) {
+    for (const combatantId
+        of actedRoundsByCombatant.keys()) {
         if (!activeCombatantIds.has(combatantId)) {
-            actedRoundByCombatant.delete(combatantId);
+            actedRoundsByCombatant.delete(
+                combatantId);
         }
     }
 }
