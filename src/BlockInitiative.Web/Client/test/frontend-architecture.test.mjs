@@ -187,7 +187,9 @@ test("encounter card modules delegate direct-child ordering to the card renderer
     assert.match(affordances, /mountEncounterCardSlot\(card, "initiative", display\)/);
     assert.match(affordances, /mountEncounterCardSlot\(card, "context", wrapper\)/);
     assert.match(renderer, /mountEncounterCardSlot\(card, "metrics", layout\.metricLine\)/);
-    assert.match(polish, /renderEncounterCardMetrics\(card, \{ speed, armorClass \}\)/);
+    assert.match(polish, /renderEncounterCardMetrics\(card, \{/);
+    assert.match(polish, /touchArmorClass/);
+    assert.match(polish, /flatFootedArmorClass/);
     assert.doesNotMatch(polish, /mountEncounterCardSlot\(|function normalizeHeaderOrder/);
 });
 
