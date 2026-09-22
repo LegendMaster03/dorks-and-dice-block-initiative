@@ -39,8 +39,8 @@ test("encounter snapshot captures progression, health, conditions, campaign cont
     assert.match(coordinator, /block-initiative:state/);
     assert.match(coordinator, /block-initiative:campaign-change/);
     assert.match(coordinator, /block-initiative:rules-core-template-link/);
-    assert.match(capture, /runnerCard\(root, combatant\.id\)/);
-    assert.match(capture, /data-card-state='kaiju'/);
+    assert.match(capture, /readKaijuRuntimeMetadata/);
+    assert.match(capture, /runtime\.chaosCurrent/);
     assert.match(capture, /"current-hp"/);
     assert.match(capture, /"max-hp"/);
     assert.match(capture, /conditionsFor\(combatantId\)/);
@@ -77,6 +77,7 @@ test("named encounter saves are separate from automatic recovery", async () => {
     const coordinator = await source("../src/encounter-persistence.ts");
     const storage = await source("../src/persistence/encounter-storage.ts");
 
+    assert.match(storage, /named-encounters:v4/);
     assert.match(storage, /named-encounters:v3/);
     assert.match(storage, /named-encounters:v2/);
     assert.match(storage, /named-encounters:v1/);
@@ -91,7 +92,7 @@ test("named encounter saves are separate from automatic recovery", async () => {
 
 function persistenceSnapshot(overrides = {}) {
     return {
-        version: 3,
+        version: 4,
         savedAt: "2026-09-21T12:00:00.000Z",
         view: "setup",
         campaignId: null,
