@@ -77,6 +77,7 @@ test("named encounter saves are separate from automatic recovery", async () => {
     const coordinator = await source("../src/encounter-persistence.ts");
     const storage = await source("../src/persistence/encounter-storage.ts");
 
+    assert.match(storage, /named-encounters:v2/);
     assert.match(storage, /named-encounters:v1/);
     assert.match(coordinator, /dataset\.action = "save-named-encounter"/);
     assert.match(coordinator, /dataset\.action = "load-named-encounter"/);
@@ -89,10 +90,11 @@ test("named encounter saves are separate from automatic recovery", async () => {
 
 function persistenceSnapshot(overrides = {}) {
     return {
-        version: 1,
+        version: 2,
         savedAt: "2026-09-21T12:00:00.000Z",
         view: "setup",
         campaignId: null,
+        initiativeMode: "block",
         groupMode: "average",
         players: [],
         enemyGroups: [],
@@ -100,8 +102,14 @@ function persistenceSnapshot(overrides = {}) {
         otherSides: [],
         preview: null,
         state: null,
-        runnerCombat: {},
+        runnerCombat: { standard: {}, kaiju: {} },
         rulesCoreLinks: [],
+        actedRounds: {},
+        reorderRuntime: {
+            baselineRequest: null,
+            baselineOrder: null,
+            history: []
+        },
         ...overrides
     };
 }
