@@ -52,22 +52,26 @@ export function initializeCombatStateUi(): void {
     });
 
     window.addEventListener("block-initiative:state", event => {
-        lastTurnState = (event as CustomEvent<TurnStateDetail>).detail;
+        const detail =
+            (event as CustomEvent<TurnStateDetail>).detail;
+        if (!detail) return;
+
+        lastTurnState = detail;
         const activeBlock =
-            lastTurnState.response.blocks.find(
+            detail.response.blocks.find(
                 block =>
                     block.id
-                    === lastTurnState.response.activeBlockId);
+                    === detail.response.activeBlockId);
         const turnAnchor =
-            lastTurnState.request?.advanceCount === 0
-            && lastTurnState.request
+            detail.request?.advanceCount === 0
+            && detail.request
                 .resumeActiveCombatantId
-                ? lastTurnState.request
+                ? detail.request
                     .resumeActiveCombatantId
                 : activeBlock?.memberOrder[0] ?? null;
 
         setKaijuCombatTurn(
-            lastTurnState.response.round,
+            detail.response.round,
             turnAnchor,
             root);
         requestEnhancement();
