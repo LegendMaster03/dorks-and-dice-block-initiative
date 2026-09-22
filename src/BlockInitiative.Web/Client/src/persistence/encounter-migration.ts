@@ -4,7 +4,7 @@ import {
     normalizeStateDetail,
     readGroupMode,
     readInitiativeMode
-} from "./initiative-runtime-normalizer";
+} from "./initiative-runtime-normalizer.js";
 import {
     normalizeActedRounds,
     normalizeEnemyGroups,
@@ -12,14 +12,14 @@ import {
     normalizeRulesCoreLinks,
     normalizeRunnerCombat,
     normalizeSavedCombatants
-} from "./encounter-roster-normalizer";
+} from "./encounter-roster-normalizer.js";
 import type {
     SavedEncounter
 } from "./encounter-schema";
 import {
     nullableString,
     record
-} from "./normalization-primitives";
+} from "./normalization-primitives.js";
 
 export function normalizeSavedEncounter(
     value: unknown
