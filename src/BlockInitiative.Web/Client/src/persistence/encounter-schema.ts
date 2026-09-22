@@ -4,6 +4,12 @@ import type {
     InitiativeTurnStateRequest,
     InitiativeTurnStateResponse
 } from "../api";
+import type {
+    CombatantReorderRuntimeSnapshot
+} from "../initiative/combatant-reorder-state";
+import type {
+    InitiativeMode
+} from "../initiative/initiative-mode";
 
 export type SavedView = "setup" | "preview" | "running" | "editing";
 export type CombatantBlockType = "standard" | "kaiju";
@@ -90,7 +96,7 @@ export type SavedKaijuRuntime = {
     behaviourPhase: string;
     finishingTarget: string;
     finishingDamageThisTurn: string;
-    defeatedRound?: number | null;
+    defeatedRound: number | null;
     areas: SavedKaijuAreaRuntime[];
 };
 
@@ -104,10 +110,11 @@ export type SavedRulesCoreLink = Record<string, unknown> & {
 };
 
 export type SavedEncounter = {
-    version: 1;
+    version: 2;
     savedAt: string;
     view: SavedView;
     campaignId: string | null;
+    initiativeMode: InitiativeMode;
     groupMode: "individual" | "average" | "shared";
     players: SavedCombatant[];
     enemyGroups: SavedEnemyGroup[];
@@ -117,7 +124,8 @@ export type SavedEncounter = {
     state: StateDetail | null;
     runnerCombat: SavedRunnerCombat;
     rulesCoreLinks: SavedRulesCoreLink[];
-    actedRounds?: Record<string, number>;
+    actedRounds: Record<string, number>;
+    reorderRuntime: CombatantReorderRuntimeSnapshot;
 };
 
 export type NamedEncounterSave = {
