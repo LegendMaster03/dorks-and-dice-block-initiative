@@ -17,7 +17,7 @@ test("linked campaign character IDs prevent duplicate imports after a local rena
     ]);
 });
 
-test("manual combatants with the same normalized name prevent duplicate imports", () => {
+test("manual combatants do not impersonate campaign character identity", () => {
     const existing = [
         { campaignCharacterId: null, name: "  CAMPAIGN HERO " }
     ];
@@ -27,11 +27,12 @@ test("manual combatants with the same normalized name prevent duplicate imports"
     ];
 
     assert.deepEqual(charactersMissingFromEncounter(existing, campaign), [
+        { characterId: "character-1", name: "Campaign Hero" },
         { characterId: "character-2", name: "Different Hero" }
     ]);
 });
 
-test("duplicate campaign data is collapsed by character ID or normalized name", () => {
+test("duplicate campaign data is collapsed by character ID only", () => {
     const campaign = [
         { characterId: "character-1", name: "Hero One" },
         { characterId: "character-1", name: "Hero One Copy" },
@@ -41,6 +42,7 @@ test("duplicate campaign data is collapsed by character ID or normalized name", 
 
     assert.deepEqual(charactersMissingFromEncounter([], campaign), [
         { characterId: "character-1", name: "Hero One" },
+        { characterId: "character-2", name: "hero one" },
         { characterId: "character-3", name: "Hero Three" }
     ]);
 });
