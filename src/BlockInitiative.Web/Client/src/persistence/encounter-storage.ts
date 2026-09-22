@@ -1,6 +1,6 @@
 import {
     normalizeSavedEncounter
-} from "./encounter-migration";
+} from "./encounter-migration.js";
 import type {
     NamedEncounterSave,
     SavedEncounter,
