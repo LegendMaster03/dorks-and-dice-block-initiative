@@ -8,29 +8,37 @@ import type {
 } from "./encounter-schema";
 
 const automaticStorageKey =
-    "dorks-and-dice:block-initiative:encounter:v3";
+    "dorks-and-dice:block-initiative:encounter:v4";
 const legacyAutomaticStorageKeys = [
+    "dorks-and-dice:block-initiative:encounter:v3",
     "dorks-and-dice:block-initiative:encounter:v2",
     "dorks-and-dice:block-initiative:encounter:v1"
 ] as const;
 const namedStorageKey =
-    "dorks-and-dice:block-initiative:named-encounters:v3";
+    "dorks-and-dice:block-initiative:named-encounters:v4";
 const legacyNamedStorageKeys = [
+    "dorks-and-dice:block-initiative:named-encounters:v3",
     "dorks-and-dice:block-initiative:named-encounters:v2",
     "dorks-and-dice:block-initiative:named-encounters:v1"
 ] as const;
 
 export function readAutomaticEncounter(): SavedEncounter | null {
     try {
-        const current =
-            readSavedEncounterAt(automaticStorageKey);
-        if (current) return current;
+        const currentRaw =
+            window.localStorage.getItem(
+                automaticStorageKey);
+        if (currentRaw !== null) {
+            return readSavedEncounterAt(
+                automaticStorageKey);
+        }
 
         for (const key of legacyAutomaticStorageKeys) {
             const legacy =
                 readSavedEncounterAt(key);
             if (!legacy) continue;
-            writeAutomaticEncounter(legacy);
+            if (writeAutomaticEncounter(legacy)) {
+                window.localStorage.removeItem(key);
+            }
             return legacy;
         }
 
@@ -77,7 +85,9 @@ export function readNamedEncounters():
             const legacy =
                 readNamedEncountersAt(key);
             if (!legacy.length) continue;
-            writeNamedEncounters(legacy);
+            if (writeNamedEncounters(legacy)) {
+                window.localStorage.removeItem(key);
+            }
             return sortNamed(legacy);
         }
 
