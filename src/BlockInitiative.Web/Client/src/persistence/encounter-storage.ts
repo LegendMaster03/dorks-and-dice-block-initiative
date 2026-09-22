@@ -107,10 +107,9 @@ export function cloneRulesCoreLink(
     }
 
     try {
-        const cloned =
-            JSON.parse(
-                JSON.stringify(value))
-            as Record<string, unknown>;
+        const cloned = JSON.parse(
+            JSON.stringify(value)
+        ) as Record<string, unknown>;
         return {
             ...cloned,
             templateId: templateId.trim()
