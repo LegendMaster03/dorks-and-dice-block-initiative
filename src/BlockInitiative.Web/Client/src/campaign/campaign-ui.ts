@@ -74,6 +74,9 @@ export function initializeCampaignUi(): void {
 
     async function initializeHostedCampaigns(): Promise<void> {
         panel.hidden = false;
+        setCampaignCatalogState(
+            appRoot,
+            "loading");
         select.disabled = true;
         importButton.disabled = true;
         status.textContent =
@@ -82,6 +85,9 @@ export function initializeCampaignUi(): void {
         try {
             hostContext = await loadToolHostContext(contextUrl!);
             if (!hostContext.user) {
+                setCampaignCatalogState(
+                    appRoot,
+                    "unavailable");
                 panel.remove();
                 return;
             }
@@ -89,12 +95,18 @@ export function initializeCampaignUi(): void {
             panel.hidden = false;
             campaignSummaries = await loadToolHostCampaigns(hostContext);
             populateCampaignOptions(select, campaignSummaries);
+            setCampaignCatalogState(
+                appRoot,
+                "ready");
             select.disabled = false;
             status.textContent = campaignSummaries.length === 0
                 ? "This account has no active campaigns. Manual encounter setup remains available."
                 : `${campaignSummaries.length} active campaign${campaignSummaries.length === 1 ? " is" : "s are"} available.`;
         } catch (error) {
             hostContext = null;
+            setCampaignCatalogState(
+                appRoot,
+                "error");
             select.disabled = true;
             importButton.disabled = true;
             renderCampaignRetry(error);
@@ -164,6 +176,21 @@ export function initializeCampaignUi(): void {
             }
         }
     }
+}
+
+type CampaignCatalogState =
+    "loading" | "ready" | "unavailable" | "error";
+
+function setCampaignCatalogState(
+    root: HTMLElement,
+    state: CampaignCatalogState
+): void {
+    root.dataset.campaignCatalogState =
+        state;
+    window.dispatchEvent(
+        new CustomEvent(
+            "block-initiative:campaign-catalog-change",
+            { detail: { state } }));
 }
 
 function populateCampaignOptions(
