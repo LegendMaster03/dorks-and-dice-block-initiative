@@ -54,19 +54,36 @@ test("setup initiative modifier is restored to the primary Mod column after comb
     assert.doesNotMatch(source, /primaryFieldsReady === "true"\) continue/);
 });
 
-test("setup AC is shown between initiative and HP without moving the combat-stats source field", async () => {
+test("setup exposes all three AC values for players, monsters, and Kaiju", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-    const source = await readFile(path.resolve(testDirectory, "../src/encounter-setup-polish-ui.ts"), "utf8");
+    const source = await readFile(
+        path.resolve(
+            testDirectory,
+            "../src/encounter-setup-polish-ui.ts"),
+        "utf8");
+    const quickStats = await readFile(
+        path.resolve(
+            testDirectory,
+            "../src/combatant-quick-stats-ui.ts"),
+        "utf8");
 
-    assert.match(source, /registerAfterRender\("encounter-setup-polish",\s*135/);
-    assert.match(source, /data-quick-stat='armor-class'/);
-    assert.match(source, /sourceWrap\.hidden = true/);
-    assert.match(source, /initiativeWrap\.after\(field\)/);
-    assert.match(source, /setup-ac-header/);
-    assert.match(source, /grid-template-columns:minmax\(16rem,34rem\) 5rem 13rem 4\.5rem 6rem auto/);
-    assert.match(source, /\[data-combat-setup='standard'\]\{grid-column:5;grid-row:1\}/);
+    assert.match(
+        source,
+        /registerAfterRender\("encounter-setup-polish",\s*135/);
+    assert.match(source, /setup-armor-class/);
+    assert.match(source, /setup-touch-armor-class/);
+    assert.match(source, /setup-flat-footed-armor-class/);
+    assert.match(source, /AC \/ Touch \/ Flat-Footed/);
+    assert.match(source, /isPlayer = card\.dataset\.alliance === "players"/);
+    assert.match(source, /if \(!isPlayer && !sourcePanel\)/);
+    assert.match(
+        source,
+        /\.bi-setup-ac-group\{display:grid;grid-template-columns:4\.25rem 4\.25rem 5\.5rem/);
+    assert.match(quickStats, /"touch-armor-class"/);
+    assert.match(quickStats, /"flat-footed-armor-class"/);
+    assert.match(quickStats, /"Touch AC"/);
+    assert.match(quickStats, /"Flat-Footed AC"/);
 });
-
 test("encounter AC metric is visually larger than the generic secondary metric", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
     const source = await readFile(path.resolve(testDirectory, "../src/encounter-card-layout-ui.ts"), "utf8");
@@ -170,7 +187,9 @@ test("encounter card modules delegate direct-child ordering to the card renderer
     assert.match(affordances, /mountEncounterCardSlot\(card, "initiative", display\)/);
     assert.match(affordances, /mountEncounterCardSlot\(card, "context", wrapper\)/);
     assert.match(renderer, /mountEncounterCardSlot\(card, "metrics", layout\.metricLine\)/);
-    assert.match(polish, /renderEncounterCardMetrics\(card, \{ speed, armorClass \}\)/);
+    assert.match(polish, /renderEncounterCardMetrics\(card, \{/);
+    assert.match(polish, /touchArmorClass/);
+    assert.match(polish, /flatFootedArmorClass/);
     assert.doesNotMatch(polish, /mountEncounterCardSlot\(|function normalizeHeaderOrder/);
 });
 

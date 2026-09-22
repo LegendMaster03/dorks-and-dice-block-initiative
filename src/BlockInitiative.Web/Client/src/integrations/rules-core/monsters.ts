@@ -11,6 +11,8 @@ export interface MonsterTemplate {
     maxHp: number | null;
     initiativeModifier: number | null;
     armorClass: string | null;
+    touchArmorClass: string | null;
+    flatFootedArmorClass: string | null;
     challengeRating: string | null;
     combatStats: MonsterCombatStats;
     document: Record<string, unknown>;
@@ -104,6 +106,8 @@ function templateFromDocument(
         maxHp: combatStats.maxHp,
         initiativeModifier: combatStats.initiativeModifier,
         armorClass: combatStats.armorClass,
+        touchArmorClass: combatStats.touchArmorClass,
+        flatFootedArmorClass: combatStats.flatFootedArmorClass,
         challengeRating: readChallengeRating(document.cr),
         combatStats,
         document,

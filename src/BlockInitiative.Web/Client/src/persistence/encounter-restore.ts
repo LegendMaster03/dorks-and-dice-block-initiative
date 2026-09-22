@@ -621,8 +621,12 @@ function restoreEnhancementState(
         const card =
             root.querySelector<HTMLElement>(
                 `.bi-entry[data-id='${cssEscape(combatant.id)}']`);
+        if (!card) continue;
+
+        restoreArmorClasses(card, combatant);
+
         const panel =
-            card?.querySelector<HTMLElement>(
+            card.querySelector<HTMLElement>(
                 "[data-combat-setup]");
         if (!panel) continue;
 
@@ -636,6 +640,42 @@ function restoreEnhancementState(
     }
 }
 
+function restoreArmorClasses(
+    card: HTMLElement,
+    combatant: SavedCombatant
+): void {
+    restoreArmorClass(
+        card,
+        combatant.armorClass ?? "",
+        "setup-armor-class",
+        "armor-class");
+    restoreArmorClass(
+        card,
+        combatant.touchArmorClass ?? "",
+        "setup-touch-armor-class",
+        "touch-armor-class");
+    restoreArmorClass(
+        card,
+        combatant.flatFootedArmorClass ?? "",
+        "setup-flat-footed-armor-class",
+        "flat-footed-armor-class");
+}
+
+function restoreArmorClass(
+    card: HTMLElement,
+    armorClass: string,
+    role: string,
+    quickStat: string
+): void {
+    const input =
+        card.querySelector<HTMLInputElement>(
+            `:scope > .bi-entry-main [data-role='${role}']`)
+        ?? card.querySelector<HTMLInputElement>(
+            `:scope > [data-quick-stats-setup] [data-quick-stat='${quickStat}']`);
+    if (!input) return;
+
+    setInputAndDispatch(input, armorClass);
+}
 function resizeKaijuAreas(
     panel: HTMLElement,
     targetCount: number

@@ -67,11 +67,31 @@ function highlightActiveNavigation(root: HTMLElement): void {
 
 function updateCardMetrics(card: HTMLElement): void {
     const quickFacts = Array.from(card.querySelectorAll<HTMLElement>(".bi-quick-fact"));
-    const acFact = quickFacts.find(fact => /^AC\s/i.test(fact.textContent?.trim() ?? ""));
-    const speedFact = quickFacts.find(fact => /^Speed\s/i.test(fact.textContent?.trim() ?? ""));
+    const acFact =
+        quickFacts.find(
+            fact => /^AC\s/i.test(
+                fact.textContent?.trim() ?? ""));
+    const touchAcFact =
+        quickFacts.find(
+            fact => /^Touch AC\s/i.test(
+                fact.textContent?.trim() ?? ""));
+    const flatFootedAcFact =
+        quickFacts.find(
+            fact => /^Flat-Footed AC\s/i.test(
+                fact.textContent?.trim() ?? ""));
+    const speedFact =
+        quickFacts.find(
+            fact => /^Speed\s/i.test(
+                fact.textContent?.trim() ?? ""));
     const armorClass = factValue(acFact, "AC");
+    const touchArmorClass =
+        factValue(touchAcFact, "Touch AC");
+    const flatFootedArmorClass =
+        factValue(flatFootedAcFact, "Flat-Footed AC");
     const speed = factValue(speedFact, "Speed");
     if (acFact) acFact.hidden = true;
+    if (touchAcFact) touchAcFact.hidden = true;
+    if (flatFootedAcFact) flatFootedAcFact.hidden = true;
     if (speedFact) speedFact.hidden = true;
 
     const factRow = card.querySelector<HTMLElement>(":scope > .bi-quick-stats .bi-quick-facts");
@@ -80,7 +100,12 @@ function updateCardMetrics(card: HTMLElement): void {
             .every(child => child instanceof HTMLElement && child.hidden);
     }
 
-    renderEncounterCardMetrics(card, { speed, armorClass });
+    renderEncounterCardMetrics(card, {
+        speed,
+        armorClass,
+        touchArmorClass,
+        flatFootedArmorClass
+    });
 }
 
 function factValue(fact: HTMLElement | undefined, label: string): string | null {

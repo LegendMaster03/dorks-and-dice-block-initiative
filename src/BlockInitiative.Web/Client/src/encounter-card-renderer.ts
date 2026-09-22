@@ -148,6 +148,8 @@ function cssEscape(value: string): string {
 export type EncounterCardMetrics = {
     speed: string | null;
     armorClass: string | null;
+    touchArmorClass: string | null;
+    flatFootedArmorClass: string | null;
 };
 
 export function renderEncounterCardMetrics(
@@ -162,7 +164,11 @@ export function renderEncounterCardMetrics(
     );
     const healthEditor = resolveHealthEditor(healthRow, metricLine);
 
-    if (!metrics.speed && !metrics.armorClass && !healthEditor) {
+    if (!metrics.speed
+        && !metrics.armorClass
+        && !metrics.touchArmorClass
+        && !metrics.flatFootedArmorClass
+        && !healthEditor) {
         metricLine?.remove();
         if (healthRow) healthRow.hidden = false;
         return;
@@ -170,7 +176,21 @@ export function renderEncounterCardMetrics(
 
     const layout = ensureMetricLine(metricLine);
     renderSpeed(layout.speedArea, metrics.speed);
-    renderArmorClass(layout.metricArea, metrics.armorClass);
+    renderArmorClass(
+        layout.metricArea,
+        "flat-footed-ac",
+        "Flat-Footed",
+        metrics.flatFootedArmorClass);
+    renderArmorClass(
+        layout.metricArea,
+        "touch-ac",
+        "Touch",
+        metrics.touchArmorClass);
+    renderArmorClass(
+        layout.metricArea,
+        "ac",
+        "AC",
+        metrics.armorClass);
     renderHealth(layout.metricArea, healthRow, healthEditor);
 
     if (!layout.speedArea.textContent?.trim() && !layout.metricArea.childElementCount) {
@@ -228,9 +248,14 @@ function renderSpeed(container: HTMLElement, speed: string | null): void {
     container.append(label, document.createTextNode(` ${speed}`));
 }
 
-function renderArmorClass(container: HTMLElement, armorClass: string | null): void {
+function renderArmorClass(
+    container: HTMLElement,
+    stat: string,
+    label: string,
+    armorClass: string | null
+): void {
     let armorClassMetric = container.querySelector<HTMLElement>(
-        ":scope > .bi-card-secondary-stat[data-stat='ac']"
+        `:scope > .bi-card-secondary-stat[data-stat='${stat}']`
     );
 
     if (!armorClass) {
@@ -239,15 +264,15 @@ function renderArmorClass(container: HTMLElement, armorClass: string | null): vo
     }
 
     if (!armorClassMetric) {
-        armorClassMetric = metric("AC", armorClass);
-        armorClassMetric.dataset.stat = "ac";
+        armorClassMetric = metric(label, armorClass);
+        armorClassMetric.dataset.stat = stat;
         container.prepend(armorClassMetric);
         return;
     }
 
-    armorClassMetric.querySelector<HTMLElement>(":scope > strong")!.textContent = armorClass;
+    armorClassMetric.querySelector<HTMLElement>(
+        ":scope > strong")!.textContent = armorClass;
 }
-
 function renderHealth(
     container: HTMLElement,
     healthRow: HTMLElement | null,

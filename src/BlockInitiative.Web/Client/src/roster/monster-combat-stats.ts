@@ -9,6 +9,8 @@ export interface CombatAbilityStat {
 
 export interface MonsterCombatStats {
     armorClass: string | null;
+    touchArmorClass: string | null;
+    flatFootedArmorClass: string | null;
     maxHp: number | null;
     speed: string | null;
     initiativeModifier: number | null;
@@ -41,8 +43,11 @@ export function projectMonsterCombatStats(
     }
 
     const hitDice = firstValue(formatPrimitive(document.hp), legacy.get("Hit Dice"));
+    const armorClasses = readArmorClasses(document, legacy);
     return {
-        armorClass: readArmorClass(document.ac) ?? leadingNumber(legacy.get("Armor Class") ?? legacy.get("AC")),
+        armorClass: armorClasses.armorClass,
+        touchArmorClass: armorClasses.touchArmorClass,
+        flatFootedArmorClass: armorClasses.flatFootedArmorClass,
         maxHp: readHitPoints(document.hp) ?? readNumber(legacy.get("Hit Points")) ?? hitPointsFromHitDice(hitDice),
         speed: readSpeed(document.speed) ?? readLegacySpeed(legacy.get("Speed")),
         initiativeModifier: readInitiativeModifier(document, abilities.DEX.modifier, legacy),
@@ -139,9 +144,94 @@ function readHitPoints(value: unknown): number | null {
     return readNumber(value.average) ?? readNumber(value.value) ?? readNumber(value.max);
 }
 
+type ArmorClasses = {
+    armorClass: string | null;
+    touchArmorClass: string | null;
+    flatFootedArmorClass: string | null;
+};
+
+function readArmorClasses(
+    document: Record<string, unknown>,
+    legacy: Map<string, string>
+): ArmorClasses {
+    const acRecord = isRecord(document.ac) ? document.ac : null;
+    const legacyLine = legacy.get("Armor Class") ?? legacy.get("AC") ?? null;
+    const parsedLegacy = parseArmorClassText(legacyLine);
+
+    return {
+        armorClass:
+            readArmorClass(document.ac)
+            ?? readArmorField(document, ["armorClass", "armorClassValue"])
+            ?? parsedLegacy.armorClass,
+        touchArmorClass:
+            readArmorField(acRecord, ["touch", "touchAc", "touchAC", "touchArmorClass"])
+            ?? readArmorField(document, ["touchAc", "touchAC", "touchArmorClass"])
+            ?? leadingNumber(legacy.get("Touch AC"))
+            ?? parsedLegacy.touchArmorClass,
+        flatFootedArmorClass:
+            readArmorField(acRecord, [
+                "flatFooted",
+                "flatFootedAc",
+                "flatFootedAC",
+                "flatFootedArmorClass"
+            ])
+            ?? readArmorField(document, [
+                "flatFootedAc",
+                "flatFootedAC",
+                "flatFootedArmorClass"
+            ])
+            ?? leadingNumber(
+                legacy.get("Flat-Footed AC")
+                ?? legacy.get("Flat Footed AC"))
+            ?? parsedLegacy.flatFootedArmorClass
+    };
+}
+
+function readArmorField(
+    source: Record<string, unknown> | null,
+    keys: readonly string[]
+): string | null {
+    if (!source) return null;
+    for (const key of keys) {
+        const value = source[key];
+        if (typeof value === "number" || typeof value === "string") {
+            const formatted = leadingNumber(value) ?? String(value).trim();
+            if (formatted) return formatted;
+        }
+    }
+    return null;
+}
+
+function parseArmorClassText(value: string | null): ArmorClasses {
+    const text = value?.trim() ?? "";
+    if (!text) {
+        return {
+            armorClass: null,
+            touchArmorClass: null,
+            flatFootedArmorClass: null
+        };
+    }
+
+    const touch =
+        text.match(/\btouch(?:\s+AC)?\s*[:=]?\s*(-?\d+(?:\.\d+)?)/i)?.[1]
+        ?? null;
+    const flatFooted =
+        text.match(/\bflat[-\s]?footed(?:\s+AC)?\s*[:=]?\s*(-?\d+(?:\.\d+)?)/i)?.[1]
+        ?? null;
+
+    return {
+        armorClass: leadingNumber(text),
+        touchArmorClass: touch,
+        flatFootedArmorClass: flatFooted
+    };
+}
+
 function readArmorClass(value: unknown): string | null {
     if (typeof value === "number" || typeof value === "string") {
         return leadingNumber(value) ?? String(value);
+    }
+    if (isRecord(value)) {
+        return readArmorField(value, ["ac", "value", "armorClass"]);
     }
     if (!Array.isArray(value) || value.length === 0) return null;
 
@@ -149,8 +239,8 @@ function readArmorClass(value: unknown): string | null {
     if (typeof first === "number" || typeof first === "string") {
         return leadingNumber(first) ?? String(first);
     }
-    if (isRecord(first) && (typeof first.ac === "number" || typeof first.ac === "string")) {
-        return leadingNumber(first.ac) ?? String(first.ac);
+    if (isRecord(first)) {
+        return readArmorField(first, ["ac", "value", "armorClass"]);
     }
     return null;
 }
