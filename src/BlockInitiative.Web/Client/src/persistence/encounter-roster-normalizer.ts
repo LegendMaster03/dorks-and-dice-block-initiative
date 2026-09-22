@@ -79,15 +79,27 @@ export function normalizeRulesCoreLinks(
 
 export function normalizeActedRounds(
     value: unknown
-): Record<string, number> {
+): Record<string, number[]> {
     const source = record(value);
     if (!source) return {};
 
-    const result: Record<string, number> = {};
-    for (const [id, round] of Object.entries(source)) {
-        if (Number.isInteger(round)
-            && (round as number) >= 1) {
-            result[id] = round as number;
+    const result: Record<string, number[]> = {};
+    for (const [id, raw] of Object.entries(source)) {
+        const candidates =
+            Array.isArray(raw)
+                ? raw
+                : [raw];
+        const rounds =
+            [...new Set(
+                candidates.filter(
+                    (round): round is number =>
+                        typeof round === "number"
+                        && Number.isInteger(round)
+                        && round >= 1))]
+                .sort(
+                    (left, right) => left - right);
+        if (rounds.length > 0) {
+            result[id] = rounds;
         }
     }
     return result;
@@ -178,10 +190,34 @@ function normalizeCondition(
         return null;
     }
 
+    const browserLink =
+        normalizeBrowserLink(
+            item.browserLink);
+
     return {
+        id:
+            typeof item.id === "string"
+            && item.id.trim()
+                ? item.id
+                : crypto.randomUUID(),
         name: item.name,
+        level:
+            nullablePositiveInteger(
+                item.level),
         note: stringOrEmpty(item.note),
-        href: nullableString(item.href)
+        browserLink,
+        browserHref:
+            nullableString(
+                item.browserHref)
+            ?? nullableString(item.href),
+        origin:
+            item.origin === "rules-core"
+            || item.origin === "source"
+            || item.origin === "manual"
+                ? item.origin
+                : nullableString(item.href)
+                    ? "rules-core"
+                    : "manual"
     };
 }
 
@@ -340,4 +376,40 @@ function normalizeKaijuAreas(
                 item.targetable !== false
         }];
     });
+}
+
+
+function normalizeBrowserLink(
+    value: unknown
+): import("../integrations/rules-core/client").RuleBrowserLink | null {
+    const item = record(value);
+    if (!item
+        || typeof item.toolSlug !== "string"
+        || typeof item.toolRelativePath !== "string"
+        || typeof item.routeIdentity !== "string") {
+        return null;
+    }
+
+    return {
+        toolSlug: item.toolSlug,
+        toolRelativePath: item.toolRelativePath,
+        routeIdentity: item.routeIdentity
+    };
+}
+
+function normalizeTurnDamageMap(
+    value: unknown
+): Record<string, number> {
+    const source = record(value);
+    if (!source) return {};
+
+    const result: Record<string, number> = {};
+    for (const [key, raw] of Object.entries(source)) {
+        if (typeof raw === "number"
+            && Number.isInteger(raw)
+            && raw >= 0) {
+            result[key] = raw;
+        }
+    }
+    return result;
 }
