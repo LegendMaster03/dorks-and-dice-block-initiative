@@ -45,14 +45,22 @@ export function numberField(
     applyNumberLimits(input, limits);
     if (fieldKey) input.dataset.combatField = fieldKey;
     input.value = value === null ? "" : String(value);
-    input.addEventListener("change", () => {
+    const sync = (reportInvalid: boolean) => {
         const parsed = readNumber(input, limits);
         if (input.value.trim() && parsed === null) {
-            input.reportValidity();
+            if (reportInvalid) {
+                input.reportValidity();
+            }
             return;
         }
         setter(parsed);
-    });
+    };
+    input.addEventListener(
+        "input",
+        () => sync(false));
+    input.addEventListener(
+        "change",
+        () => sync(true));
 
     wrap.append(label, input);
     return wrap;
@@ -69,7 +77,9 @@ export function textField(
     label.textContent = labelText;
     const input = document.createElement("input");
     input.value = value;
-    input.addEventListener("change", () => setter(input.value.trim()));
+    input.addEventListener(
+        "input",
+        () => setter(input.value.trim()));
     wrap.append(label, input);
     return wrap;
 }
