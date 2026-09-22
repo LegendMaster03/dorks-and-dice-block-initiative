@@ -73,6 +73,8 @@ test("keeps 3.x damage reduction separate and does not invent ability saves", ()
     }, "D&D 3.5e");
 
     assert.equal(stats.armorClass, "25");
+    assert.equal(stats.touchArmorClass, "9");
+    assert.equal(stats.flatFootedArmorClass, "25");
     assert.equal(stats.maxHp, 85);
     assert.equal(stats.speed, "40 ft.");
     assert.equal(stats.initiativeModifier, 0);
@@ -143,6 +145,8 @@ test("extracts 3.5e goblin HP, initiative, and speed without swallowing descript
     }, "D&D 3.5e");
 
     assert.equal(stats.armorClass, "15");
+    assert.equal(stats.touchArmorClass, "12");
+    assert.equal(stats.flatFootedArmorClass, "13");
     assert.equal(stats.maxHp, 5);
     assert.equal(stats.initiativeModifier, 1);
     assert.equal(stats.speed, "30 feet");

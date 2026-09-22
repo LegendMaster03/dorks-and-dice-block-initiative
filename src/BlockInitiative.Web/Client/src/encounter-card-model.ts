@@ -25,6 +25,9 @@ export function mergeMonsterCombatStats(
 
     return {
         armorClass: override.armorClass ?? base.armorClass,
+        touchArmorClass: override.touchArmorClass ?? base.touchArmorClass,
+        flatFootedArmorClass:
+            override.flatFootedArmorClass ?? base.flatFootedArmorClass,
         maxHp: override.maxHp ?? base.maxHp,
         speed: override.speed ?? base.speed,
         initiativeModifier: override.initiativeModifier ?? base.initiativeModifier,

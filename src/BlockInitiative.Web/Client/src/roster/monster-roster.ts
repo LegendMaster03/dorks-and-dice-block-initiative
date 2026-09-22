@@ -119,6 +119,12 @@ export class MonsterRosterService {
             template.armorClass
                 ? `AC ${template.armorClass}`
                 : null,
+            template.touchArmorClass
+                ? `Touch ${template.touchArmorClass}`
+                : null,
+            template.flatFootedArmorClass
+                ? `Flat-Footed ${template.flatFootedArmorClass}`
+                : null,
             template.initiativeModifier !== null
                 ? `Init ${formatSigned(template.initiativeModifier)}`
                 : null,
