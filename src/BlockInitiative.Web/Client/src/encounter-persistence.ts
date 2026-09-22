@@ -30,6 +30,8 @@ const saveDelayMs = 80;
 
 let initialized = false;
 let resetting = false;
+let navigationReloading = false;
+let autosaveSuspended = false;
 let saveTimer: number | null = null;
 let restoreSession: EncounterRestoreSession | null = null;
 let changeTracker: EncounterChangeTracker | null = null;
@@ -107,7 +109,12 @@ export function initializeEncounterPersistence(): void {
     });
 
     window.addEventListener("beforeunload", () => {
-        if (!resetting && !restoreSession) saveNow(root);
+        if (!resetting
+            && !navigationReloading
+            && !autosaveSuspended
+            && !restoreSession) {
+            saveNow(root);
+        }
     });
 
     registerAfterRender("encounter-persistence", 220, () => {
@@ -215,6 +222,11 @@ function ensurePersistenceBar(root: HTMLElement): void {
                 "Browser storage is unavailable, so the named encounter can not be loaded.");
             return;
         }
+        navigationReloading = true;
+        if (saveTimer !== null) {
+            window.clearTimeout(saveTimer);
+            saveTimer = null;
+        }
         window.location.reload();
     };
 
@@ -265,7 +277,12 @@ function setPersistenceStatus(root: HTMLElement, text: string): void {
 }
 
 function scheduleSave(root: HTMLElement): void {
-    if (resetting || restoreSession) return;
+    if (resetting
+        || navigationReloading
+        || autosaveSuspended
+        || restoreSession) {
+        return;
+    }
     if (saveTimer !== null) window.clearTimeout(saveTimer);
     saveTimer = window.setTimeout(() => {
         saveTimer = null;
@@ -274,7 +291,12 @@ function scheduleSave(root: HTMLElement): void {
 }
 
 function saveNow(root: HTMLElement): void {
-    if (resetting || restoreSession) return;
+    if (resetting
+        || navigationReloading
+        || autosaveSuspended
+        || restoreSession) {
+        return;
+    }
     const snapshot = captureCurrentEncounter(root);
     changeTracker ??= new EncounterChangeTracker(snapshot);
 
@@ -311,19 +333,22 @@ function createRestoreSession(
     return new EncounterRestoreSession(root, saved, {
         onComplete: () => {
             restoreSession = null;
+            autosaveSuspended = false;
             setPersistenceStatus(
                 root,
                 "Saved encounter restored. Changes continue saving until you reset it.");
         },
         onFailure: error => {
             restoreSession = null;
+            autosaveSuspended = true;
             console.error(
                 "Block Initiative could not restore the saved encounter.",
                 error);
             setPersistenceStatus(
                 root,
                 "The saved encounter could not be fully restored. "
-                    + "It remains stored until you choose Reset encounter.");
+                    + "Automatic saving is paused to protect the stored snapshot. "
+                    + "Reload to retry restoration or use Reset encounter to start over.");
         }
     });
 }
