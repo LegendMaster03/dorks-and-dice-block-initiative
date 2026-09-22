@@ -17,7 +17,7 @@ import {
     nullableString,
     record,
     stringOrEmpty
-} from "./normalization-primitives";
+} from "./normalization-primitives.js";
 
 export function normalizeSavedCombatants(
     value: unknown[]
