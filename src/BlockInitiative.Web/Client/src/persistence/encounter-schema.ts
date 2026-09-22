@@ -36,6 +36,8 @@ export type SavedCombatant = {
     initiative: string;
     modifier: string;
     armorClass: string;
+    touchArmorClass: string;
+    flatFootedArmorClass: string;
     blockType: CombatantBlockType;
     controllerId: string;
     rulesReference: string;

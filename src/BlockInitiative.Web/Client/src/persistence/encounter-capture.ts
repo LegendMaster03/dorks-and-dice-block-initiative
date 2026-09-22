@@ -179,7 +179,21 @@ function captureCombatant(card: HTMLElement): SavedCombatant {
             card.querySelector<HTMLInputElement>(
                 "[data-field='modifier']")?.value
             ?? "",
-        armorClass: captureArmorClass(card),
+        armorClass:
+            captureArmorClass(
+                card,
+                "setup-armor-class",
+                "armor-class"),
+        touchArmorClass:
+            captureArmorClass(
+                card,
+                "setup-touch-armor-class",
+                "touch-armor-class"),
+        flatFootedArmorClass:
+            captureArmorClass(
+                card,
+                "setup-flat-footed-armor-class",
+                "flat-footed-armor-class"),
         blockType,
         controllerId:
             card.querySelector<HTMLSelectElement>(
@@ -207,16 +221,19 @@ function captureCombatant(card: HTMLElement): SavedCombatant {
     };
 }
 
-function captureArmorClass(card: HTMLElement): string {
+function captureArmorClass(
+    card: HTMLElement,
+    role: string,
+    quickStat: string
+): string {
     return card.querySelector<HTMLInputElement>(
-        ":scope > .bi-entry-main [data-role='setup-armor-class']"
+        `:scope > .bi-entry-main [data-role='${role}']`
     )?.value
         ?? card.querySelector<HTMLInputElement>(
-            ":scope > [data-quick-stats-setup] [data-quick-stat='armor-class']"
+            `:scope > [data-quick-stats-setup] [data-quick-stat='${quickStat}']`
         )?.value
         ?? "";
 }
-
 function captureConditions(card: HTMLElement): SavedCondition[] {
     const editor =
         card.querySelector<HTMLElement>(
