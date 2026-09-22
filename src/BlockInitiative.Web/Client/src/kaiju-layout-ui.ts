@@ -1,3 +1,9 @@
+import {
+    applyNumberLimits,
+    NON_NEGATIVE_TRACKER_LIMITS,
+    parseBoundedNumber,
+    TRACKER_LIMITS
+} from "./numeric-input-limits";
 import { registerAfterRender } from "./render-lifecycle";
 
 const initializedDocuments = new WeakSet<Document>();
@@ -172,8 +178,7 @@ function buildPoolEditor(
     amountLabel.textContent = "Modify by";
     const amount = document.createElement("input");
     amount.type = "number";
-    amount.min = "0";
-    amount.step = "1";
+    applyNumberLimits(amount, NON_NEGATIVE_TRACKER_LIMITS);
     amount.placeholder = "0";
     amount.inputMode = "numeric";
     amountField.append(amountLabel, amount);
@@ -243,15 +248,27 @@ function applyAdjustment(
 ): void {
     if (!currentInput) return;
 
-    const amount = Math.max(0, Number(amountInput.value) || 0);
-    const currentValue = Number(currentInput.value);
-    const maxValue = Number(maxInput?.value ?? "");
-    const hasCurrent = currentInput.value.trim() !== "" && Number.isFinite(currentValue);
-    const hasMax = (maxInput?.value ?? "").trim() !== "" && Number.isFinite(maxValue);
-    const base = hasCurrent ? currentValue : hasMax ? maxValue : 0;
+    const amount = parseBoundedNumber(
+        amountInput.value,
+        NON_NEGATIVE_TRACKER_LIMITS) ?? 0;
+    if (amountInput.value.trim()
+        && parseBoundedNumber(
+            amountInput.value,
+            NON_NEGATIVE_TRACKER_LIMITS) === null) {
+        amountInput.reportValidity();
+        return;
+    }
+
+    const currentValue = parseBoundedNumber(
+        currentInput.value,
+        TRACKER_LIMITS);
+    const maxValue = parseBoundedNumber(
+        maxInput?.value ?? "",
+        TRACKER_LIMITS);
+    const base = currentValue ?? maxValue ?? 0;
 
     let next = direction < 0 ? Math.max(0, base - amount) : base + amount;
-    if (direction > 0 && hasMax) next = Math.min(next, maxValue);
+    if (direction > 0 && maxValue !== null) next = Math.min(next, maxValue);
 
     currentInput.value = String(next);
     currentInput.dispatchEvent(new Event("input", { bubbles: true }));
