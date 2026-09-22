@@ -117,6 +117,8 @@ function buildConditionChip(
     level.addEventListener("input", () => {
         const parsed =
             readConditionLevel(level);
+        if (parsed === undefined) return;
+
         const updated = updateConditionLevel(
             combatantId,
             condition.id,
@@ -243,10 +245,17 @@ function buildConditionPicker(
         const name = search.value.trim();
         if (!name) return;
 
+        const parsedLevel =
+            readConditionLevel(level);
+        if (parsedLevel === undefined) {
+            level.reportValidity();
+            return;
+        }
+
         addCondition(combatantId, {
             id: crypto.randomUUID(),
             name,
-            level: readConditionLevel(level),
+            level: parsedLevel,
             note: note.value.trim(),
             browserLink: null,
             browserHref: null,
@@ -261,6 +270,7 @@ function buildConditionPicker(
     let sequence = 0;
     search.addEventListener("input", () => {
         const query = search.value.trim();
+        const current = ++sequence;
         manual.disabled = query.length === 0;
         results.replaceChildren();
 
@@ -281,7 +291,6 @@ function buildConditionPicker(
             return;
         }
 
-        const current = ++sequence;
         status.textContent = "Searching Rules Core…";
         timer = window.setTimeout(() => {
             void searchRulesCoreConditions(query)
@@ -366,10 +375,17 @@ function paintSearchResults(
 
         button.append(name, meta);
         button.onclick = () => {
+            const parsedLevel =
+                readConditionLevel(level);
+            if (parsedLevel === undefined) {
+                level.reportValidity();
+                return;
+            }
+
             addCondition(combatantId, {
                 id: crypto.randomUUID(),
                 name: match.displayName,
-                level: readConditionLevel(level),
+                level: parsedLevel,
                 note: note.value.trim(),
                 browserLink: match.browserLink,
                 browserHref: null,
@@ -491,8 +507,11 @@ function installStyles(documentRef: Document): void {
 
 function readConditionLevel(
     input: HTMLInputElement
-): number | null {
+): number | null | undefined {
+    if (!input.value.trim()) return null;
+
     return parseBoundedNumber(
         input.value,
-        POSITIVE_TRACKER_LIMITS);
+        POSITIVE_TRACKER_LIMITS)
+        ?? undefined;
 }

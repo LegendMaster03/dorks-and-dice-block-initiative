@@ -1,6 +1,6 @@
 import {
     normalizeSavedEncounter
-} from "./encounter-migration";
+} from "./encounter-migration.js";
 import type {
     NamedEncounterSave,
     SavedEncounter,
@@ -28,8 +28,10 @@ export function readAutomaticEncounter(): SavedEncounter | null {
             window.localStorage.getItem(
                 automaticStorageKey);
         if (currentRaw !== null) {
-            return readSavedEncounterAt(
-                automaticStorageKey);
+            const current =
+                readSavedEncounterAt(
+                    automaticStorageKey);
+            if (current) return current;
         }
 
         for (const key of legacyAutomaticStorageKeys) {
@@ -72,19 +74,22 @@ export function clearAutomaticEncounter(): void {
 export function readNamedEncounters():
     NamedEncounterSave[] {
     try {
-        const current =
-            readNamedEncountersAt(
+        const currentRaw =
+            window.localStorage.getItem(
                 namedStorageKey);
-        if (current.length > 0
-            || window.localStorage.getItem(
-                namedStorageKey) !== null) {
-            return sortNamed(current);
+        if (currentRaw !== null) {
+            const current =
+                readNamedEncountersAt(
+                    namedStorageKey);
+            if (current !== null) {
+                return sortNamed(current);
+            }
         }
 
         for (const key of legacyNamedStorageKeys) {
             const legacy =
                 readNamedEncountersAt(key);
-            if (!legacy.length) continue;
+            if (!legacy?.length) continue;
             if (writeNamedEncounters(legacy)) {
                 window.localStorage.removeItem(key);
             }
@@ -165,15 +170,15 @@ function readSavedEncounterAt(
 
 function readNamedEncountersAt(
     key: string
-): NamedEncounterSave[] {
+): NamedEncounterSave[] | null {
     try {
         const raw =
             window.localStorage.getItem(key);
-        if (!raw) return [];
+        if (!raw) return null;
 
         const parsed =
             JSON.parse(raw) as unknown;
-        if (!Array.isArray(parsed)) return [];
+        if (!Array.isArray(parsed)) return null;
 
         return parsed.flatMap(rawSave => {
             const save =
@@ -181,7 +186,7 @@ function readNamedEncountersAt(
             return save ? [save] : [];
         });
     } catch {
-        return [];
+        return null;
     }
 }
 

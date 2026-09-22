@@ -14,7 +14,10 @@ import type {
 } from "../api";
 import { moveCombatantByOffset, sameMembers, sameOrder } from "./combatant-reorder";
 import {
-    replaceEncounterRunnerSession
+    isEncounterRunnerMutationLocked,
+    onEncounterRunnerMutationLock,
+    replaceEncounterRunnerSession,
+    setEncounterRunnerMutationLock
 } from "../application/runner-session-events";
 import {
     clearCombatantReorderHistory,
@@ -73,6 +76,9 @@ export function initializeCombatantDragReorderUi(): void {
 
     installStyles(root.ownerDocument);
     liveRegion = ensureLiveRegion(root);
+
+    onEncounterRunnerMutationLock(
+        () => requestEnhancement());
 
     window.addEventListener("block-initiative:preview", event => {
         const detail = (event as CustomEvent<PreviewDetail>).detail;
@@ -145,7 +151,10 @@ function ensureDragHandle(card: HTMLElement, root: HTMLElement): void {
     handle.addEventListener("keydown", event => {
         if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
         event.preventDefault();
-        if (applying) return;
+        if (applying
+            || isEncounterRunnerMutationLocked()) {
+            return;
+        }
 
         const order = currentStateOrder();
         const next = moveCombatantByOffset(order, combatantId, event.key === "ArrowUp" ? -1 : 1);
@@ -163,7 +172,11 @@ function beginPointerDrag(
     handle: HTMLButtonElement,
     root: HTMLElement
 ): void {
-    if (applying || dragSession) return;
+    if (applying
+        || dragSession
+        || isEncounterRunnerMutationLocked()) {
+        return;
+    }
     if (event.pointerType === "mouse" && event.button !== 0) return;
     const combatantId = card.dataset.combatantId;
     if (!combatantId) return;
@@ -356,7 +369,9 @@ function ensureReorderControls(runner: HTMLElement, root: HTMLElement): void {
     }
 
     ensureReorderStatus(runner);
-    root.classList.toggle("bi-reorder-busy", applying);
+    root.classList.toggle(
+        "bi-reorder-busy",
+        applying || isEncounterRunnerMutationLocked());
 }
 
 function ensureReorderStatus(
@@ -404,19 +419,25 @@ function updateReorderControls(runner: HTMLElement): void {
     const history = combatantReorderHistory();
     const baselineOrder =
         combatantReorderBaselineOrder();
+    const mutationLocked =
+        isEncounterRunnerMutationLocked();
     if (undo) {
         undo.disabled =
-            applying || history.length === 0;
+            applying
+            || mutationLocked
+            || history.length === 0;
     }
     if (reset) {
         reset.disabled =
             applying
+            || mutationLocked
             || !baselineOrder
             || sameOrder(current, baselineOrder);
     }
 
     for (const handle of runner.querySelectorAll<HTMLButtonElement>(".bi-drag-handle")) {
-        handle.disabled = applying;
+        handle.disabled =
+            applying || mutationLocked;
     }
 }
 
@@ -425,7 +446,12 @@ async function applyOrder(
     focusId: string | null,
     historyMode: "push" | "undo" | "reset"
 ): Promise<void> {
-    if (applying || !lastPreview || !lastState) return;
+    if (applying
+        || isEncounterRunnerMutationLocked()
+        || !lastPreview
+        || !lastState) {
+        return;
+    }
 
     const current = currentStateOrder();
     const expectedIds = lastPreview.response.orderedCombatants.map(combatant => combatant.id);
@@ -451,6 +477,9 @@ async function applyOrder(
     const previousOrder = [...current];
     const previousState = lastState.response;
     applying = true;
+    setEncounterRunnerMutationLock(
+        "combatant-reorder",
+        true);
     requestEnhancement();
 
     try {
@@ -521,6 +550,9 @@ async function applyOrder(
                 : "The initiative order could not be updated.");
     } finally {
         applying = false;
+        setEncounterRunnerMutationLock(
+            "combatant-reorder",
+            false);
         requestEnhancement();
         focusPendingHandle(document.getElementById("tool-root") as HTMLElement | null);
     }

@@ -57,6 +57,7 @@ export function initializeCampaignUi(): void {
     let hostContext: ToolHostContext | null = null;
     let campaignContext: ToolHostCampaignContext | null = null;
     let campaignSummaries: ToolHostCampaignSummary[] = [];
+    let campaignCatalogRequestSequence = 0;
     let campaignRequestSequence = 0;
 
     select.addEventListener("change", () => {
@@ -73,6 +74,9 @@ export function initializeCampaignUi(): void {
     void initializeHostedCampaigns();
 
     async function initializeHostedCampaigns(): Promise<void> {
+        const requestSequence =
+            ++campaignCatalogRequestSequence;
+
         panel.hidden = false;
         setCampaignCatalogState(
             appRoot,
@@ -83,7 +87,14 @@ export function initializeCampaignUi(): void {
             "Checking signed-in campaign access…";
 
         try {
-            hostContext = await loadToolHostContext(contextUrl!);
+            const loadedHostContext =
+                await loadToolHostContext(contextUrl!);
+            if (requestSequence
+                !== campaignCatalogRequestSequence) {
+                return;
+            }
+
+            hostContext = loadedHostContext;
             if (!hostContext.user) {
                 setCampaignCatalogState(
                     appRoot,
@@ -93,7 +104,15 @@ export function initializeCampaignUi(): void {
             }
 
             panel.hidden = false;
-            campaignSummaries = await loadToolHostCampaigns(hostContext);
+            const loadedCampaignSummaries =
+                await loadToolHostCampaigns(hostContext);
+            if (requestSequence
+                !== campaignCatalogRequestSequence) {
+                return;
+            }
+
+            campaignSummaries =
+                loadedCampaignSummaries;
             populateCampaignOptions(select, campaignSummaries);
             setCampaignCatalogState(
                 appRoot,
@@ -103,6 +122,11 @@ export function initializeCampaignUi(): void {
                 ? "This account has no active campaigns. Manual encounter setup remains available."
                 : `${campaignSummaries.length} active campaign${campaignSummaries.length === 1 ? " is" : "s are"} available.`;
         } catch (error) {
+            if (requestSequence
+                !== campaignCatalogRequestSequence) {
+                return;
+            }
+
             hostContext = null;
             setCampaignCatalogState(
                 appRoot,

@@ -400,3 +400,173 @@ test("reorder failures have a visible error surface", async () => {
     assert.match(reorder, /reportReorderError/);
     assert.match(reorder, /bi-message bi-error/);
 });
+
+
+test("campaign restore terminates when catalog loading fails and ignores stale retries", async () => {
+    const campaign =
+        await source("../src/campaign/campaign-ui.ts");
+    const restore =
+        await source("../src/persistence/encounter-restore.ts");
+
+    assert.match(
+        restore,
+        /campaignCatalogCanNotRestoreSelection[\s\S]*state === "error"/);
+    assert.match(
+        restore,
+        /campaignCatalogCanNotRestoreSelection\(\s*currentState\)/);
+    assert.match(
+        restore,
+        /campaignCatalogCanNotRestoreSelection\(\s*state\)/);
+    assert.match(campaign, /campaignCatalogRequestSequence/);
+    assert.match(
+        campaign,
+        /requestSequence[\s\S]*!== campaignCatalogRequestSequence[\s\S]*return/);
+});
+
+test("combatant reorder locks runner navigation until its async replacement finishes", async () => {
+    const events =
+        await source("../src/application/runner-session-events.ts");
+    const runner =
+        await source("../src/application/encounter-runner.ts");
+    const reorder =
+        await source("../src/initiative/combatant-drag-reorder-ui.ts");
+
+    assert.match(events, /setEncounterRunnerMutationLock/);
+    assert.match(events, /onEncounterRunnerMutationLock/);
+    assert.match(runner, /onEncounterRunnerMutationLock/);
+    assert.match(runner, /mutationLocks = new Set<string>/);
+    assert.match(runner, /blocked \|\| this\.history\.length === 0/);
+    assert.match(runner, /if \(next\) next\.disabled = blocked/);
+    assert.match(runner, /if \(edit\) edit\.disabled = blocked/);
+    assert.match(
+        reorder,
+        /setEncounterRunnerMutationLock\([\s\S]*"combatant-reorder",[\s\S]*true/);
+    assert.match(
+        reorder,
+        /finally \{[\s\S]*setEncounterRunnerMutationLock\([\s\S]*"combatant-reorder",[\s\S]*false/);
+});
+
+
+test("invalid condition levels do not erase valid state or get stored as no level", async () => {
+    const editor =
+        await source("../src/conditions/condition-editor.ts");
+
+    assert.match(
+        editor,
+        /if \(parsed === undefined\) return;[\s\S]*updateConditionLevel/);
+    assert.match(
+        editor,
+        /if \(parsedLevel === undefined\) \{[\s\S]*level\.reportValidity\(\);[\s\S]*return;/);
+    assert.match(
+        editor,
+        /if \(!input\.value\.trim\(\)\) return null;[\s\S]*\?\? undefined/);
+});
+
+
+test("async Rules Core searches are invalidated by every new input state", async () => {
+    const conditions =
+        await source("../src/conditions/condition-editor.ts");
+    const monsters =
+        await source("../src/roster/monster-roster.ts");
+
+    assert.match(
+        conditions,
+        /const current = \+\+sequence;[\s\S]*query\.length < 2/);
+    assert.match(
+        monsters,
+        /const sequence =[\s\S]*searchSequences\.set\(card, sequence\);[\s\S]*queryText\.length < 2/);
+});
+
+test("monster template selection can not overwrite a newer edit", async () => {
+    const monsters =
+        await source("../src/roster/monster-roster.ts");
+
+    assert.match(
+        monsters,
+        /selectionSequence[\s\S]*await loadMonsterTemplate\(match\)[\s\S]*!card\.isConnected/);
+    assert.match(
+        monsters,
+        /this\.searchSequences\.get\(card\)[\s\S]*!== selectionSequence/);
+    assert.match(
+        monsters,
+        /card\.dataset\.templateId[\s\S]*!template[\s\S]*clearMonsterMetadata/);
+});
+
+test("restored template-backed enemies duplicate without dropping template identity", async () => {
+    const duplicate =
+        await source("../src/roster/enemy-duplicate-ui.ts");
+    const monsters =
+        await source("../src/roster/monster-roster.ts");
+
+    assert.match(
+        duplicate,
+        /duplicateRestoredTemplateEnemy\(/);
+    assert.match(
+        duplicate,
+        /target\.dataset\.templateId = templateId/);
+    assert.match(
+        duplicate,
+        /templateNameUpdate/);
+    assert.match(
+        duplicate,
+        /card\.dataset\.autoName = "true"/);
+    assert.match(
+        monsters,
+        /if \(templateNameUpdate\) return;/);
+    assert.match(
+        duplicate,
+        /copyInputField\([\s\S]*"rules-reference"/);
+    assert.match(
+        duplicate,
+        /copyQuickStatsWhenReady\(source, target\)/);
+    assert.match(
+        duplicate,
+        /copyHealthWhenReady\(source, target\)/);
+});
+
+
+test("runner transitions and reorder operations share one bidirectional mutation lock", async () => {
+    const events =
+        await source("../src/application/runner-session-events.ts");
+    const runner =
+        await source("../src/application/encounter-runner.ts");
+    const reorder =
+        await source("../src/initiative/combatant-drag-reorder-ui.ts");
+
+    assert.match(events, /activeMutationLocks/);
+    assert.match(events, /isEncounterRunnerMutationLocked/);
+    assert.match(
+        runner,
+        /setEncounterRunnerMutationLock\([\s\S]*"encounter-runner",[\s\S]*true/);
+    assert.match(
+        runner,
+        /setEncounterRunnerMutationLock\([\s\S]*"encounter-runner",[\s\S]*false/);
+    assert.match(
+        reorder,
+        /isEncounterRunnerMutationLocked\(\)/);
+    assert.match(
+        reorder,
+        /handle\.disabled =[\s\S]*mutationLocked/);
+});
+
+
+test("preview generation is single-flight and ignores stale roster revisions", async () => {
+    const app =
+        await source("../src/app.ts");
+
+    assert.match(
+        app,
+        /if \(!previewUrl \|\| busy\) return;/);
+    assert.match(
+        app,
+        /rosterRevision \+= 1/);
+    assert.match(
+        app,
+        /const requestRosterRevision =[\s\S]*rosterRevision/);
+    assert.match(
+        app,
+        /requestRosterRevision !== rosterRevision[\s\S]*return;/);
+    assert.match(
+        app,
+        /requestSequence === previewRequestSequence[\s\S]*busy = false/);
+});

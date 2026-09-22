@@ -1003,6 +1003,14 @@ async function restoreCampaignSelection(
         });
 }
 
+function campaignCatalogCanNotRestoreSelection(
+    state: string | undefined
+): boolean {
+    return state === "ready"
+        || state === "unavailable"
+        || state === "error";
+}
+
 async function waitForCampaignOption(
     root: HTMLElement,
     campaignId: string
@@ -1025,8 +1033,8 @@ async function waitForCampaignOption(
 
     const currentState =
         root.dataset.campaignCatalogState;
-    if (currentState === "ready"
-        || currentState === "unavailable") {
+    if (campaignCatalogCanNotRestoreSelection(
+        currentState)) {
         throw new Error(
             "The saved campaign is not currently available to this account.");
     }
@@ -1045,8 +1053,8 @@ async function waitForCampaignOption(
 
                 const state =
                     root.dataset.campaignCatalogState;
-                if (state === "ready"
-                    || state === "unavailable") {
+                if (campaignCatalogCanNotRestoreSelection(
+                    state)) {
                     window.removeEventListener(
                         "block-initiative:campaign-catalog-change",
                         onCatalog);

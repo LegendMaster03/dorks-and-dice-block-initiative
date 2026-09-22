@@ -34,6 +34,8 @@ let previewUrl: string | null = null;
 let stateUrl: string | null = null;
 let busy = false;
 let connectingHost = false;
+let rosterRevision = 0;
+let previewRequestSequence = 0;
 
 let roster!: RosterController;
 
@@ -121,6 +123,7 @@ function renderHostRetry(): void {
 }
 
 function handleRosterChanged(): void {
+    rosterRevision += 1;
     results.replaceChildren();
     setup.hidden = false;
     clearMessage();
@@ -164,7 +167,12 @@ function updateReady(): void {
 async function buildPreview(
     manualOrderOverride: string[] | null = null
 ): Promise<void> {
-    if (!previewUrl) return;
+    if (!previewUrl || busy) return;
+
+    const requestSequence =
+        ++previewRequestSequence;
+    const requestRosterRevision =
+        rosterRevision;
 
     busy = true;
     updateReady();
@@ -181,6 +189,11 @@ async function buildPreview(
             await previewInitiative(
                 previewUrl,
                 request);
+
+        if (requestSequence !== previewRequestSequence
+            || requestRosterRevision !== rosterRevision) {
+            return;
+        }
 
         renderInitiativePreview({
             results,
@@ -207,10 +220,15 @@ async function buildPreview(
             block: "start"
         });
     } catch (error) {
-        showError(error);
+        if (requestSequence === previewRequestSequence
+            && requestRosterRevision === rosterRevision) {
+            showError(error);
+        }
     } finally {
-        busy = false;
-        updateReady();
+        if (requestSequence === previewRequestSequence) {
+            busy = false;
+            updateReady();
+        }
     }
 }
 

@@ -43,28 +43,34 @@ export class MonsterRosterService {
         let timer: number | null = null;
 
         input.addEventListener("input", () => {
+            const templateNameUpdate =
+                card.dataset.templateNameUpdate === "true";
             const template =
                 this.templates.get(card.dataset.id ?? "");
-            if (template
-                && input.value.trim()
-                    !== this.renderedMonsterName(card, template)) {
+            if (card.dataset.templateId
+                && !templateNameUpdate
+                && (!template
+                    || input.value.trim()
+                        !== this.renderedMonsterName(card, template))) {
                 this.removeCard(card);
                 this.clearMonsterMetadata(card);
             }
+
+            const sequence =
+                (this.searchSequences.get(card) ?? 0) + 1;
+            this.searchSequences.set(card, sequence);
 
             if (timer !== null) window.clearTimeout(timer);
 
             box.hidden = true;
             box.replaceChildren();
 
+            if (templateNameUpdate) return;
+
             const queryText = input.value.trim();
             if (!this.searchEnabled || queryText.length < 2) {
                 return;
             }
-
-            const sequence =
-                (this.searchSequences.get(card) ?? 0) + 1;
-            this.searchSequences.set(card, sequence);
             timer = window.setTimeout(
                 () => void this.renderMonsterMatches(
                     card,
@@ -301,10 +307,30 @@ export class MonsterRosterService {
             event => event.preventDefault();
 
         button.onclick = async () => {
+            const input =
+                field<HTMLInputElement>(card, "name");
+            const expectedCardId =
+                card.dataset.id ?? "";
+            const expectedName =
+                input.value.trim();
+            const selectionSequence =
+                (this.searchSequences.get(card) ?? 0) + 1;
+            this.searchSequences.set(
+                card,
+                selectionSequence);
+
             button.disabled = true;
             try {
                 const template =
                     await loadMonsterTemplate(match);
+                if (!card.isConnected
+                    || card.dataset.id !== expectedCardId
+                    || this.searchSequences.get(card)
+                        !== selectionSequence
+                    || input.value.trim() !== expectedName) {
+                    return;
+                }
+
                 this.applyTemplate(
                     card,
                     template,
