@@ -504,10 +504,6 @@ function renderKaiju(
     }
 
     if (evaluation?.defeated) {
-        if (state.defeatedRound === null && currentRound !== null) {
-            state.defeatedRound = currentRound;
-        }
-
         const note = document.createElement("div");
         note.className = "bi-message bi-warning";
         note.textContent = state.defeatedRound === null
