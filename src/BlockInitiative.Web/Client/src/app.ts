@@ -133,11 +133,31 @@ function handleRosterChanged(): void {
 }
 
 function updateReady(): void {
+    const connected =
+        Boolean(previewUrl);
+
     roster.updateReady({
-        connected: Boolean(previewUrl),
+        connected,
         busy,
         editing: runner.isEditing
     });
+
+    root.dataset.initiativeServiceConnected =
+        String(connected);
+    root.dataset.initiativeRosterReady =
+        String(!previewButton.disabled);
+
+    window.dispatchEvent(
+        new CustomEvent(
+            "block-initiative:service-readiness",
+            {
+                detail: {
+                    connected,
+                    busy,
+                    ready:
+                        !previewButton.disabled
+                }
+            }));
 }
 
 async function buildPreview(
