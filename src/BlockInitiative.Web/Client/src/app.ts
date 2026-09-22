@@ -32,6 +32,7 @@ const previewButton =
 let previewUrl: string | null = null;
 let stateUrl: string | null = null;
 let busy = false;
+let connectingHost = false;
 
 let roster!: RosterController;
 
@@ -69,8 +70,18 @@ if (!contextUrl) {
     updateReady();
 } else {
     roster.setRulesCoreSearchEnabled(true);
+    void connectHostedContext();
+}
+
+async function connectHostedContext(): Promise<void> {
+    if (!contextUrl || connectingHost) return;
+
+    connectingHost = true;
+    previewUrl = null;
+    stateUrl = null;
     hostStatus.textContent =
         "Connecting to Dorks & Dice…";
+    updateReady();
 
     try {
         const context: ToolHostContext =
@@ -82,10 +93,30 @@ if (!contextUrl) {
             : "Manual encounters do not require sign-in. "
                 + "Rules Core search shows content available "
                 + "to anonymous access.";
-        updateReady();
+        clearMessage();
     } catch (error) {
         showError(error);
+        renderHostRetry();
+    } finally {
+        connectingHost = false;
+        updateReady();
     }
+}
+
+function renderHostRetry(): void {
+    hostStatus.replaceChildren();
+
+    const text = document.createElement("span");
+    text.textContent =
+        "Dorks & Dice connection is unavailable. ";
+
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "btn btn-sm btn-outline-secondary";
+    retry.textContent = "Retry connection";
+    retry.onclick = () => void connectHostedContext();
+
+    hostStatus.append(text, retry);
 }
 
 function handleRosterChanged(): void {
