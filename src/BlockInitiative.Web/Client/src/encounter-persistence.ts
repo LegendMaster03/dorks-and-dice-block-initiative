@@ -95,6 +95,10 @@ export function initializeEncounterPersistence(): void {
             ?? new Error("Encounter restoration request failed."));
     });
 
+    window.addEventListener(
+        "block-initiative:combat-state-change",
+        () => scheduleSave(root));
+
     window.addEventListener("block-initiative:campaign-change", () => scheduleSave(root));
     window.addEventListener("block-initiative:rules-core-template-link", event => {
         const cloned = cloneRulesCoreLink((event as CustomEvent<unknown>).detail);
