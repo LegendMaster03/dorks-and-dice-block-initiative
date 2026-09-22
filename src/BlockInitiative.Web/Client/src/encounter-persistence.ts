@@ -85,6 +85,16 @@ export function initializeEncounterPersistence(): void {
         scheduleSave(root);
     });
 
+    window.addEventListener("block-initiative:api-error", event => {
+        if (!restoreSession) return;
+
+        const detail =
+            (event as CustomEvent<{ error?: unknown }>).detail;
+        restoreSession.handleApiFailure(
+            detail?.error
+            ?? new Error("Encounter restoration request failed."));
+    });
+
     window.addEventListener("block-initiative:campaign-change", () => scheduleSave(root));
     window.addEventListener("block-initiative:rules-core-template-link", event => {
         const cloned = cloneRulesCoreLink((event as CustomEvent<unknown>).detail);
