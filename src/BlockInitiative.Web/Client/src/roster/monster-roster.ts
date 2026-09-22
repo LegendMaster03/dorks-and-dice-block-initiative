@@ -43,10 +43,12 @@ export class MonsterRosterService {
         let timer: number | null = null;
 
         input.addEventListener("input", () => {
+            const templateNameUpdate =
+                card.dataset.templateNameUpdate === "true";
             const template =
                 this.templates.get(card.dataset.id ?? "");
             if (card.dataset.templateId
-                && card.dataset.templateNameUpdate !== "true"
+                && !templateNameUpdate
                 && (!template
                     || input.value.trim()
                         !== this.renderedMonsterName(card, template))) {
@@ -62,6 +64,8 @@ export class MonsterRosterService {
 
             box.hidden = true;
             box.replaceChildren();
+
+            if (templateNameUpdate) return;
 
             const queryText = input.value.trim();
             if (!this.searchEnabled || queryText.length < 2) {

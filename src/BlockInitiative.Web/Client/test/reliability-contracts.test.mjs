@@ -507,6 +507,12 @@ test("restored template-backed enemies duplicate without dropping template ident
         /templateNameUpdate/);
     assert.match(
         duplicate,
+        /card\.dataset\.autoName = "true"/);
+    assert.match(
+        monsters,
+        /if \(templateNameUpdate\) return;/);
+    assert.match(
+        duplicate,
         /copyInputField\([\s\S]*"rules-reference"/);
     assert.match(
         duplicate,

@@ -276,6 +276,7 @@ function setTemplateName(
         setInputValue(input, value);
     } finally {
         delete card.dataset.templateNameUpdate;
+        card.dataset.autoName = "true";
     }
 }
 
