@@ -407,10 +407,15 @@ async function applyOrder(
     requestEnhancement();
 
     try {
+        const root =
+            document.getElementById("tool-root");
+        if (!(root instanceof HTMLElement)) {
+            throw new Error(
+                "Block Initiative tool root is unavailable.");
+        }
+
         const endpoints =
-            await resolveEndpoints(
-                document.getElementById(
-                    "tool-root") as HTMLElement);
+            await resolveEndpoints(root);
         setRuntimeManualOrder(order);
         const request: InitiativePreviewRequest = {
             ...requestBase,
