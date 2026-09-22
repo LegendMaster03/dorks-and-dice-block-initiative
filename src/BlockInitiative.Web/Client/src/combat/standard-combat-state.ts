@@ -160,7 +160,10 @@ function renderHealthRow(
             paintHpStatus(status, state);
         }),
         actionButton("Heal", "btn-outline-secondary", () => {
-            const next = (state.currentHp ?? 0) + amount.value();
+            const next = Math.min(
+                TRACKER_LIMITS.max,
+                (state.currentHp ?? 0)
+                + amount.value());
             state.currentHp = state.maxHp === null
                 ? next
                 : Math.min(next, state.maxHp);
