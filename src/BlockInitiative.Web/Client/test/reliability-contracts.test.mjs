@@ -96,7 +96,7 @@ test("saved encounters restore initiative mode and reorder runtime", async () =>
     const restore =
         await source("../src/persistence/encounter-restore.ts");
 
-    assert.match(schema, /version: 3/);
+    assert.match(schema, /version: 4/);
     assert.match(schema, /initiativeMode: InitiativeMode/);
     assert.match(schema, /reorderRuntime: CombatantReorderRuntimeSnapshot/);
     assert.match(capture, /getInitiativeMode\(\)/);
@@ -182,18 +182,19 @@ test("Tool Host and Rules Core transient failures remain retryable", async () =>
         /catch \{[\s\S]*return null;[\s\S]*\n\}/);
 });
 
-test("browser persistence reads normalized v3 saves and migrates v1 and v2 keys", async () => {
+test("browser persistence reads normalized v4 saves and migrates older keys", async () => {
     const storage =
         await source("../src/persistence/encounter-storage.ts");
     const migration =
         await source("../src/persistence/encounter-migration.ts");
 
+    assert.match(storage, /encounter:v4/);
     assert.match(storage, /encounter:v3/);
     assert.match(storage, /encounter:v2/);
     assert.match(storage, /encounter:v1/);
     assert.match(storage, /normalizeSavedEncounter/);
     assert.match(migration, /candidate\.version !== 1/);
-    assert.match(migration, /version: 3/);
+    assert.match(migration, /version: 4/);
     assert.match(migration, /normalizeRunnerCombat/);
 });
 
@@ -207,7 +208,7 @@ test("runner undo and reorder synchronize the authoritative runner session", asy
     const events =
         await source("../src/application/runner-session-events.ts");
 
-    assert.match(runner, /publishInitiativeTurnState\(\{/);
+    assert.match(runner, /"previous"\);/);
     assert.match(runner, /onEncounterRunnerSessionReplacement/);
     assert.match(reorder, /replaceEncounterRunnerSession\(\{/);
     assert.match(events, /block-initiative:runner-session-replace/);
@@ -288,4 +289,114 @@ test("health maximum fields reject negative values while current HP may remain n
     assert.match(standard, /At or below 0 HP/);
     assert.match(kaiju, /"Chaos Threshold"[\s\S]*NON_NEGATIVE_TRACKER_LIMITS/);
     assert.match(kaiju, /"Max HP"[\s\S]*NON_NEGATIVE_TRACKER_LIMITS/);
+});
+
+
+test("Previous turn does not reset drag-reorder history", async () => {
+    const runner =
+        await source("../src/application/encounter-runner.ts");
+    const reorder =
+        await source("../src/initiative/combatant-drag-reorder-ui.ts");
+
+    assert.match(runner, /"previous"\);/);
+    assert.match(reorder, /publicationSource === "start"/);
+    assert.match(reorder, /publicationSource === "resume"/);
+    assert.doesNotMatch(
+        reorder,
+        /detail\.request\.advanceCount === 0\)[\s\S]*resetCombatantReorderRuntime/);
+});
+
+test("Kaiju persistence reads authoritative module state instead of waiting for DOM repaint", async () => {
+    const capture =
+        await source("../src/persistence/encounter-capture.ts");
+    const kaiju =
+        await source("../src/combat/kaiju-combat-state.ts");
+
+    assert.match(capture, /runtime\.chaosCurrent/);
+    assert.match(capture, /runtime\.areas\.map/);
+    assert.match(kaiju, /chaosCurrent: state\.chaosCurrent/);
+    assert.match(kaiju, /areas: state\.areas\.map/);
+});
+
+test("all fallback resource adjustments honor tracker bounds", async () => {
+    const standard =
+        await source("../src/combat/standard-combat-state.ts");
+    const kaiju =
+        await source("../src/combat/kaiju-combat-state.ts");
+
+    assert.match(
+        standard,
+        /Math\.min\([\s\S]*TRACKER_LIMITS\.max[\s\S]*amount\.value/);
+    assert.match(
+        kaiju,
+        /state\.chaosCurrent = Math\.max\([\s\S]*TRACKER_LIMITS\.min/);
+    assert.match(
+        kaiju,
+        /const next = Math\.min\([\s\S]*TRACKER_LIMITS\.max/);
+});
+
+test("condition preview signatures include structured levels", async () => {
+    const conditions =
+        await source("../src/conditions/condition-tracking-ui.ts");
+
+    assert.match(
+        conditions,
+        /condition\.name,[\s\S]*condition\.level,[\s\S]*condition\.note/);
+});
+
+test("restore waits on readiness events instead of fixed short timeouts", async () => {
+    const app = await source("../src/app.ts");
+    const campaign =
+        await source("../src/campaign/campaign-ui.ts");
+    const restore =
+        await source("../src/persistence/encounter-restore.ts");
+
+    assert.match(app, /block-initiative:service-readiness/);
+    assert.match(campaign, /block-initiative:campaign-catalog-change/);
+    assert.match(restore, /waitForPreviewReady/);
+    assert.match(restore, /await restoreCampaignSelection/);
+    assert.match(restore, /block-initiative:service-readiness/);
+    assert.match(restore, /block-initiative:campaign-catalog-change/);
+    assert.doesNotMatch(restore, /1200|2500|5000/);
+});
+
+test("legacy persistence is retired after successful promotion", async () => {
+    const storage =
+        await source("../src/persistence/encounter-storage.ts");
+
+    assert.match(storage, /encounter:v4/);
+    assert.match(storage, /currentRaw !== null/);
+    assert.match(
+        storage,
+        /writeAutomaticEncounter\(legacy\)[\s\S]*removeItem\(key\)/);
+    assert.match(
+        storage,
+        /writeNamedEncounters\(legacy\)[\s\S]*removeItem\(key\)/);
+});
+
+test("manual duplicate families persist and new copies start at full HP", async () => {
+    const schema =
+        await source("../src/persistence/encounter-schema.ts");
+    const capture =
+        await source("../src/persistence/encounter-capture.ts");
+    const restore =
+        await source("../src/persistence/encounter-restore.ts");
+    const duplicate =
+        await source("../src/roster/enemy-duplicate-ui.ts");
+
+    assert.match(schema, /manualDuplicateKey/);
+    assert.match(capture, /card\.dataset\.manualDuplicateKey/);
+    assert.match(restore, /"manualDuplicateKey"/);
+    assert.match(
+        duplicate,
+        /targetCurrent,[\s\S]*sourceMax\.value \|\| sourceCurrent\.value/);
+});
+
+test("reorder failures have a visible error surface", async () => {
+    const reorder =
+        await source("../src/initiative/combatant-drag-reorder-ui.ts");
+
+    assert.match(reorder, /data-role='reorder-status'|dataset\.role = "reorder-status"/);
+    assert.match(reorder, /reportReorderError/);
+    assert.match(reorder, /bi-message bi-error/);
 });

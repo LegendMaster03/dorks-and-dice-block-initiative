@@ -61,7 +61,7 @@ export function captureEncounter(
             "[data-role='enemy-method']")?.value;
 
     return {
-        version: 3,
+        version: 4,
         savedAt: new Date().toISOString(),
         view: captureView(root, context.lastState),
         campaignId: root.dataset.campaignId ?? null,
@@ -224,6 +224,12 @@ function captureCombatant(card: HTMLElement): SavedCombatant {
         templateId: card.dataset.templateId ?? null,
         instanceNumber: card.dataset.instanceNumber ?? null,
         autoName: card.dataset.autoName ?? null,
+        manualDuplicateKey:
+            card.dataset.manualDuplicateKey ?? null,
+        manualDuplicateBase:
+            card.dataset.manualDuplicateBase ?? null,
+        manualDuplicateIndex:
+            card.dataset.manualDuplicateIndex ?? null,
         monsterMetaText:
             card.querySelector<HTMLElement>(
                 "[data-role='monster-meta']")?.textContent
@@ -320,6 +326,48 @@ function captureRunnerCombat(
 
     for (const combatant of ordered.filter(
         combatant => combatant.blockType === "kaiju")) {
+        const runtime =
+            readKaijuRuntimeMetadata(
+                combatant.id);
+
+        if (runtime) {
+            result.kaiju[combatant.id] = {
+                chaosCurrent:
+                    numberText(
+                        runtime.chaosCurrent),
+                chaosMax:
+                    numberText(
+                        runtime.chaosMax),
+                behaviourPhase:
+                    runtime.behaviourPhase,
+                finishingTarget:
+                    numberText(
+                        runtime.finishingBlowTarget),
+                finishingDamageThisTurn:
+                    String(
+                        runtime
+                            .finishingBlowDamageThisTurn),
+                finishingDamageByTurn:
+                    runtime
+                        .finishingBlowDamageByTurn,
+                defeatedRound:
+                    runtime.defeatedRound,
+                areas:
+                    runtime.areas.map(area => ({
+                        name: area.name,
+                        currentHp:
+                            numberText(
+                                area.currentHp),
+                        maxHp:
+                            numberText(
+                                area.maxHp),
+                        targetable:
+                            area.targetable
+                    }))
+            };
+            continue;
+        }
+
         const panel =
             runnerCard(root, combatant.id)
                 ?.querySelector<HTMLElement>(
@@ -332,9 +380,6 @@ function captureRunnerCombat(
             directSection(panel, "Vulnerable Areas");
         const finishingSection =
             directSection(panel, "Finishing Blow");
-
-        const runtimeMetadata =
-            readKaijuRuntimeMetadata(combatant.id);
 
         result.kaiju[combatant.id] = {
             chaosCurrent:
@@ -361,21 +406,13 @@ function captureRunnerCombat(
                         "Target")?.value ?? ""
                     : "",
             finishingDamageThisTurn:
-                runtimeMetadata
-                    ? String(
-                        runtimeMetadata
-                            .finishingBlowDamageThisTurn)
-                    : finishingSection
-                        ? inputByLabel(
-                            finishingSection,
-                            "Damage this turn")?.value ?? ""
-                        : "",
-            finishingDamageByTurn:
-                runtimeMetadata
-                    ?.finishingBlowDamageByTurn
-                ?? {},
-            defeatedRound:
-                runtimeMetadata?.defeatedRound ?? null,
+                finishingSection
+                    ? inputByLabel(
+                        finishingSection,
+                        "Damage this turn")?.value ?? ""
+                    : "",
+            finishingDamageByTurn: {},
+            defeatedRound: null,
             areas:
                 areaSection
                     ? Array.from(
@@ -407,4 +444,13 @@ function captureRunnerCombat(
     }
 
     return result;
+}
+
+
+function numberText(
+    value: number | null
+): string {
+    return value === null
+        ? ""
+        : String(value);
 }

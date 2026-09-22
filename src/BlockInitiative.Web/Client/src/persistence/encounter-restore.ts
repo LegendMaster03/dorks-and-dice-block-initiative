@@ -15,7 +15,8 @@ import {
 import {
     NON_NEGATIVE_TRACKER_LIMITS,
     parseBoundedNumber,
-    POSITIVE_TRACKER_LIMITS
+    POSITIVE_TRACKER_LIMITS,
+    TRACKER_LIMITS
 } from "../numeric-input-limits";
 import { requestEnhancement } from "../render-lifecycle";
 import {
@@ -153,7 +154,7 @@ export class EncounterRestoreSession {
                 this.saved,
                 this.ensureConditionLinks.bind(this));
             replayRulesCoreLinks(this.saved);
-            void restoreCampaignSelection(
+            await restoreCampaignSelection(
                 this.root,
                 this.saved.campaignId);
 
@@ -177,11 +178,14 @@ export class EncounterRestoreSession {
                 this.root.querySelector<HTMLButtonElement>(
                     "[data-action='preview']");
 
-            if (!preview
-                || !(await waitFor(() => !preview.disabled, 1200))) {
+            if (!preview) {
                 throw new Error(
-                    "The saved encounter roster is not ready to rebuild.");
+                    "The saved encounter preview control is unavailable.");
             }
+
+            await waitForPreviewReady(
+                this.root,
+                preview);
 
             this.phase = "await-preview";
             preview.click();
@@ -498,6 +502,18 @@ function applyCombatantBase(
     setDataset(card, "campaignId", saved.campaignId);
     setDataset(card, "templateId", saved.templateId);
     setDataset(card, "instanceNumber", saved.instanceNumber);
+    setDataset(
+        card,
+        "manualDuplicateKey",
+        saved.manualDuplicateKey);
+    setDataset(
+        card,
+        "manualDuplicateBase",
+        saved.manualDuplicateBase);
+    setDataset(
+        card,
+        "manualDuplicateIndex",
+        saved.manualDuplicateIndex);
 
     const blockType =
         card.querySelector<HTMLSelectElement>(
@@ -784,6 +800,20 @@ function restoreRunnerValuesIntoSetup(
         restoreKaijuRuntimeMetadata(
             id,
             {
+                chaosCurrent:
+                    parseBoundedNumber(
+                        kaiju.chaosCurrent,
+                        TRACKER_LIMITS),
+                chaosMax:
+                    parseBoundedNumber(
+                        kaiju.chaosMax,
+                        NON_NEGATIVE_TRACKER_LIMITS),
+                behaviourPhase:
+                    kaiju.behaviourPhase,
+                finishingBlowTarget:
+                    parseBoundedNumber(
+                        kaiju.finishingTarget,
+                        POSITIVE_TRACKER_LIMITS),
                 finishingBlowDamageThisTurn:
                     parseBoundedNumber(
                         kaiju.finishingDamageThisTurn,
@@ -797,7 +827,21 @@ function restoreRunnerValuesIntoSetup(
                         String(kaiju.defeatedRound),
                         POSITIVE_TRACKER_LIMITS) !== null
                         ? kaiju.defeatedRound
-                        : null
+                        : null,
+                areas:
+                    kaiju.areas.map(area => ({
+                        name: area.name,
+                        currentHp:
+                            parseBoundedNumber(
+                                area.currentHp,
+                                TRACKER_LIMITS),
+                        maxHp:
+                            parseBoundedNumber(
+                                area.maxHp,
+                                NON_NEGATIVE_TRACKER_LIMITS),
+                        targetable:
+                            area.targetable
+                    }))
             });
 
         const rows =
@@ -907,40 +951,114 @@ async function restoreCampaignSelection(
 ): Promise<void> {
     if (!campaignId) return;
 
-    const found =
-        await waitFor(() => {
-            const select =
-                root.querySelector<HTMLSelectElement>(
-                    "[data-role='campaign-select']");
-            return Boolean(
-                select
-                && Array.from(select.options)
-                    .some(option =>
-                        option.value === campaignId));
-        }, 2500);
-
-    if (!found) return;
-
     const select =
-        root.querySelector<HTMLSelectElement>(
-            "[data-role='campaign-select']");
-    if (!select) return;
+        await waitForCampaignOption(
+            root,
+            campaignId);
 
-    select.value = campaignId;
-    select.dispatchEvent(
-        new Event("change", { bubbles: true }));
+    await new Promise<void>(
+        (resolve, reject) => {
+            const onChange = (event: Event) => {
+                const detail =
+                    (event as CustomEvent<{
+                        campaignId?: string
+                    } | null>).detail;
 
-    const restored =
-        await waitFor(
-            () =>
-                root.dataset.campaignId
-                    === campaignId,
-            5000);
+                if (detail?.campaignId === campaignId
+                    || root.dataset.campaignId === campaignId) {
+                    root.removeEventListener(
+                        "block-initiative:campaign-change",
+                        onChange);
+                    resolve();
+                    return;
+                }
 
-    if (!restored) {
-        select.value = "";
-        delete root.dataset.campaignId;
+                if (detail === null
+                    && select.value === "") {
+                    root.removeEventListener(
+                        "block-initiative:campaign-change",
+                        onChange);
+                    reject(new Error(
+                        "The saved campaign could not be restored. "
+                        + "Retry campaign access or reset the encounter."));
+                }
+            };
+
+            root.addEventListener(
+                "block-initiative:campaign-change",
+                onChange);
+
+            select.value = campaignId;
+            select.dispatchEvent(
+                new Event(
+                    "change",
+                    { bubbles: true }));
+
+            if (root.dataset.campaignId === campaignId) {
+                root.removeEventListener(
+                    "block-initiative:campaign-change",
+                    onChange);
+                resolve();
+            }
+        });
+}
+
+async function waitForCampaignOption(
+    root: HTMLElement,
+    campaignId: string
+): Promise<HTMLSelectElement> {
+    const find = (): HTMLSelectElement | null => {
+        const select =
+            root.querySelector<HTMLSelectElement>(
+                "[data-role='campaign-select']");
+        if (!select) return null;
+
+        return Array.from(select.options)
+            .some(option =>
+                option.value === campaignId)
+            ? select
+            : null;
+    };
+
+    const current = find();
+    if (current) return current;
+
+    const currentState =
+        root.dataset.campaignCatalogState;
+    if (currentState === "ready"
+        || currentState === "unavailable") {
+        throw new Error(
+            "The saved campaign is not currently available to this account.");
     }
+
+    return await new Promise<HTMLSelectElement>(
+        (resolve, reject) => {
+            const onCatalog = () => {
+                const select = find();
+                if (select) {
+                    window.removeEventListener(
+                        "block-initiative:campaign-catalog-change",
+                        onCatalog);
+                    resolve(select);
+                    return;
+                }
+
+                const state =
+                    root.dataset.campaignCatalogState;
+                if (state === "ready"
+                    || state === "unavailable") {
+                    window.removeEventListener(
+                        "block-initiative:campaign-catalog-change",
+                        onCatalog);
+                    reject(new Error(
+                        "The saved campaign is not currently available to this account."));
+                }
+            };
+
+            window.addEventListener(
+                "block-initiative:campaign-catalog-change",
+                onCatalog);
+        });
 }
 
 function restoreRunnerValues(
@@ -1052,17 +1170,48 @@ function nextTask(): Promise<void> {
         resolve => window.setTimeout(resolve, 0));
 }
 
-async function waitFor(
-    predicate: () => boolean,
-    timeoutMs: number
-): Promise<boolean> {
-    const started = Date.now();
+async function waitForPreviewReady(
+    root: HTMLElement,
+    preview: HTMLButtonElement
+): Promise<void> {
+    if (!preview.disabled) return;
 
-    while (Date.now() - started < timeoutMs) {
-        if (predicate()) return true;
-        await new Promise(
-            resolve => window.setTimeout(resolve, 25));
+    if (root.dataset.initiativeServiceConnected === "true") {
+        throw new Error(
+            "The saved encounter roster is not ready to rebuild.");
     }
 
-    return predicate();
+    await new Promise<void>(
+        (resolve, reject) => {
+            const onReadiness = (event: Event) => {
+                const detail =
+                    (event as CustomEvent<{
+                        connected?: boolean;
+                        busy?: boolean;
+                        ready?: boolean;
+                    }>).detail;
+
+                if (detail?.ready
+                    || !preview.disabled) {
+                    window.removeEventListener(
+                        "block-initiative:service-readiness",
+                        onReadiness);
+                    resolve();
+                    return;
+                }
+
+                if (detail?.connected
+                    && !detail.busy) {
+                    window.removeEventListener(
+                        "block-initiative:service-readiness",
+                        onReadiness);
+                    reject(new Error(
+                        "The saved encounter roster is not ready to rebuild."));
+                }
+            };
+
+            window.addEventListener(
+                "block-initiative:service-readiness",
+                onReadiness);
+        });
 }

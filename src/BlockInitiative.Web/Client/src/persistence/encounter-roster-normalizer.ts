@@ -145,6 +145,15 @@ function normalizeCombatant(
             nullableString(item.instanceNumber),
         autoName:
             nullableString(item.autoName),
+        manualDuplicateKey:
+            nullableString(
+                item.manualDuplicateKey),
+        manualDuplicateBase:
+            nullableString(
+                item.manualDuplicateBase),
+        manualDuplicateIndex:
+            nullableString(
+                item.manualDuplicateIndex),
         monsterMetaText:
             stringOrEmpty(item.monsterMetaText),
         setupAreaCount:

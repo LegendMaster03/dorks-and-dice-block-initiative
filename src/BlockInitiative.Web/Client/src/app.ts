@@ -17,7 +17,8 @@ if (!(root instanceof HTMLElement)) {
         "Block Initiative could not find the Dorks & Dice tool root.");
 }
 
-const shell = mountApplicationShell(root);
+const appRoot: HTMLElement = root;
+const shell = mountApplicationShell(appRoot);
 
 const setup = query<HTMLElement>("[data-role='setup']");
 const hostStatus =
@@ -133,11 +134,31 @@ function handleRosterChanged(): void {
 }
 
 function updateReady(): void {
+    const connected =
+        Boolean(previewUrl);
+
     roster.updateReady({
-        connected: Boolean(previewUrl),
+        connected,
         busy,
         editing: runner.isEditing
     });
+
+    appRoot.dataset.initiativeServiceConnected =
+        String(connected);
+    appRoot.dataset.initiativeRosterReady =
+        String(!previewButton.disabled);
+
+    window.dispatchEvent(
+        new CustomEvent(
+            "block-initiative:service-readiness",
+            {
+                detail: {
+                    connected,
+                    busy,
+                    ready:
+                        !previewButton.disabled
+                }
+            }));
 }
 
 async function buildPreview(

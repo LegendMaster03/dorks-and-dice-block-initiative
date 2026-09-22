@@ -103,9 +103,13 @@ export type InitiativePreviewResult = {
     response: InitiativePreviewResponse;
 };
 
+export type InitiativeStatePublicationSource =
+    "request" | "start" | "resume" | "advance" | "previous" | "reorder";
+
 export type InitiativeTurnStateResult = {
     request: InitiativeTurnStateRequest;
     response: InitiativeTurnStateResponse;
+    publicationSource?: InitiativeStatePublicationSource;
 };
 
 export async function requestInitiativePreview(
@@ -160,12 +164,19 @@ export async function requestInitiativeTurnState(
 }
 
 export function publishInitiativeTurnState(
-    result: InitiativeTurnStateResult
+    result: InitiativeTurnStateResult,
+    publicationSource:
+        InitiativeStatePublicationSource = "request"
 ): void {
     window.dispatchEvent(
         new CustomEvent(
             "block-initiative:state",
-            { detail: result }));
+            {
+                detail: {
+                    ...result,
+                    publicationSource
+                }
+            }));
 }
 
 export async function loadInitiativeTurnState(

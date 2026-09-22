@@ -36,6 +36,8 @@ type PreviewDetail = {
 type StateDetail = {
     request: InitiativeTurnStateRequest;
     response: InitiativeTurnStateResponse;
+    publicationSource?:
+        "request" | "start" | "resume" | "advance" | "previous" | "reorder";
 };
 
 type Endpoints = {
@@ -84,10 +86,11 @@ export function initializeCombatantDragReorderUi(): void {
         if (!detail?.request || !detail?.response) return;
         lastState = detail;
 
-        // A zero-advance state load that did not originate from this module is
-        // a new or explicitly resumed encounter state. Treat that order as the
-        // reset point and start a fresh undo history.
-        if (!applying && detail.request.advanceCount === 0) {
+        const resetsReorderRuntime =
+            detail.publicationSource === "start"
+            || detail.publicationSource === "resume";
+
+        if (!applying && resetsReorderRuntime) {
             resetCombatantReorderRuntime(
                 previewRequestFrom(detail.request),
                 stateOrder(detail.response));
@@ -352,7 +355,46 @@ function ensureReorderControls(runner: HTMLElement, root: HTMLElement): void {
         stack ? runner.insertBefore(hint, stack) : runner.append(hint);
     }
 
+    ensureReorderStatus(runner);
     root.classList.toggle("bi-reorder-busy", applying);
+}
+
+function ensureReorderStatus(
+    runner: HTMLElement
+): HTMLElement {
+    let status =
+        runner.querySelector<HTMLElement>(
+            ":scope > [data-role='reorder-status']");
+    if (status) return status;
+
+    status = document.createElement("div");
+    status.dataset.role = "reorder-status";
+    status.className = "bi-message bi-error";
+    status.hidden = true;
+
+    const hint =
+        runner.querySelector<HTMLElement>(
+            ":scope > [data-role='reorder-hint']");
+    hint?.after(status);
+    if (!status.isConnected) runner.append(status);
+    return status;
+}
+
+function reportReorderError(message: string): void {
+    announce(message);
+
+    const root =
+        document.getElementById("tool-root");
+    const runner =
+        root?.querySelector<HTMLElement>(
+            "[data-runner-blocks]")
+            ?.closest<HTMLElement>(
+                "section.card.card-body.bi-grid");
+    if (!runner) return;
+
+    const status = ensureReorderStatus(runner);
+    status.textContent = message;
+    status.hidden = false;
 }
 
 function updateReorderControls(runner: HTMLElement): void {
@@ -388,7 +430,8 @@ async function applyOrder(
     const current = currentStateOrder();
     const expectedIds = lastPreview.response.orderedCombatants.map(combatant => combatant.id);
     if (!sameMembers(order, expectedIds) || !sameMembers(current, expectedIds)) {
-        announce("The combatant list changed while reordering. Rebuild the encounter before trying again.");
+        reportReorderError(
+            "The combatant list changed while reordering. Rebuild the encounter before trying again.");
         return;
     }
     if (sameOrder(order, current)) return;
@@ -396,7 +439,8 @@ async function applyOrder(
     const active = lastState.response.blocks.find(block => block.id === lastState!.response.activeBlockId);
     const anchor = active?.memberOrder[0];
     if (!anchor) {
-        announce("The active turn could not be preserved, so the reorder was not applied.");
+        reportReorderError(
+            "The active turn could not be preserved, so the reorder was not applied.");
         return;
     }
 
@@ -452,7 +496,9 @@ async function applyOrder(
             state: stateResult.response
         });
         publishInitiativePreview(previewResult);
-        publishInitiativeTurnState(stateResult);
+        publishInitiativeTurnState(
+            stateResult,
+            "reorder");
 
         if (historyMode === "push") {
             pushCombatantReorderHistory(
@@ -469,7 +515,10 @@ async function applyOrder(
         announce(`Initiative order updated. ${blockCount} block${blockCount === 1 ? "" : "s"} now derived from the DM order.`);
     } catch (error) {
         setRuntimeManualOrder(previousRuntime);
-        announce(error instanceof Error ? error.message : "The initiative order could not be updated.");
+        reportReorderError(
+            error instanceof Error
+                ? error.message
+                : "The initiative order could not be updated.");
     } finally {
         applying = false;
         requestEnhancement();

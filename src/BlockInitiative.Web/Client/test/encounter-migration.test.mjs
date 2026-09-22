@@ -24,13 +24,13 @@ function legacyEncounter(overrides = {}) {
     };
 }
 
-test("v1 encounters migrate to complete v3 defaults", () => {
+test("v1 encounters migrate to complete v4 defaults", () => {
     const migrated =
         normalizeSavedEncounter(
             legacyEncounter());
 
     assert.ok(migrated);
-    assert.equal(migrated.version, 3);
+    assert.equal(migrated.version, 4);
     assert.equal(migrated.initiativeMode, "block");
     assert.deepEqual(
         migrated.runnerCombat,
@@ -115,7 +115,7 @@ test("malformed nested turn-state blocks are not passed to restore", () => {
 
 
 
-test("v2 acted markers and condition links migrate into v3 state", () => {
+test("v2 acted markers and condition links migrate into v4 state", () => {
     const migrated =
         normalizeSavedEncounter({
             ...legacyEncounter(),
@@ -144,4 +144,69 @@ test("v2 acted markers and condition links migrate into v3 state", () => {
     assert.equal(
         migrated.players[0].conditions[0].origin,
         "rules-core");
+});
+
+
+test("legacy finishing damage is attached to the saved active turn", () => {
+    const migrated =
+        normalizeSavedEncounter({
+            ...legacyEncounter(),
+            version: 3,
+            runnerCombat: {
+                standard: {},
+                kaiju: {
+                    "kaiju-1": {
+                        chaosCurrent: "0",
+                        chaosMax: "100",
+                        behaviourPhase: "",
+                        finishingTarget: "20",
+                        finishingDamageThisTurn: "17",
+                        finishingDamageByTurn: {},
+                        defeatedRound: null,
+                        areas: []
+                    }
+                }
+            },
+            state: {
+                request: {
+                    combatants: [{
+                        id: "hero-1",
+                        name: "Hero",
+                        allianceId: "players",
+                        initiativeTotal: 20,
+                        initiativeModifier: null,
+                        controllerId: null,
+                        tacticalGroupId: null,
+                        blockType: "standard"
+                    }],
+                    initiativeMode: "block",
+                    tacticalGroupMode: "average",
+                    manualOrderOverride: null,
+                    advanceCount: 1
+                },
+                response: {
+                    round: 3,
+                    activeBlockId: "block-2",
+                    blocks: [{
+                        id: "block-2",
+                        allianceId: "players",
+                        blockType: "standard",
+                        memberIds: ["hero-1"],
+                        memberOrder: ["hero-1"],
+                        sourceBlockIds: ["block-2"],
+                        isMerged: false
+                    }],
+                    cyclicMergePending: false,
+                    cyclicMergeCompleted: false,
+                    lowerCyclicBlockSkippedRoundOne: false,
+                    lastAdvance: null
+                }
+            }
+        });
+
+    assert.ok(migrated);
+    assert.deepEqual(
+        migrated.runnerCombat.kaiju["kaiju-1"]
+            .finishingDamageByTurn,
+        { "3:hero-1": 17 });
 });

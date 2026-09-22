@@ -14,7 +14,7 @@ This persistence is local browser persistence. It is not account synchronization
 
 ## Persisted state
 
-An encounter save is a complete encounter snapshot. The browser snapshot retains the encounter roster and stable combatant IDs, every Standard and Kaiju block, player/enemy/other-side grouping, tactical-group mode, Block/Standard initiative mode, campaign association, initiative preview/manual ordering, combatant-reorder baseline and undo history, current round and active block, per-combatant Acted history by round, ordinary HP, complete Kaiju combat state including Finishing Blow damage keyed by turn and the original defeat round used for Death Rattle timing, tracked condition names/levels/notes plus durable Rules Core identity and links, and projected Rules Core monster information already handed to the tool.
+An encounter save is a complete encounter snapshot. The browser snapshot retains the encounter roster and stable combatant IDs, every Standard and Kaiju block, player/enemy/other-side grouping, tactical-group mode, Block/Standard initiative mode, campaign association, initiative preview/manual ordering, combatant-reorder baseline and undo history, current round and active block, per-combatant Acted history by round, ordinary HP, complete Kaiju combat state including Finishing Blow damage keyed by turn and the original defeat round used for Death Rattle timing, tracked condition names/levels/notes plus durable Rules Core identity and links, and projected Rules Core monster information already handed to the tool, and manual duplicate-family identity used by the "+ Another" workflow.
 
 Legacy saves that used the retired shared-roll tactical-group selector remain supported. During restoration, the saved group roll is projected into the current tactical-group representation so the encounter can resume without changing its effective initiative placement.
 
@@ -24,7 +24,9 @@ When a running encounter is restored, Block Initiative rebuilds the roster and i
 
 ## Boundaries
 
-The current storage schema is version 3. Version 1 and version 2 automatic and named saves are normalized into the version 3 model on read, including inferred initiative mode, single-round Acted markers, legacy condition links, and safe defaults for newer runtime fields. Current writes use version 3 storage keys while version 1 and version 2 keys remain readable for migration.
+The current storage schema is version 4. Version 1 through version 3 automatic and named saves are normalized into the version 4 model on read, including inferred initiative mode, single-round Acted markers, legacy condition links, legacy Finishing Blow turn damage, and safe defaults for newer runtime fields. Successful promotion writes the v4 snapshot and retires the migrated legacy key so an obsolete encounter can not later reappear.
+
+Restore readiness is event-driven. A saved encounter waits for the initiative service and, when applicable, its campaign catalog/selection instead of failing because of a short network timeout. Automatic saving remains suspended until those dependencies and the encounter itself are restored.
 
 Stored data is normalized before restoration. Malformed roster, preview, block, or turn-state structures are not passed through to the encounter runner. Unknown or malformed saved data is not silently deleted; the reset control remains the explicit destructive action. Restore failures likewise leave the saved snapshot in place so the user can retry or intentionally reset it.
 

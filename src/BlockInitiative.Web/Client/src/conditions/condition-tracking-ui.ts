@@ -167,6 +167,7 @@ function paintInlineConditions(
         conditions.map(condition => [
             condition.id,
             condition.name,
+            condition.level,
             condition.note
         ]));
 
@@ -184,9 +185,7 @@ function paintInlineConditions(
             const chip = document.createElement("span");
             chip.className = "bi-condition-summary-chip";
             chip.textContent = conditionLabel(condition);
-            chip.title = condition.note
-                ? `${condition.name}: ${condition.note}`
-                : condition.name;
+            chip.title = conditionLabel(condition);
             return chip;
         }));
 

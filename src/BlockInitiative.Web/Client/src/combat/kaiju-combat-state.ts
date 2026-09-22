@@ -55,9 +55,19 @@ type KaijuEvaluation = {
 };
 
 export type KaijuRuntimeMetadata = {
+    chaosCurrent: number | null;
+    chaosMax: number | null;
+    behaviourPhase: string;
+    finishingBlowTarget: number | null;
     finishingBlowDamageThisTurn: number;
     finishingBlowDamageByTurn: Record<string, number>;
     defeatedRound: number | null;
+    areas: Array<{
+        name: string;
+        currentHp: number | null;
+        maxHp: number | null;
+        targetable: boolean;
+    }>;
 };
 
 const kaijuStates = new Map<string, KaijuState>();
@@ -162,12 +172,23 @@ export function readKaijuRuntimeMetadata(
     const state = kaijuStates.get(combatantId);
     return state
         ? {
+            chaosCurrent: state.chaosCurrent,
+            chaosMax: state.chaosMax,
+            behaviourPhase: state.behaviourPhase,
+            finishingBlowTarget:
+                state.finishingBlowTarget,
             finishingBlowDamageThisTurn:
                 state.finishingBlowDamageThisTurn,
             finishingBlowDamageByTurn:
                 Object.fromEntries(
                     state.finishingBlowDamageByTurn),
-            defeatedRound: state.defeatedRound
+            defeatedRound: state.defeatedRound,
+            areas: state.areas.map(area => ({
+                name: area.name,
+                currentHp: area.currentHp,
+                maxHp: area.maxHp,
+                targetable: area.targetable
+            }))
         }
         : null;
 }
@@ -178,6 +199,29 @@ export function restoreKaijuRuntimeMetadata(
 ): void {
     const state = kaijuStates.get(combatantId);
     if (!state) return;
+
+    state.chaosCurrent =
+        metadata.chaosCurrent;
+    state.chaosMax =
+        metadata.chaosMax;
+    state.behaviourPhase =
+        metadata.behaviourPhase;
+    state.finishingBlowTarget =
+        metadata.finishingBlowTarget;
+    state.areas =
+        metadata.areas.map((area, index) => {
+            const existing =
+                state.areas[index]
+                ?? newArea(index + 1);
+            existing.name = area.name;
+            existing.currentHp =
+                area.currentHp;
+            existing.maxHp =
+                area.maxHp;
+            existing.targetable =
+                area.targetable;
+            return existing;
+        });
 
     state.finishingBlowDamageByTurn =
         new Map(
@@ -258,7 +302,7 @@ export function ensureKaijuCombatSetup(
 
     const phase = panel.querySelector<HTMLInputElement>("[data-field='behaviour-phase']")!;
     phase.value = state.behaviourPhase;
-    phase.addEventListener("change", () => {
+    phase.addEventListener("input", () => {
         state.behaviourPhase = phase.value.trim();
     });
 
@@ -481,12 +525,19 @@ function renderKaiju(
     chaosControls.append(
         chaosAmount.wrapper,
         actionButton("Damage", "btn-outline-secondary", () => {
-            state.chaosCurrent =
-                (state.chaosCurrent ?? state.chaosMax ?? 0) - chaosAmount.value();
+            state.chaosCurrent = Math.max(
+                TRACKER_LIMITS.min,
+                (state.chaosCurrent
+                    ?? state.chaosMax
+                    ?? 0)
+                - chaosAmount.value());
             void evaluateKaiju(id, state, root, true);
         }),
         actionButton("Restore", "btn-outline-secondary", () => {
-            const next = (state.chaosCurrent ?? 0) + chaosAmount.value();
+            const next = Math.min(
+                TRACKER_LIMITS.max,
+                (state.chaosCurrent ?? 0)
+                + chaosAmount.value());
             state.chaosCurrent = state.chaosMax === null
                 ? next
                 : Math.min(next, state.chaosMax);
