@@ -907,8 +907,6 @@ async function restoreCampaignSelection(
 ): Promise<void> {
     if (!campaignId) return;
 
-    root.dataset.campaignId = campaignId;
-
     const found =
         await waitFor(() => {
             const select =
@@ -931,6 +929,18 @@ async function restoreCampaignSelection(
     select.value = campaignId;
     select.dispatchEvent(
         new Event("change", { bubbles: true }));
+
+    const restored =
+        await waitFor(
+            () =>
+                root.dataset.campaignId
+                    === campaignId,
+            5000);
+
+    if (!restored) {
+        select.value = "";
+        delete root.dataset.campaignId;
+    }
 }
 
 function restoreRunnerValues(
