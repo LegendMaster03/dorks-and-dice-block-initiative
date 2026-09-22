@@ -15,7 +15,8 @@ import {
 import {
     NON_NEGATIVE_TRACKER_LIMITS,
     parseBoundedNumber,
-    POSITIVE_TRACKER_LIMITS
+    POSITIVE_TRACKER_LIMITS,
+    TRACKER_LIMITS
 } from "../numeric-input-limits";
 import { requestEnhancement } from "../render-lifecycle";
 import {
@@ -799,6 +800,20 @@ function restoreRunnerValuesIntoSetup(
         restoreKaijuRuntimeMetadata(
             id,
             {
+                chaosCurrent:
+                    parseBoundedNumber(
+                        kaiju.chaosCurrent,
+                        TRACKER_LIMITS),
+                chaosMax:
+                    parseBoundedNumber(
+                        kaiju.chaosMax,
+                        NON_NEGATIVE_TRACKER_LIMITS),
+                behaviourPhase:
+                    kaiju.behaviourPhase,
+                finishingBlowTarget:
+                    parseBoundedNumber(
+                        kaiju.finishingTarget,
+                        POSITIVE_TRACKER_LIMITS),
                 finishingBlowDamageThisTurn:
                     parseBoundedNumber(
                         kaiju.finishingDamageThisTurn,
@@ -812,7 +827,21 @@ function restoreRunnerValuesIntoSetup(
                         String(kaiju.defeatedRound),
                         POSITIVE_TRACKER_LIMITS) !== null
                         ? kaiju.defeatedRound
-                        : null
+                        : null,
+                areas:
+                    kaiju.areas.map(area => ({
+                        name: area.name,
+                        currentHp:
+                            parseBoundedNumber(
+                                area.currentHp,
+                                TRACKER_LIMITS),
+                        maxHp:
+                            parseBoundedNumber(
+                                area.maxHp,
+                                NON_NEGATIVE_TRACKER_LIMITS),
+                        targetable:
+                            area.targetable
+                    }))
             });
 
         const rows =
