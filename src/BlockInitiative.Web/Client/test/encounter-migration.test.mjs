@@ -84,3 +84,32 @@ test("malformed nested combatants reject the save instead of reaching restore", 
 
     assert.equal(migrated, null);
 });
+
+test("malformed nested turn-state blocks are not passed to restore", () => {
+    const migrated =
+        normalizeSavedEncounter(
+            legacyEncounter({
+                state: {
+                    request: {
+                        combatants: [],
+                        initiativeMode: "block",
+                        tacticalGroupMode: "average",
+                        manualOrderOverride: null,
+                        advanceCount: 0
+                    },
+                    response: {
+                        round: 1,
+                        activeBlockId: "bad",
+                        blocks: [{ id: "bad" }],
+                        cyclicMergePending: false,
+                        cyclicMergeCompleted: false,
+                        lowerCyclicBlockSkippedRoundOne: false,
+                        lastAdvance: null
+                    }
+                }
+            }));
+
+    assert.ok(migrated);
+    assert.equal(migrated.state, null);
+});
+
