@@ -98,7 +98,7 @@ export function readNamedEncounters():
 
         return [];
     } catch {
-        return null;
+        return [];
     }
 }
 
@@ -186,7 +186,7 @@ function readNamedEncountersAt(
             return save ? [save] : [];
         });
     } catch {
-        return [];
+        return null;
     }
 }
 
