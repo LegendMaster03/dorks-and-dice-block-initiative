@@ -12,6 +12,10 @@ export type PreviewDetail = {
 };
 
 export type TurnStateDetail = {
+    request?: {
+        advanceCount?: number;
+        resumeActiveCombatantId?: string | null;
+    };
     response: {
         round: number;
         activeBlockId: string | null;
