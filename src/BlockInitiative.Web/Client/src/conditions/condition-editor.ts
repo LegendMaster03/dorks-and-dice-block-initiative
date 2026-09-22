@@ -292,6 +292,7 @@ function buildConditionPicker(
                         results,
                         matches,
                         combatantId,
+                        level,
                         note,
                         root);
                     status.textContent = matches.length
