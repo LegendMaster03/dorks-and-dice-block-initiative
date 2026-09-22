@@ -8,13 +8,17 @@ import type {
 } from "./encounter-schema";
 
 const automaticStorageKey =
-    "dorks-and-dice:block-initiative:encounter:v2";
-const legacyAutomaticStorageKey =
-    "dorks-and-dice:block-initiative:encounter:v1";
+    "dorks-and-dice:block-initiative:encounter:v3";
+const legacyAutomaticStorageKeys = [
+    "dorks-and-dice:block-initiative:encounter:v2",
+    "dorks-and-dice:block-initiative:encounter:v1"
+] as const;
 const namedStorageKey =
-    "dorks-and-dice:block-initiative:named-encounters:v2";
-const legacyNamedStorageKey =
-    "dorks-and-dice:block-initiative:named-encounters:v1";
+    "dorks-and-dice:block-initiative:named-encounters:v3";
+const legacyNamedStorageKeys = [
+    "dorks-and-dice:block-initiative:named-encounters:v2",
+    "dorks-and-dice:block-initiative:named-encounters:v1"
+] as const;
 
 export function readAutomaticEncounter(): SavedEncounter | null {
     try {
@@ -22,13 +26,15 @@ export function readAutomaticEncounter(): SavedEncounter | null {
             readSavedEncounterAt(automaticStorageKey);
         if (current) return current;
 
-        const legacy =
-            readSavedEncounterAt(
-                legacyAutomaticStorageKey);
-        if (!legacy) return null;
+        for (const key of legacyAutomaticStorageKeys) {
+            const legacy =
+                readSavedEncounterAt(key);
+            if (!legacy) continue;
+            writeAutomaticEncounter(legacy);
+            return legacy;
+        }
 
-        writeAutomaticEncounter(legacy);
-        return legacy;
+        return null;
     } catch {
         return null;
     }
@@ -50,8 +56,9 @@ export function writeAutomaticEncounter(
 export function clearAutomaticEncounter(): void {
     window.localStorage.removeItem(
         automaticStorageKey);
-    window.localStorage.removeItem(
-        legacyAutomaticStorageKey);
+    for (const key of legacyAutomaticStorageKeys) {
+        window.localStorage.removeItem(key);
+    }
 }
 
 export function readNamedEncounters():
@@ -66,13 +73,15 @@ export function readNamedEncounters():
             return sortNamed(current);
         }
 
-        const legacy =
-            readNamedEncountersAt(
-                legacyNamedStorageKey);
-        if (legacy.length > 0) {
+        for (const key of legacyNamedStorageKeys) {
+            const legacy =
+                readNamedEncountersAt(key);
+            if (!legacy.length) continue;
             writeNamedEncounters(legacy);
+            return sortNamed(legacy);
         }
-        return sortNamed(legacy);
+
+        return [];
     } catch {
         return [];
     }
