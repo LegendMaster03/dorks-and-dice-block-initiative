@@ -1,4 +1,9 @@
 import { searchRulesCoreConditions } from "../integrations/rules-core/conditions";
+import {
+    applyNumberLimits,
+    parseBoundedNumber,
+    POSITIVE_TRACKER_LIMITS
+} from "../numeric-input-limits";
 import { toHostedToolHref } from "../integrations/rules-core/client";
 import type { ConditionSearchMatch } from "../integrations/rules-core/conditions";
 import {
@@ -102,19 +107,16 @@ function buildConditionChip(
     levelLabel.textContent = "Level (optional)";
     const level = document.createElement("input");
     level.type = "number";
-    level.min = "1";
-    level.step = "1";
+    applyNumberLimits(
+        level,
+        POSITIVE_TRACKER_LIMITS);
     level.value =
         condition.level === null
             ? ""
             : String(condition.level);
     level.addEventListener("input", () => {
-        const raw = level.value.trim();
         const parsed =
-            raw && Number.isInteger(Number(raw))
-                && Number(raw) >= 1
-                ? Number(raw)
-                : null;
+            readConditionLevel(level);
         const updated = updateConditionLevel(
             combatantId,
             condition.id,
@@ -210,8 +212,9 @@ function buildConditionPicker(
     levelLabel.textContent = "Level (optional)";
     const level = document.createElement("input");
     level.type = "number";
-    level.min = "1";
-    level.step = "1";
+    applyNumberLimits(
+        level,
+        POSITIVE_TRACKER_LIMITS);
     level.placeholder = "e.g. 2";
     levelField.append(levelLabel, level);
 
@@ -489,10 +492,7 @@ function installStyles(documentRef: Document): void {
 function readConditionLevel(
     input: HTMLInputElement
 ): number | null {
-    const raw = input.value.trim();
-    if (!raw) return null;
-    const value = Number(raw);
-    return Number.isInteger(value) && value >= 1
-        ? value
-        : null;
+    return parseBoundedNumber(
+        input.value,
+        POSITIVE_TRACKER_LIMITS);
 }
