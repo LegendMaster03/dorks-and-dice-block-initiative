@@ -21,6 +21,16 @@ export function clearStandardCombatState(combatantId: string): void {
     standardStates.delete(combatantId);
 }
 
+export function pruneStandardCombatStates(
+    activeCombatantIds: ReadonlySet<string>
+): void {
+    for (const combatantId of standardStates.keys()) {
+        if (!activeCombatantIds.has(combatantId)) {
+            standardStates.delete(combatantId);
+        }
+    }
+}
+
 export function ensureStandardCombatSetup(
     card: HTMLElement,
     combatantId: string

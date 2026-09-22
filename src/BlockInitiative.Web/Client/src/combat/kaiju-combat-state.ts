@@ -2,6 +2,10 @@ import {
     mountEncounterCardState,
     removeEncounterCardState
 } from "../encounter-card-renderer";
+import {
+    NON_NEGATIVE_TRACKER_LIMITS,
+    POSITIVE_TRACKER_LIMITS
+} from "../numeric-input-limits";
 import { requestEnhancement } from "../render-lifecycle";
 import {
     actionButton,
@@ -48,15 +52,26 @@ type KaijuEvaluation = {
     vulnerableAreas: Array<{ id: string; exploited: boolean }>;
 };
 
+export type KaijuRuntimeMetadata = {
+    finishingBlowDamageThisTurn: number;
+    defeatedRound: number | null;
+};
+
 const kaijuStates = new Map<string, KaijuState>();
 const evaluations = new Map<string, KaijuEvaluation>();
+const evaluationErrors = new Map<string, string>();
 const evaluating = new Set<string>();
+const evaluationRevisions = new Map<string, number>();
+const refreshAfterEvaluation = new Set<string>();
 
-let evaluateUrl: Promise<string> | null = null;
+let resolvedEvaluateUrl: string | null = null;
+let resolvingEvaluateUrl: Promise<string> | null = null;
 let currentRound: number | null = null;
 
 export function initializeKaijuCombatState(root: HTMLElement): void {
-    evaluateUrl ??= resolveEvaluateUrl(root);
+    void getEvaluateUrl(root).catch(() => {
+        // A transient Tool Host context failure is retried on the next evaluation.
+    });
 }
 
 export function setKaijuCombatRound(round: number): void {
@@ -64,9 +79,56 @@ export function setKaijuCombatRound(round: number): void {
 }
 
 export function clearKaijuCombatState(combatantId: string): void {
+    const hasInFlightEvaluation =
+        evaluating.has(combatantId);
+
     kaijuStates.delete(combatantId);
     evaluations.delete(combatantId);
-    evaluating.delete(combatantId);
+    evaluationErrors.delete(combatantId);
+    refreshAfterEvaluation.delete(combatantId);
+
+    if (hasInFlightEvaluation) {
+        evaluationRevisions.set(
+            combatantId,
+            (evaluationRevisions.get(combatantId) ?? 0) + 1);
+    } else {
+        evaluationRevisions.delete(combatantId);
+    }
+}
+
+export function pruneKaijuCombatStates(
+    activeCombatantIds: ReadonlySet<string>
+): void {
+    for (const combatantId of kaijuStates.keys()) {
+        if (!activeCombatantIds.has(combatantId)) {
+            clearKaijuCombatState(combatantId);
+        }
+    }
+}
+
+export function readKaijuRuntimeMetadata(
+    combatantId: string
+): KaijuRuntimeMetadata | null {
+    const state = kaijuStates.get(combatantId);
+    return state
+        ? {
+            finishingBlowDamageThisTurn:
+                state.finishingBlowDamageThisTurn,
+            defeatedRound: state.defeatedRound
+        }
+        : null;
+}
+
+export function restoreKaijuRuntimeMetadata(
+    combatantId: string,
+    metadata: KaijuRuntimeMetadata
+): void {
+    const state = kaijuStates.get(combatantId);
+    if (!state) return;
+
+    state.finishingBlowDamageThisTurn =
+        metadata.finishingBlowDamageThisTurn;
+    state.defeatedRound = metadata.defeatedRound;
 }
 
 export function ensureKaijuCombatSetup(
@@ -105,10 +167,15 @@ export function ensureKaijuCombatSetup(
             state.chaosCurrent = value;
             void evaluateKaiju(combatantId, state, root, false);
         }),
-        numberField("Finishing Blow", state.finishingBlowTarget, value => {
-            state.finishingBlowTarget = value;
-            void evaluateKaiju(combatantId, state, root, false);
-        })
+        numberField(
+            "Finishing Blow",
+            state.finishingBlowTarget,
+            value => {
+                state.finishingBlowTarget = value;
+                void evaluateKaiju(combatantId, state, root, false);
+            },
+            undefined,
+            POSITIVE_TRACKER_LIMITS)
     );
 
     const phase = panel.querySelector<HTMLInputElement>("[data-field='behaviour-phase']")!;
@@ -257,6 +324,7 @@ function renderKaiju(
     panel.dataset.combatantId = id;
 
     const evaluation = evaluations.get(id);
+    const evaluationError = evaluationErrors.get(id);
 
     const head = document.createElement("div");
     head.className = "bi-row";
@@ -281,7 +349,7 @@ function renderKaiju(
 
     const statuses = document.createElement("div");
     statuses.className = "bi-statuses";
-    paintKaijuStatuses(statuses, evaluation);
+    paintKaijuStatuses(statuses, evaluation, evaluationError);
     head.append(title, statuses);
     panel.append(head);
 
@@ -407,17 +475,24 @@ function renderKaiju(
         const controls = document.createElement("div");
         controls.className = "bi-combat-controls";
         controls.append(
-            numberField("Target", state.finishingBlowTarget, value => {
-                state.finishingBlowTarget = value;
-                void evaluateKaiju(id, state, root, true);
-            }),
+            numberField(
+                "Target",
+                state.finishingBlowTarget,
+                value => {
+                    state.finishingBlowTarget = value;
+                    void evaluateKaiju(id, state, root, true);
+                },
+                undefined,
+                POSITIVE_TRACKER_LIMITS),
             numberField(
                 "Damage this turn",
                 state.finishingBlowDamageThisTurn,
                 value => {
                     state.finishingBlowDamageThisTurn = value ?? 0;
                     void evaluateKaiju(id, state, root, true);
-                }),
+                },
+                undefined,
+                NON_NEGATIVE_TRACKER_LIMITS),
             actionButton("Reset turn damage", "btn-outline-secondary", () => {
                 state.finishingBlowDamageThisTurn = 0;
                 void evaluateKaiju(id, state, root, true);
@@ -429,10 +504,6 @@ function renderKaiju(
     }
 
     if (evaluation?.defeated) {
-        if (state.defeatedRound === null && currentRound !== null) {
-            state.defeatedRound = currentRound;
-        }
-
         const note = document.createElement("div");
         note.className = "bi-message bi-warning";
         note.textContent = state.defeatedRound === null
@@ -450,19 +521,37 @@ async function evaluateKaiju(
     root: HTMLElement,
     refreshCardAfterEvaluation: boolean
 ): Promise<void> {
+    const revision =
+        (evaluationRevisions.get(id) ?? 0) + 1;
+    evaluationRevisions.set(id, revision);
+    if (refreshCardAfterEvaluation) {
+        refreshAfterEvaluation.add(id);
+    }
+
+    if (evaluating.has(id)) return;
+    await performLatestKaijuEvaluation(id, state, root);
+}
+
+async function performLatestKaijuEvaluation(
+    id: string,
+    state: KaijuState,
+    root: HTMLElement
+): Promise<void> {
     if (evaluating.has(id)) return;
 
+    const revision = evaluationRevisions.get(id) ?? 0;
     if (!canEvaluateKaiju(state)) {
         evaluations.delete(id);
-        if (refreshCardAfterEvaluation) requestKaijuCardRefresh(root, id);
+        evaluationErrors.delete(id);
+        if (refreshAfterEvaluation.delete(id)) {
+            requestKaijuCardRefresh(root, id);
+        }
         return;
     }
 
     evaluating.add(id);
     try {
-        const url = await evaluateUrl;
-        if (!url) return;
-
+        const url = await getEvaluateUrl(root);
         const response = await fetch(url, {
             method: "POST",
             credentials: "same-origin",
@@ -471,17 +560,15 @@ async function evaluateKaiju(
                 Accept: "application/json"
             },
             body: JSON.stringify({
-                chaosThresholdCurrent: Math.trunc(state.chaosCurrent),
+                chaosThresholdCurrent: state.chaosCurrent,
                 finishingBlowTarget:
-                    state.finishingBlowTarget === null
-                        ? null
-                        : Math.trunc(state.finishingBlowTarget),
+                    state.finishingBlowTarget,
                 finishingBlowDamageThisTurn:
-                    Math.trunc(state.finishingBlowDamageThisTurn),
+                    state.finishingBlowDamageThisTurn,
                 vulnerableAreas: state.areas.map(area => ({
                     id: area.id,
                     name: area.name,
-                    currentHitPoints: Math.trunc(area.currentHp ?? 0),
+                    currentHitPoints: area.currentHp ?? 0,
                     targetable: area.targetable,
                     exploitedOverride: overrideBool(area.exploitedOverride)
                 })),
@@ -492,24 +579,98 @@ async function evaluateKaiju(
         });
 
         if (!response.ok) {
-            evaluations.delete(id);
+            let detail =
+                `Kaiju evaluation returned HTTP ${response.status}.`;
+            try {
+                const payload =
+                    await response.json() as { error?: string };
+                if (payload.error) detail = payload.error;
+            } catch {
+                // Keep the HTTP fallback for non-JSON responses.
+            }
+
+            if ((evaluationRevisions.get(id) ?? 0) === revision) {
+                evaluations.delete(id);
+                evaluationErrors.set(id, detail);
+            }
             return;
         }
 
-        const evaluation = await response.json() as KaijuEvaluation;
+        const evaluation =
+            await response.json() as KaijuEvaluation;
+        if ((evaluationRevisions.get(id) ?? 0) !== revision) {
+            return;
+        }
+
         evaluations.set(id, evaluation);
+        evaluationErrors.delete(id);
 
         if (evaluation.defeated
             && state.defeatedRound === null
             && currentRound !== null) {
             state.defeatedRound = currentRound;
+            notifyCombatStateChanged();
+        } else if (!evaluation.defeated
+            && state.defeatedRound !== null) {
+            state.defeatedRound = null;
+            notifyCombatStateChanged();
         }
-    } catch {
-        evaluations.delete(id);
+    } catch (error) {
+        if ((evaluationRevisions.get(id) ?? 0) === revision) {
+            evaluations.delete(id);
+            evaluationErrors.set(
+                id,
+                error instanceof Error
+                    ? error.message
+                    : "Kaiju evaluation is unavailable.");
+        }
     } finally {
         evaluating.delete(id);
-        if (refreshCardAfterEvaluation) requestKaijuCardRefresh(root, id);
+
+        const currentState = kaijuStates.get(id);
+        if (!currentState) {
+            refreshAfterEvaluation.delete(id);
+            evaluationRevisions.delete(id);
+            return;
+        }
+
+        if (currentState !== state
+            || (evaluationRevisions.get(id) ?? 0) !== revision) {
+            void performLatestKaijuEvaluation(
+                id,
+                currentState,
+                root);
+            return;
+        }
+
+        if (refreshAfterEvaluation.delete(id)) {
+            requestKaijuCardRefresh(root, id);
+        }
     }
+}
+
+async function getEvaluateUrl(
+    root: HTMLElement
+): Promise<string> {
+    if (resolvedEvaluateUrl) return resolvedEvaluateUrl;
+
+    resolvingEvaluateUrl ??=
+        resolveEvaluateUrl(root)
+            .then(url => {
+                resolvedEvaluateUrl = url;
+                return url;
+            })
+            .finally(() => {
+                resolvingEvaluateUrl = null;
+            });
+
+    return await resolvingEvaluateUrl;
+}
+
+function notifyCombatStateChanged(): void {
+    window.dispatchEvent(
+        new CustomEvent(
+            "block-initiative:combat-state-change"));
 }
 
 function requestKaijuCardRefresh(
@@ -537,12 +698,18 @@ function canEvaluateKaiju(
 
 function paintKaijuStatuses(
     container: HTMLElement,
-    evaluation: KaijuEvaluation | undefined
+    evaluation: KaijuEvaluation | undefined,
+    evaluationError: string | undefined
 ): void {
     container.replaceChildren(statusBadge("Kaiju", true));
 
     if (!evaluation) {
-        container.append(statusBadge("State incomplete"));
+        const badge = statusBadge(
+            evaluationError
+                ? "Evaluation unavailable"
+                : "State incomplete");
+        if (evaluationError) badge.title = evaluationError;
+        container.append(badge);
         return;
     }
 

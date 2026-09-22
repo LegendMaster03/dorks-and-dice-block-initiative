@@ -83,6 +83,63 @@ public sealed class InitiativeEngineTests
     }
 
     [Fact]
+    public void Build_ControllerChainUsesResolvedControllerInitiative()
+    {
+        var layout = InitiativeEngine.Build(new[]
+        {
+            C("leader", "Leader", "players", 21),
+            new CombatantInitiative(
+                "middle",
+                "Middle",
+                "players",
+                InitiativeTotal: 13,
+                ControllerId: "leader"),
+            new CombatantInitiative(
+                "follower",
+                "Follower",
+                "players",
+                InitiativeTotal: 5,
+                ControllerId: "middle"),
+            C("enemy", "Enemy", "enemies", 18)
+        });
+
+        Assert.Equal(
+            21,
+            layout.Placements.Single(item =>
+                item.Combatant.Id == "middle").EffectiveInitiative);
+        Assert.Equal(
+            21,
+            layout.Placements.Single(item =>
+                item.Combatant.Id == "follower").EffectiveInitiative);
+    }
+
+    [Fact]
+    public void Build_RejectsControllerCycles()
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            InitiativeEngine.Build(new[]
+            {
+                new CombatantInitiative(
+                    "a",
+                    "A",
+                    "players",
+                    InitiativeTotal: 20,
+                    ControllerId: "b"),
+                new CombatantInitiative(
+                    "b",
+                    "B",
+                    "players",
+                    InitiativeTotal: 10,
+                    ControllerId: "a")
+            }));
+
+        Assert.Contains(
+            "cycle",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Build_OpposingTieRequiresAdjudicationRatherThanInventingRule()
     {
         var layout = InitiativeEngine.Build(new[]

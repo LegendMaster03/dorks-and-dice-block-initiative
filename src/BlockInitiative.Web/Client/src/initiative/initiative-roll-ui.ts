@@ -1,3 +1,7 @@
+import {
+    INITIATIVE_LIMITS,
+    parseBoundedNumber
+} from "../numeric-input-limits";
 import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
 
 const D20_SIDES = 20;
@@ -269,7 +273,11 @@ function applyOneRollToGroup(group: HTMLElement, raw: number): void {
     const members = Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"));
     if (!members.length) return;
 
-    const highestModifier = Math.max(...members.map(initiativeModifier));
+    const modifiers = members.map(initiativeModifier);
+    if (modifiers.some(modifier => modifier === null)) return;
+
+    const highestModifier = Math.max(
+        ...(modifiers as number[]));
     const total = raw + highestModifier;
     for (const member of members) {
         const initiative = member.querySelector<HTMLInputElement>("[data-field='initiative']");
@@ -288,6 +296,8 @@ function rollCombatant(card: HTMLElement): void {
     const initiative = card.querySelector<HTMLInputElement>("[data-field='initiative']");
     if (!initiative) return;
     const modifier = initiativeModifier(card);
+    if (modifier === null) return;
+
     const raw = rollD20();
     const total = raw + modifier;
     initiative.value = formatNumber(total);
@@ -312,10 +322,18 @@ function refreshGroupSummary(group: HTMLElement, mode: string): void {
     }
 
     const totals = members
-        .map(member => member.querySelector<HTMLInputElement>("[data-field='initiative']")?.value.trim() ?? "")
+        .map(member =>
+            member.querySelector<HTMLInputElement>(
+                "[data-field='initiative']")
+                ?.value.trim()
+            ?? "")
         .filter(value => value !== "")
-        .map(Number)
-        .filter(Number.isFinite);
+        .map(value =>
+            parseBoundedNumber(
+                value,
+                INITIATIVE_LIMITS))
+        .filter((value): value is number =>
+            value !== null);
 
     if (totals.length === 0) {
         setTextIfChanged(summary, `${count} ${noun} · not rolled`);
@@ -334,10 +352,23 @@ function refreshGroupSummary(group: HTMLElement, mode: string): void {
     if (result) setTextIfChanged(result, `Group initiative ${formatted}`);
 }
 
-function initiativeModifier(card: HTMLElement): number {
-    const input = card.querySelector<HTMLInputElement>("[data-field='modifier']");
-    const value = Number(input?.value ?? 0);
-    return Number.isFinite(value) ? value : 0;
+function initiativeModifier(
+    card: HTMLElement
+): number | null {
+    const input =
+        card.querySelector<HTMLInputElement>(
+            "[data-field='modifier']");
+    const raw = input?.value.trim() ?? "";
+    if (!raw) return 0;
+
+    const value =
+        parseBoundedNumber(
+            raw,
+            INITIATIVE_LIMITS);
+    if (value !== null) return value;
+
+    input?.reportValidity();
+    return null;
 }
 
 function rollD20(): number {

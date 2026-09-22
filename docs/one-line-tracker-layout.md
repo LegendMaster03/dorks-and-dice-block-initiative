@@ -7,8 +7,10 @@ Standard encounter setup is optimized for fast DM entry rather than card-style e
 - Standard enemy HP is shown as `Current / Max`, followed by one adjustment value and `−` / `+` actions.
 - Players retain an optional Roll action beside initiative, but manual player initiative is the expected default workflow.
 - Individual enemy mode has no visible manual tactical-group concept.
-- Average tactical-group mode gives each member its own `d20 + modifier` roll, then averages the adjusted totals.
-- Shared tactical-group mode has one group d20 Roll action. Member initiative totals are calculated from that group roll plus each member modifier and are read-only while the mode is active.
+- Tactical groups can roll each member separately as `d20 + modifier` and average the adjusted totals.
+- A tactical group can alternatively use **Single roll**, which applies one d20 plus the group's highest initiative modifier to every member before normal grouped placement is calculated.
+- Individual placement keeps each non-player creature separate.
 - Empty tactical groups report `not rolled` rather than treating blank initiatives as zero.
+- Legacy encounter saves that used the retired shared-roll selector are migrated to the current tactical-group representation during restore.
 
 At narrower viewport widths, enemy HP may move to a subsequent line to preserve usable input sizes.

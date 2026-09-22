@@ -4,6 +4,7 @@ import {
     parseBoundedNumber,
     TRACKER_LIMITS
 } from "../numeric-input-limits";
+import type { NumericLimits } from "../numeric-input-limits";
 
 export type OverrideValue = "auto" | "on" | "off";
 
@@ -30,7 +31,8 @@ export function numberField(
     labelText: string,
     value: number | null,
     setter: (value: number | null) => void,
-    fieldKey?: string
+    fieldKey?: string,
+    limits: NumericLimits = TRACKER_LIMITS
 ): HTMLElement {
     const wrap = document.createElement("div");
     wrap.className = "bi-field";
@@ -40,12 +42,11 @@ export function numberField(
     label.textContent = labelText;
     const input = document.createElement("input");
     input.type = "number";
-    input.step = "1";
-    applyNumberLimits(input, TRACKER_LIMITS);
+    applyNumberLimits(input, limits);
     if (fieldKey) input.dataset.combatField = fieldKey;
     input.value = value === null ? "" : String(value);
     input.addEventListener("change", () => {
-        const parsed = readNumber(input);
+        const parsed = readNumber(input, limits);
         if (input.value.trim() && parsed === null) {
             input.reportValidity();
             return;
@@ -118,7 +119,12 @@ export function amountField(): { wrapper: HTMLElement; value: () => number } {
     applyNumberLimits(input, NON_NEGATIVE_TRACKER_LIMITS);
     input.placeholder = "0";
     wrap.append(label, input);
-    return { wrapper: wrap, value: () => Math.max(0, readNumber(input) ?? 0) };
+    return {
+        wrapper: wrap,
+        value: () => Math.max(
+            0,
+            readNumber(input, NON_NEGATIVE_TRACKER_LIMITS) ?? 0)
+    };
 }
 
 export function actionButton(
@@ -145,8 +151,11 @@ export function overrideBool(value: OverrideValue): boolean | null {
     return value === "auto" ? null : value === "on";
 }
 
-export function readNumber(input: HTMLInputElement): number | null {
-    return parseBoundedNumber(input.value, TRACKER_LIMITS);
+export function readNumber(
+    input: HTMLInputElement,
+    limits: NumericLimits = TRACKER_LIMITS
+): number | null {
+    return parseBoundedNumber(input.value, limits);
 }
 
 export function findRunnerCard(

@@ -79,7 +79,7 @@ export function mountApplicationShell(root: HTMLElement): HTMLElement {
           <div class="bi-side-head"><div><strong>Enemies</strong><div class="bi-muted">The default non-player side. Add other sides below when the encounter needs them.</div></div><button class="btn btn-sm btn-outline-secondary" data-action="add-kaiju">+ Kaiju</button></div>
           <div class="bi-side-body">
             <div class="bi-enemy-options">
-              <div class="bi-field"><label>Non-player initiative method</label><select data-role="enemy-method"><option value="average">Tactical groups — average member rolls</option><option value="individual">Individual rolls — group by placement</option><option value="shared">One roll per tactical group</option></select></div>
+              <div class="bi-field"><label>Non-player initiative method</label><select data-role="enemy-method"><option value="average">Tactical groups</option><option value="individual">Individual placement</option></select></div>
               <div class="bi-muted" data-role="enemy-method-help"></div>
             </div>
             <div class="bi-groups" data-role="enemy-groups"></div>

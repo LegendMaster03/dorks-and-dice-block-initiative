@@ -1,3 +1,5 @@
+import { readKaijuRuntimeMetadata } from "../combat/kaiju-combat-state";
+import { captureActedRounds } from "../combatant-turn-markers";
 import {
     checkboxByText,
     combatInput,
@@ -80,7 +82,8 @@ export function captureEncounter(
         state: context.lastState,
         runnerCombat:
             captureRunnerCombat(root, context.lastPreview),
-        rulesCoreLinks: Array.from(context.rulesCoreLinks)
+        rulesCoreLinks: Array.from(context.rulesCoreLinks),
+        actedRounds: captureActedRounds()
     };
 }
 
@@ -332,6 +335,9 @@ function captureRunnerCombat(
         const finishingSection =
             directSection(panel, "Finishing Blow");
 
+        const runtimeMetadata =
+            readKaijuRuntimeMetadata(combatant.id);
+
         result.kaiju[combatant.id] = {
             chaosCurrent:
                 chaosSection
@@ -357,11 +363,17 @@ function captureRunnerCombat(
                         "Target")?.value ?? ""
                     : "",
             finishingDamageThisTurn:
-                finishingSection
-                    ? inputByLabel(
-                        finishingSection,
-                        "Damage this turn")?.value ?? ""
-                    : "",
+                runtimeMetadata
+                    ? String(
+                        runtimeMetadata
+                            .finishingBlowDamageThisTurn)
+                    : finishingSection
+                        ? inputByLabel(
+                            finishingSection,
+                            "Damage this turn")?.value ?? ""
+                        : "",
+            defeatedRound:
+                runtimeMetadata?.defeatedRound ?? null,
             areas:
                 areaSection
                     ? Array.from(

@@ -7,7 +7,8 @@ import {
 import type { ConditionsChangedDetail } from "./condition-editor";
 import {
     conditionLabel,
-    conditionsFor
+    conditionsFor,
+    pruneConditions
 } from "./condition-model";
 
 type PreviewDetail = {
@@ -43,6 +44,7 @@ export function initializeConditionTrackingUi(): void {
                 runnerConditionEditors.delete(id);
             }
         }
+        pruneConditions(activeIds);
 
         requestEnhancement();
     });

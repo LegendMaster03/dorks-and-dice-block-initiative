@@ -90,6 +90,7 @@ export type SavedKaijuRuntime = {
     behaviourPhase: string;
     finishingTarget: string;
     finishingDamageThisTurn: string;
+    defeatedRound?: number | null;
     areas: SavedKaijuAreaRuntime[];
 };
 
@@ -116,6 +117,7 @@ export type SavedEncounter = {
     state: StateDetail | null;
     runnerCombat: SavedRunnerCombat;
     rulesCoreLinks: SavedRulesCoreLink[];
+    actedRounds?: Record<string, number>;
 };
 
 export type NamedEncounterSave = {

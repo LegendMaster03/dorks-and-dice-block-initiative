@@ -153,31 +153,41 @@ async function postJson<T>(
     request: unknown,
     label: string
 ): Promise<T> {
-    const response = await fetch(url, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(request)
-    });
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(request)
+        });
 
-    if (!response.ok) {
-        let detail = `${label} returned HTTP ${response.status}.`;
-        try {
-            const payload = await response.json() as { error?: string };
-            if (payload.error) {
-                detail = payload.error;
+        if (!response.ok) {
+            let detail =
+                `${label} returned HTTP ${response.status}.`;
+            try {
+                const payload =
+                    await response.json() as { error?: string };
+                if (payload.error) {
+                    detail = payload.error;
+                }
+            } catch {
+                // Keep the HTTP fallback when the response is not JSON.
             }
-        } catch {
-            // Keep the HTTP fallback when the response is not JSON.
+
+            throw new Error(detail);
         }
 
-        throw new Error(detail);
+        return await response.json() as T;
+    } catch (error) {
+        window.dispatchEvent(
+            new CustomEvent(
+                "block-initiative:api-error",
+                { detail: { label, error } }));
+        throw error;
     }
-
-    return await response.json() as T;
 }
 
 // api.ts is evaluated as an app.ts dependency before the encounter workspace is

@@ -2,6 +2,7 @@ import {
     clearKaijuCombatState,
     ensureKaijuCombatSetup,
     initializeKaijuCombatState,
+    pruneKaijuCombatStates,
     setKaijuCombatRound,
     syncKaijuCombatState
 } from "./combat/kaiju-combat-state";
@@ -19,6 +20,7 @@ import {
 import {
     clearStandardCombatState,
     ensureStandardCombatSetup,
+    pruneStandardCombatStates,
     syncStandardCombatState
 } from "./combat/standard-combat-state";
 import {
@@ -62,7 +64,16 @@ export function initializeCombatStateUi(): void {
 }
 
 function enhanceCombatSetup(root: HTMLElement): void {
-    for (const card of root.querySelectorAll<HTMLElement>(".bi-entry[data-id]")) {
+    const cards = Array.from(
+        root.querySelectorAll<HTMLElement>(".bi-entry[data-id]"));
+    const activeIds = new Set(
+        cards
+            .map(card => card.dataset.id ?? "")
+            .filter(Boolean));
+    pruneStandardCombatStates(activeIds);
+    pruneKaijuCombatStates(activeIds);
+
+    for (const card of cards) {
         const combatantId = card.dataset.id;
         const typeSelect =
             card.querySelector<HTMLSelectElement>("[data-field='block-type']");

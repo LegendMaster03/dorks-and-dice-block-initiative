@@ -1,3 +1,9 @@
+import {
+    applyNumberLimits,
+    NON_NEGATIVE_TRACKER_LIMITS,
+    parseBoundedNumber,
+    TRACKER_LIMITS
+} from "./numeric-input-limits.js";
 import { registerAfterRender } from "./render-lifecycle.js";
 
 const initializedDocuments = new WeakSet<Document>();
@@ -165,8 +171,7 @@ function buildHealthEditor(current: HTMLElement, max: HTMLElement): HTMLElement 
     amountLabel.textContent = "Modify by";
     const amountInput = document.createElement("input");
     amountInput.type = "number";
-    amountInput.min = "0";
-    amountInput.step = "1";
+    applyNumberLimits(amountInput, NON_NEGATIVE_TRACKER_LIMITS);
     amountInput.placeholder = "0";
     amountInput.inputMode = "numeric";
     amountInput.title = "Amount to add to or subtract from current HP";
@@ -251,17 +256,29 @@ function applyAdjustment(currentField: HTMLElement, maxField: HTMLElement, amoun
     const maxInput = maxField.querySelector<HTMLInputElement>("input[type='number']");
     if (!currentInput) return;
 
-    const amount = Math.max(0, Number(amountInput.value) || 0);
-    const current = Number(currentInput.value);
-    const fallbackMax = Number(maxInput?.value ?? "");
-    const base = Number.isFinite(current) && currentInput.value.trim() !== ""
+    const amount = parseBoundedNumber(
+        amountInput.value,
+        NON_NEGATIVE_TRACKER_LIMITS) ?? 0;
+    if (amountInput.value.trim()
+        && parseBoundedNumber(
+            amountInput.value,
+            NON_NEGATIVE_TRACKER_LIMITS) === null) {
+        amountInput.reportValidity();
+        return;
+    }
+
+    const current = parseBoundedNumber(
+        currentInput.value,
+        TRACKER_LIMITS);
+    const fallbackMax = parseBoundedNumber(
+        maxInput?.value ?? "",
+        TRACKER_LIMITS);
+    const base = current !== null
         ? current
-        : Number.isFinite(fallbackMax) && (maxInput?.value ?? "").trim() !== ""
-            ? fallbackMax
-            : 0;
+        : fallbackMax ?? 0;
     let next = direction < 0 ? Math.max(0, base - amount) : base + amount;
 
-    if (direction > 0 && Number.isFinite(fallbackMax) && (maxInput?.value ?? "").trim() !== "") {
+    if (direction > 0 && fallbackMax !== null) {
         next = Math.min(next, fallbackMax);
     }
 

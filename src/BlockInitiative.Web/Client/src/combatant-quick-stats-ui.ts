@@ -1,7 +1,18 @@
+import {
+    clearActedRounds,
+    isCombatantActed,
+    pruneActedRounds,
+    setCombatantActed
+} from "./combatant-turn-markers";
 import { defenseRows, mergeMonsterCombatStats } from "./encounter-card-model";
 import { collectEncounterCards, mountEncounterCardSlot, renderEncounterCard } from "./encounter-card-renderer";
 import { abilityKeys, projectMonsterCombatStats } from "./roster/monster-combat-stats";
 import type { AbilityKey, MonsterCombatStats } from "./roster/monster-combat-stats";
+import {
+    applyNumberLimits,
+    parseBoundedNumber,
+    TRACKER_LIMITS
+} from "./numeric-input-limits";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
 
 type CombatantPreview = {
@@ -56,7 +67,6 @@ type HealthSnapshot = {
 const gateway = "/tool-host/rules-core/api/upstream";
 const templateStats = new Map<string, MonsterCombatStats | null>();
 const pendingTemplates = new Set<string>();
-const actedRoundByCombatant = new Map<string, number>();
 let lastPreview: PreviewDetail | null = null;
 let lastState: StateDetail | null = null;
 let statsHidden = false;
@@ -72,6 +82,10 @@ export function initializeCombatantQuickStatsUi(): void {
 
     window.addEventListener("block-initiative:preview", event => {
         lastPreview = (event as CustomEvent<PreviewDetail>).detail ?? null;
+        pruneActedRounds(new Set(
+            lastPreview?.response.orderedCombatants
+                .map(combatant => combatant.id)
+            ?? []));
         requestEnhancement();
     });
 
@@ -87,7 +101,7 @@ export function initializeCombatantQuickStatsUi(): void {
         const detail = (event as CustomEvent<StateDetail>).detail ?? null;
         lastState = detail;
         if (detail?.request?.advanceCount === 0 && (detail.request.resumeRound === null || detail.request.resumeRound === undefined)) {
-            actedRoundByCombatant.clear();
+            clearActedRounds();
         }
         requestEnhancement();
     });
@@ -388,7 +402,7 @@ function abilityEntryField(key: AbilityKey): HTMLElement {
     scoreLabel.textContent = "Score";
     const scoreInput = document.createElement("input");
     scoreInput.type = "number";
-    scoreInput.step = "1";
+    applyNumberLimits(scoreInput, TRACKER_LIMITS);
     scoreInput.dataset.quickStat = `${key.toLowerCase()}-score`;
     score.append(scoreLabel, scoreInput);
 
@@ -398,7 +412,7 @@ function abilityEntryField(key: AbilityKey): HTMLElement {
     saveLabel.textContent = "Save";
     const saveInput = document.createElement("input");
     saveInput.type = "number";
-    saveInput.step = "any";
+    applyNumberLimits(saveInput, TRACKER_LIMITS);
     saveInput.placeholder = "Optional";
     saveInput.dataset.quickStat = `${key.toLowerCase()}-save`;
     save.append(saveLabel, saveInput);
@@ -587,8 +601,7 @@ function readInputText(panel: HTMLElement, key: string): string | null {
 function readInputNumber(panel: HTMLElement, key: string): number | null {
     const raw = panel.querySelector<HTMLInputElement>(`[data-quick-stat='${key}']`)?.value.trim() ?? "";
     if (!raw) return null;
-    const value = Number(raw);
-    return Number.isFinite(value) ? value : null;
+    return parseBoundedNumber(raw, TRACKER_LIMITS);
 }
 
 function updateStatsToggle(button: HTMLButtonElement): void {
@@ -614,11 +627,13 @@ function ensureActedControl(row: HTMLElement, combatantId: string, round: number
     mountEncounterCardSlot(row, "acted", label);
 
     const input = label.querySelector<HTMLInputElement>("input[data-role='acted-toggle']")!;
-    input.checked = actedRoundByCombatant.get(combatantId) === round;
+    input.checked = isCombatantActed(combatantId, round);
     input.setAttribute("aria-label", `Mark combatant as acted in round ${round}`);
     input.onchange = () => {
-        if (input.checked) actedRoundByCombatant.set(combatantId, round);
-        else actedRoundByCombatant.delete(combatantId);
+        setCombatantActed(
+            combatantId,
+            round,
+            input.checked);
         paintActedState(row, input.checked);
     };
     paintActedState(row, input.checked);

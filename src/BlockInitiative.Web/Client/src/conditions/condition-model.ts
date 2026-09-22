@@ -16,6 +16,16 @@ export function conditionsFor(combatantId: string): readonly TrackedCondition[] 
     return trackedConditions.get(combatantId) ?? [];
 }
 
+export function pruneConditions(
+    activeCombatantIds: ReadonlySet<string>
+): void {
+    for (const combatantId of trackedConditions.keys()) {
+        if (!activeCombatantIds.has(combatantId)) {
+            trackedConditions.delete(combatantId);
+        }
+    }
+}
+
 export function addCondition(
     combatantId: string,
     condition: TrackedCondition

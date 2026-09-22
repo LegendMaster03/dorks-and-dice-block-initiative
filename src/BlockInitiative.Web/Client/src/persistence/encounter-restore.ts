@@ -1,4 +1,13 @@
 import type { InitiativeTurnStateResponse } from "../api";
+import {
+    restoreKaijuRuntimeMetadata
+} from "../combat/kaiju-combat-state";
+import { restoreActedRounds } from "../combatant-turn-markers";
+import {
+    NON_NEGATIVE_TRACKER_LIMITS,
+    parseBoundedNumber,
+    POSITIVE_TRACKER_LIMITS
+} from "../numeric-input-limits";
 import { requestEnhancement } from "../render-lifecycle";
 import {
     checkboxByText,
@@ -25,7 +34,7 @@ import type {
     StateDetail
 } from "./encounter-schema";
 
-const maxReplayAdvances = 1000;
+const maxReplayAdvances = 10_000;
 
 export type EncounterRestoreCallbacks = {
     onComplete: () => void;
@@ -75,6 +84,11 @@ export class EncounterRestoreSession {
             0);
     }
 
+    public handleApiFailure(error: unknown): void {
+        if (this.phase === "idle") return;
+        this.fail(error);
+    }
+
     public ensureConditionLinks(): void {
         for (const [combatantId, conditions]
             of this.restoredConditionLinks) {
@@ -117,6 +131,8 @@ export class EncounterRestoreSession {
     public async start(): Promise<void> {
         try {
             clearRoster(this.root);
+            const legacySharedMode =
+                this.saved.groupMode === "shared";
             restoreGroupMode(this.root, this.saved.groupMode);
 
             for (const combatant of this.saved.players) {
@@ -129,7 +145,10 @@ export class EncounterRestoreSession {
             }
 
             for (const group of this.saved.enemyGroups) {
-                restoreEnemyGroup(this.root, group);
+                restoreEnemyGroup(
+                    this.root,
+                    group,
+                    legacySharedMode);
             }
 
             for (const combatant of this.saved.kaiju) {
@@ -266,6 +285,8 @@ export class EncounterRestoreSession {
             this.root,
             this.saved.runnerCombat,
             this.lastPreview);
+        restoreActedRounds(
+            this.saved.actedRounds ?? {});
 
         requestEnhancement();
         await nextTask();
@@ -326,14 +347,18 @@ function restoreGroupMode(
             "[data-role='enemy-method']");
     if (!select) return;
 
-    select.value = mode;
+    select.value =
+        mode === "shared"
+            ? "average"
+            : mode;
     select.dispatchEvent(
         new Event("change", { bubbles: true }));
 }
 
 function restoreEnemyGroup(
     root: HTMLElement,
-    saved: SavedEnemyGroup
+    saved: SavedEnemyGroup,
+    migrateLegacySharedRoll: boolean
 ): void {
     const container =
         root.querySelector<HTMLElement>(
@@ -378,7 +403,17 @@ function restoreEnemyGroup(
     for (const combatant of saved.members) {
         const card =
             clickForNewCard(addMember, members);
-        if (card) applyCombatantBase(card, combatant);
+        if (!card) continue;
+
+        applyCombatantBase(card, combatant);
+        if (migrateLegacySharedRoll
+            && saved.sharedRoll.trim()) {
+            setInputValue(
+                card.querySelector<HTMLInputElement>(
+                    "[data-field='initiative']"),
+                saved.sharedRoll,
+                true);
+        }
     }
 }
 
@@ -783,6 +818,23 @@ function restoreRunnerValuesIntoSetup(
             panel,
             "Current behaviour / phase",
             kaiju.behaviourPhase);
+
+        restoreKaijuRuntimeMetadata(
+            id,
+            {
+                finishingBlowDamageThisTurn:
+                    parseBoundedNumber(
+                        kaiju.finishingDamageThisTurn,
+                        NON_NEGATIVE_TRACKER_LIMITS)
+                    ?? 0,
+                defeatedRound:
+                    typeof kaiju.defeatedRound === "number"
+                    && parseBoundedNumber(
+                        String(kaiju.defeatedRound),
+                        POSITIVE_TRACKER_LIMITS) !== null
+                        ? kaiju.defeatedRound
+                        : null
+            });
 
         const rows =
             Array.from(
