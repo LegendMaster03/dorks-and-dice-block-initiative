@@ -269,6 +269,9 @@ function ensurePersistenceBar(root: HTMLElement): void {
             return;
         }
 
+        window.dispatchEvent(
+            new CustomEvent(
+                "block-initiative:encounter-reset"));
         window.location.reload();
     };
 

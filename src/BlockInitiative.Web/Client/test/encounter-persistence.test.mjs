@@ -210,3 +210,26 @@ test("reset does not reload when automatic recovery can not be cleared", async (
         resetHandler,
         /return;[\s\S]*window\.location\.reload\(\)/);
 });
+
+
+test("initiative mode reset runs only after automatic encounter removal succeeds", async () => {
+    const coordinator =
+        await source("../src/encounter-persistence.ts");
+    const mode =
+        await source("../src/initiative/initiative-mode.ts");
+
+    const resetHandler =
+        coordinator.match(
+            /reset\.onclick = \(\) => \{[\s\S]*?window\.location\.reload\(\);[\s\S]*?\n    \};/)?.[0]
+        ?? "";
+
+    assert.match(
+        resetHandler,
+        /clearAutomaticEncounter\(\)[\s\S]*block-initiative:encounter-reset[\s\S]*window\.location\.reload/);
+    assert.doesNotMatch(
+        mode,
+        /reset-persisted-encounter/);
+    assert.match(
+        mode,
+        /block-initiative:encounter-reset[\s\S]*clearStoredMode/);
+});
