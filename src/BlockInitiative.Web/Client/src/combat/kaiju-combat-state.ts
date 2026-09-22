@@ -79,13 +79,21 @@ export function setKaijuCombatRound(round: number): void {
 }
 
 export function clearKaijuCombatState(combatantId: string): void {
+    const hasInFlightEvaluation =
+        evaluating.has(combatantId);
+
     kaijuStates.delete(combatantId);
     evaluations.delete(combatantId);
     evaluationErrors.delete(combatantId);
     refreshAfterEvaluation.delete(combatantId);
-    evaluationRevisions.set(
-        combatantId,
-        (evaluationRevisions.get(combatantId) ?? 0) + 1);
+
+    if (hasInFlightEvaluation) {
+        evaluationRevisions.set(
+            combatantId,
+            (evaluationRevisions.get(combatantId) ?? 0) + 1);
+    } else {
+        evaluationRevisions.delete(combatantId);
+    }
 }
 
 export function pruneKaijuCombatStates(
@@ -626,6 +634,7 @@ async function performLatestKaijuEvaluation(
         const currentState = kaijuStates.get(id);
         if (!currentState) {
             refreshAfterEvaluation.delete(id);
+            evaluationRevisions.delete(id);
             return;
         }
 
