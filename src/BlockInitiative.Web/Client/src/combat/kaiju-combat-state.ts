@@ -4,7 +4,8 @@ import {
 } from "../encounter-card-renderer";
 import {
     NON_NEGATIVE_TRACKER_LIMITS,
-    POSITIVE_TRACKER_LIMITS
+    POSITIVE_TRACKER_LIMITS,
+    TRACKER_LIMITS
 } from "../numeric-input-limits";
 import { requestEnhancement } from "../render-lifecycle";
 import {
