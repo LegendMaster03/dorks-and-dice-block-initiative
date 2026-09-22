@@ -92,7 +92,7 @@ export class EncounterRunnerController {
                 state: result.response
             };
             this.history = [];
-            publishInitiativeTurnState(result);
+            publishInitiativeTurnState(result, "start");
             this.render();
         } catch (error) {
             this.options.setup.hidden = false;
@@ -158,7 +158,7 @@ export class EncounterRunnerController {
             this.options.previewButton.textContent =
                 "Build initiative blocks";
             this.options.setup.hidden = true;
-            publishInitiativeTurnState(result);
+            publishInitiativeTurnState(result, "resume");
             this.render();
         } catch (error) {
             this.options.setup.hidden = false;
@@ -205,7 +205,7 @@ export class EncounterRunnerController {
                         result.request),
                 state: result.response
             };
-            publishInitiativeTurnState(result);
+            publishInitiativeTurnState(result, "advance");
             this.render();
         } catch (error) {
             this.render();
@@ -223,13 +223,15 @@ export class EncounterRunnerController {
             ...this.session,
             state: previous
         };
-        publishInitiativeTurnState({
-            request:
-                stateRequestForPublishedState(
-                    this.session.request,
-                    previous),
-            response: previous
-        });
+        publishInitiativeTurnState(
+            {
+                request:
+                    stateRequestForPublishedState(
+                        this.session.request,
+                        previous),
+                response: previous
+            },
+            "previous");
         this.render();
     }
 
