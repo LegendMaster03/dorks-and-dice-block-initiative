@@ -1,3 +1,10 @@
+import {
+    applyNumberLimits,
+    NON_NEGATIVE_TRACKER_LIMITS,
+    parseBoundedNumber,
+    TRACKER_LIMITS
+} from "../numeric-input-limits";
+
 export type OverrideValue = "auto" | "on" | "off";
 
 export function installCombatStateStyles(root: HTMLElement): void {
@@ -34,9 +41,17 @@ export function numberField(
     const input = document.createElement("input");
     input.type = "number";
     input.step = "1";
+    applyNumberLimits(input, TRACKER_LIMITS);
     if (fieldKey) input.dataset.combatField = fieldKey;
     input.value = value === null ? "" : String(value);
-    input.addEventListener("change", () => setter(readNumber(input)));
+    input.addEventListener("change", () => {
+        const parsed = readNumber(input);
+        if (input.value.trim() && parsed === null) {
+            input.reportValidity();
+            return;
+        }
+        setter(parsed);
+    });
 
     wrap.append(label, input);
     return wrap;
@@ -99,8 +114,8 @@ export function amountField(): { wrapper: HTMLElement; value: () => number } {
     label.textContent = "Amount";
     const input = document.createElement("input");
     input.type = "number";
-    input.min = "0";
     input.step = "1";
+    applyNumberLimits(input, NON_NEGATIVE_TRACKER_LIMITS);
     input.placeholder = "0";
     wrap.append(label, input);
     return { wrapper: wrap, value: () => Math.max(0, readNumber(input) ?? 0) };
@@ -131,9 +146,7 @@ export function overrideBool(value: OverrideValue): boolean | null {
 }
 
 export function readNumber(input: HTMLInputElement): number | null {
-    if (!input.value.trim()) return null;
-    const value = Number(input.value);
-    return Number.isFinite(value) ? value : null;
+    return parseBoundedNumber(input.value, TRACKER_LIMITS);
 }
 
 export function findRunnerCard(
