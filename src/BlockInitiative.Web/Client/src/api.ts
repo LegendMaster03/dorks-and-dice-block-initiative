@@ -98,28 +98,84 @@ export function getRuntimeManualOrder(): string[] | null {
     return runtimeManualOrder ? [...runtimeManualOrder] : null;
 }
 
+export type InitiativePreviewResult = {
+    request: InitiativePreviewRequest;
+    response: InitiativePreviewResponse;
+};
+
+export type InitiativeTurnStateResult = {
+    request: InitiativeTurnStateRequest;
+    response: InitiativeTurnStateResponse;
+};
+
+export async function requestInitiativePreview(
+    url: string,
+    request: InitiativePreviewRequest
+): Promise<InitiativePreviewResult> {
+    const effectiveRequest = withRuntimeSettings(request);
+    const response =
+        await postJson<InitiativePreviewResponse>(
+            url,
+            effectiveRequest,
+            "Initiative preview");
+    return {
+        request: effectiveRequest,
+        response
+    };
+}
+
+export function publishInitiativePreview(
+    result: InitiativePreviewResult
+): void {
+    window.dispatchEvent(
+        new CustomEvent(
+            "block-initiative:preview",
+            { detail: result }));
+}
+
 export async function previewInitiative(
     url: string,
     request: InitiativePreviewRequest
 ): Promise<InitiativePreviewResponse> {
+    const result =
+        await requestInitiativePreview(url, request);
+    publishInitiativePreview(result);
+    return result.response;
+}
+
+export async function requestInitiativeTurnState(
+    url: string,
+    request: InitiativeTurnStateRequest
+): Promise<InitiativeTurnStateResult> {
     const effectiveRequest = withRuntimeSettings(request);
-    const response = await postJson<InitiativePreviewResponse>(url, effectiveRequest, "Initiative preview");
-    window.dispatchEvent(new CustomEvent("block-initiative:preview", {
-        detail: { request: effectiveRequest, response }
-    }));
-    return response;
+    const response =
+        await postJson<InitiativeTurnStateResponse>(
+            url,
+            effectiveRequest,
+            "Initiative state");
+    return {
+        request: effectiveRequest,
+        response
+    };
+}
+
+export function publishInitiativeTurnState(
+    result: InitiativeTurnStateResult
+): void {
+    window.dispatchEvent(
+        new CustomEvent(
+            "block-initiative:state",
+            { detail: result }));
 }
 
 export async function loadInitiativeTurnState(
     url: string,
     request: InitiativeTurnStateRequest
 ): Promise<InitiativeTurnStateResponse> {
-    const effectiveRequest = withRuntimeSettings(request);
-    const response = await postJson<InitiativeTurnStateResponse>(url, effectiveRequest, "Initiative state");
-    window.dispatchEvent(new CustomEvent("block-initiative:state", {
-        detail: { request: effectiveRequest, response }
-    }));
-    return response;
+    const result =
+        await requestInitiativeTurnState(url, request);
+    publishInitiativeTurnState(result);
+    return result.response;
 }
 
 function withRuntimeSettings<T extends InitiativePreviewRequest>(request: T): T {
