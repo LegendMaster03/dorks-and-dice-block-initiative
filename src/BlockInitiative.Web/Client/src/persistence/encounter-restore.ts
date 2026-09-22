@@ -498,6 +498,18 @@ function applyCombatantBase(
     setDataset(card, "campaignId", saved.campaignId);
     setDataset(card, "templateId", saved.templateId);
     setDataset(card, "instanceNumber", saved.instanceNumber);
+    setDataset(
+        card,
+        "manualDuplicateKey",
+        saved.manualDuplicateKey);
+    setDataset(
+        card,
+        "manualDuplicateBase",
+        saved.manualDuplicateBase);
+    setDataset(
+        card,
+        "manualDuplicateIndex",
+        saved.manualDuplicateIndex);
 
     const blockType =
         card.querySelector<HTMLSelectElement>(
