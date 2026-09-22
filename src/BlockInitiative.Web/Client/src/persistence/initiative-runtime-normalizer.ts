@@ -30,7 +30,7 @@ import {
     positiveInteger,
     record,
     stringArray
-} from "./normalization-primitives";
+} from "./normalization-primitives.js";
 
 export function normalizePreviewDetail(
     value: unknown
