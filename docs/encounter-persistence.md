@@ -14,7 +14,9 @@ This persistence is local browser persistence. It is not account synchronization
 
 ## Persisted state
 
-An encounter save is a complete encounter snapshot. The browser snapshot retains the encounter roster and stable combatant IDs, every Standard and Kaiju block, player/enemy/other-side grouping, tactical-group mode and shared rolls, campaign association, initiative preview/manual ordering, current round and active block, ordinary HP, complete Kaiju combat state, tracked condition names/notes and available rule links, and projected Rules Core monster information already handed to the tool.
+An encounter save is a complete encounter snapshot. The browser snapshot retains the encounter roster and stable combatant IDs, every Standard and Kaiju block, player/enemy/other-side grouping, tactical-group mode, campaign association, initiative preview/manual ordering, current round and active block, per-combatant Acted markers, ordinary HP, complete Kaiju combat state including single-turn Finishing Blow damage and the original defeat round used for Death Rattle timing, tracked condition names/notes and available rule links, and projected Rules Core monster information already handed to the tool.
+
+Legacy saves that used the retired shared-roll tactical-group selector remain supported. During restoration, the saved group roll is projected into the current tactical-group representation so the encounter can resume without changing its effective initiative placement.
 
 Block type is not a persistence filter. A Kaiju block is part of the encounter and is saved/restored with the same completeness requirement as a Standard block.
 
