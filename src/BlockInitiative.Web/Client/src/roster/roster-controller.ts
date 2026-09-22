@@ -16,6 +16,7 @@ import {
     isBoundedNumber,
     parseBoundedNumber
 } from "../numeric-input-limits";
+import { controllerRelationshipError } from "./controller-relationships";
 import { MonsterRosterService } from "./monster-roster";
 import { TacticalGroupRosterService } from "./tactical-group-roster";
 
@@ -172,16 +173,33 @@ export class RosterController {
             }
         }
 
+        const controllerError =
+            controllerRelationshipError(
+                all.map(card => ({
+                    id: card.dataset.id ?? "",
+                    name:
+                        this.field<HTMLInputElement>(
+                            card,
+                            "name").value.trim(),
+                    controllerId:
+                        this.field<HTMLSelectElement>(
+                            card,
+                            "controller").value
+                        || null
+                })));
+        if (controllerError) ready = false;
+
         this.status.textContent =
             !context.connected
                 ? "Connecting to the initiative service…"
                 : all.length < 2
                     ? "Add at least two combatants."
-                    : !ready
-                        ? "Finish the name and initiative fields above."
-                        : context.editing
-                            ? "Ready to review changes and resume the running encounter."
-                            : "Ready to build the initiative blocks.";
+                    : controllerError
+                        ?? (!ready
+                            ? "Finish the name and initiative fields above."
+                            : context.editing
+                                ? "Ready to review changes and resume the running encounter."
+                                : "Ready to build the initiative blocks.");
 
         this.previewButton.disabled =
             context.busy
@@ -192,7 +210,8 @@ export class RosterController {
     public collect(): InitiativeCombatantInput[] {
         const mode = this.currentGroupMode();
 
-        return this.cards().map((card, index) => {
+        const combatants =
+            this.cards().map((card, index) => {
             const name =
                 this.field<HTMLInputElement>(
                     card,
@@ -268,6 +287,15 @@ export class RosterController {
                 blockType: this.type(card)
             };
         });
+
+        const controllerError =
+            controllerRelationshipError(
+                combatants);
+        if (controllerError) {
+            throw new Error(controllerError);
+        }
+
+        return combatants;
     }
 
     private addEnemyToGroup(
