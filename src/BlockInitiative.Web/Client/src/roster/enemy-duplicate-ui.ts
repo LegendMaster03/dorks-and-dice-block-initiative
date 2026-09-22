@@ -190,7 +190,9 @@ function copyHealthWhenReady(source: HTMLElement, target: HTMLElement): void {
         const targetMax = inputByLabel(target, "Max HP");
         if (!sourceCurrent || !sourceMax || !targetCurrent || !targetMax) return false;
         setInputValue(targetMax, sourceMax.value);
-        setInputValue(targetCurrent, sourceCurrent.value);
+        setInputValue(
+            targetCurrent,
+            sourceMax.value || sourceCurrent.value);
         return true;
     };
 
