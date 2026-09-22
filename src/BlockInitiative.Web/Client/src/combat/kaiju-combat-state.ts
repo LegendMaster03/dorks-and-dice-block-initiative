@@ -79,13 +79,13 @@ export function initializeKaijuCombatState(root: HTMLElement): void {
 
 export function setKaijuCombatTurn(
     round: number,
-    activeBlockId: string | null,
+    turnAnchorId: string | null,
     root: HTMLElement
 ): void {
     currentRound = round;
     const nextTurnKey =
-        activeBlockId
-            ? turnKey(round, activeBlockId)
+        turnAnchorId
+            ? turnKey(round, turnAnchorId)
             : null;
 
     if (nextTurnKey === currentTurnKey) return;
@@ -878,9 +878,9 @@ function setFinishingBlowDamage(
 
 function turnKey(
     round: number,
-    activeBlockId: string
+    turnAnchorId: string
 ): string {
-    return `${round}:${activeBlockId}`;
+    return `${round}:${turnAnchorId}`;
 }
 
 function newArea(index: number): AreaState {
