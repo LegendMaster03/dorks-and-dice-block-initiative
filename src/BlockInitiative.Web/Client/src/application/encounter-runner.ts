@@ -12,6 +12,7 @@ import {
     friendlyAlliance
 } from "./presentation";
 import {
+    onEncounterRunnerMutationLock,
     onEncounterRunnerSessionReplacement
 } from "./runner-session-events";
 
@@ -41,6 +42,8 @@ export class EncounterRunnerController {
     private session: RunnerSession | null = null;
     private history: InitiativeTurnStateResponse[] = [];
     private editing = false;
+    private transitioning = false;
+    private readonly mutationLocks = new Set<string>();
 
     public constructor(
         private readonly options: EncounterRunnerOptions
@@ -57,6 +60,16 @@ export class EncounterRunnerController {
                 this.editing = false;
                 this.render();
             });
+
+        onEncounterRunnerMutationLock(
+            detail => {
+                if (detail.locked) {
+                    this.mutationLocks.add(detail.source);
+                } else {
+                    this.mutationLocks.delete(detail.source);
+                }
+                this.syncActionAvailability();
+            });
     }
 
     public get isEditing(): boolean {
@@ -68,7 +81,7 @@ export class EncounterRunnerController {
         preview: InitiativePreviewResponse
     ): Promise<void> {
         const stateUrl = this.options.getStateUrl();
-        if (!stateUrl) return;
+        if (!stateUrl || !this.beginTransition()) return;
 
         this.options.setup.hidden = true;
         this.editing = false;
@@ -98,6 +111,8 @@ export class EncounterRunnerController {
             this.options.setup.hidden = false;
             this.options.results.replaceChildren();
             this.options.showError(error);
+        } finally {
+            this.endTransition();
         }
     }
 
@@ -106,7 +121,7 @@ export class EncounterRunnerController {
         preview: InitiativePreviewResponse
     ): Promise<void> {
         const stateUrl = this.options.getStateUrl();
-        if (!stateUrl || !this.session) return;
+        if (!stateUrl || !this.session || !this.beginTransition()) return;
 
         const active =
             this.session.state.blocks.find(
@@ -120,6 +135,7 @@ export class EncounterRunnerController {
             this.options.showError(new Error(
                 "Keep at least one combatant from the currently active block "
                 + "so the running encounter can be resumed."));
+            this.endTransition();
             return;
         }
 
@@ -164,18 +180,23 @@ export class EncounterRunnerController {
             this.options.setup.hidden = false;
             this.options.results.replaceChildren();
             this.options.showError(error);
+        } finally {
+            this.endTransition();
         }
     }
 
     private async advance(): Promise<void> {
         const stateUrl = this.options.getStateUrl();
-        if (!stateUrl || !this.session) return;
+        if (!stateUrl || !this.session || !this.beginTransition()) return;
 
         const active =
             this.session.state.blocks.find(
                 block => block.id === this.session!.state.activeBlockId);
         const anchor = active?.memberOrder[0];
-        if (!anchor) return;
+        if (!anchor) {
+            this.endTransition();
+            return;
+        }
 
         this.options.results.innerHTML =
             '<section class="card card-body">Advancing encounter…</section>';
@@ -210,11 +231,17 @@ export class EncounterRunnerController {
         } catch (error) {
             this.render();
             this.options.showError(error);
+        } finally {
+            this.endTransition();
         }
     }
 
     private undoAdvance(): void {
-        if (!this.session || this.history.length === 0) return;
+        if (this.isMutationBlocked
+            || !this.session
+            || this.history.length === 0) {
+            return;
+        }
 
         const previous = this.history.pop();
         if (!previous) return;
@@ -236,7 +263,7 @@ export class EncounterRunnerController {
     }
 
     private beginEdit(): void {
-        if (!this.session) return;
+        if (!this.session || this.isMutationBlocked) return;
 
         this.editing = true;
         this.options.setup.hidden = false;
@@ -312,6 +339,7 @@ export class EncounterRunnerController {
         edit.className = "btn btn-sm btn-outline-secondary";
         edit.dataset.action = "edit-running-encounter";
         edit.textContent = "Add / edit combatants";
+        edit.disabled = this.isMutationBlocked;
         edit.onclick = () => this.beginEdit();
 
         top.append(title, edit);
@@ -433,6 +461,43 @@ export class EncounterRunnerController {
         return sequence;
     }
 
+    private get isMutationBlocked(): boolean {
+        return this.transitioning
+            || this.mutationLocks.size > 0;
+    }
+
+    private beginTransition(): boolean {
+        if (this.isMutationBlocked) return false;
+        this.transitioning = true;
+        this.syncActionAvailability();
+        return true;
+    }
+
+    private endTransition(): void {
+        this.transitioning = false;
+        this.syncActionAvailability();
+    }
+
+    private syncActionAvailability(): void {
+        const blocked = this.isMutationBlocked;
+        const previous =
+            this.options.results.querySelector<HTMLButtonElement>(
+                "[data-action='previous-turn']");
+        const next =
+            this.options.results.querySelector<HTMLButtonElement>(
+                "[data-action='next-turn']");
+        const edit =
+            this.options.results.querySelector<HTMLButtonElement>(
+                "[data-action='edit-running-encounter']");
+
+        if (previous) {
+            previous.disabled =
+                blocked || this.history.length === 0;
+        }
+        if (next) next.disabled = blocked;
+        if (edit) edit.disabled = blocked;
+    }
+
     private renderActions(): HTMLElement {
         const actions = document.createElement("div");
         actions.className = "bi-actions bi-primary";
@@ -441,13 +506,16 @@ export class EncounterRunnerController {
         previous.className = "btn btn-outline-secondary";
         previous.dataset.action = "previous-turn";
         previous.textContent = "Previous block";
-        previous.disabled = this.history.length === 0;
+        previous.disabled =
+            this.isMutationBlocked
+            || this.history.length === 0;
         previous.onclick = () => this.undoAdvance();
 
         const next = document.createElement("button");
         next.className = "btn btn-primary";
         next.dataset.action = "next-turn";
         next.textContent = "Next block";
+        next.disabled = this.isMutationBlocked;
         next.onclick = () => void this.advance();
 
         actions.append(previous, next);

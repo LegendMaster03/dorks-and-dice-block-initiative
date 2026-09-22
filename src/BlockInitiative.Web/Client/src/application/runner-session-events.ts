@@ -44,3 +44,52 @@ export function onEncounterRunnerSessionReplacement(
             eventName,
             listener);
 }
+
+
+export type RunnerMutationLock = {
+    source: string;
+    locked: boolean;
+};
+
+const mutationEventName =
+    "block-initiative:runner-mutation-lock";
+
+export function setEncounterRunnerMutationLock(
+    source: string,
+    locked: boolean
+): void {
+    if (!source.trim()) return;
+
+    window.dispatchEvent(
+        new CustomEvent<RunnerMutationLock>(
+            mutationEventName,
+            {
+                detail: {
+                    source,
+                    locked
+                }
+            }));
+}
+
+export function onEncounterRunnerMutationLock(
+    handler: (
+        detail: RunnerMutationLock
+    ) => void
+): () => void {
+    const listener = (event: Event) => {
+        const detail =
+            (event as CustomEvent<
+                RunnerMutationLock
+            >).detail;
+        if (detail?.source) handler(detail);
+    };
+
+    window.addEventListener(
+        mutationEventName,
+        listener);
+
+    return () =>
+        window.removeEventListener(
+            mutationEventName,
+            listener);
+}

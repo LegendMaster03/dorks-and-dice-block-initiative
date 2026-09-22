@@ -14,7 +14,8 @@ import type {
 } from "../api";
 import { moveCombatantByOffset, sameMembers, sameOrder } from "./combatant-reorder";
 import {
-    replaceEncounterRunnerSession
+    replaceEncounterRunnerSession,
+    setEncounterRunnerMutationLock
 } from "../application/runner-session-events";
 import {
     clearCombatantReorderHistory,
@@ -451,6 +452,9 @@ async function applyOrder(
     const previousOrder = [...current];
     const previousState = lastState.response;
     applying = true;
+    setEncounterRunnerMutationLock(
+        "combatant-reorder",
+        true);
     requestEnhancement();
 
     try {
@@ -521,6 +525,9 @@ async function applyOrder(
                 : "The initiative order could not be updated.");
     } finally {
         applying = false;
+        setEncounterRunnerMutationLock(
+            "combatant-reorder",
+            false);
         requestEnhancement();
         focusPendingHandle(document.getElementById("tool-root") as HTMLElement | null);
     }
