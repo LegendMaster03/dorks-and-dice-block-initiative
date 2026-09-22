@@ -1,10 +1,15 @@
 import type {
+    CyclicMergePreview,
+    InitiativeBlockPreview,
     InitiativeCombatantInput,
+    InitiativeCombatantPreview,
+    InitiativeIssuePreview,
     InitiativePreviewRequest,
     InitiativePreviewResponse,
     InitiativeTurnStateRequest,
     InitiativeTurnStateResponse,
     TacticalGroupInitiativeMode,
+    TurnAdvancePreview,
     TurnBlockType
 } from "../api";
 import type {
@@ -480,15 +485,21 @@ function normalizePreviewRequest(
             normalizeInitiativeCombatant);
     if (!combatants) return null;
 
+    const manualOrderOverride =
+        item.manualOrderOverride === null
+            || item.manualOrderOverride === undefined
+            ? null
+            : stringArray(
+                item.manualOrderOverride);
+    if (item.manualOrderOverride !== null
+        && item.manualOrderOverride !== undefined
+        && manualOrderOverride === null) {
+        return null;
+    }
+
     return {
         combatants,
-        manualOrderOverride:
-            item.manualOrderOverride === null
-                || item.manualOrderOverride === undefined
-                ? null
-                : stringArray(
-                    item.manualOrderOverride)
-                    ?? null,
+        manualOrderOverride,
         tacticalGroupMode:
             readGroupMode(
                 item.tacticalGroupMode)
@@ -508,12 +519,13 @@ function normalizeStateRequest(
     const item = record(value);
     if (!base || !item) return null;
 
-    const advanceCount =
-        typeof item.advanceCount === "number"
-        && Number.isInteger(item.advanceCount)
-        && item.advanceCount >= 0
-            ? item.advanceCount
-            : 0;
+    if (typeof item.advanceCount !== "number"
+        || !Number.isInteger(item.advanceCount)
+        || item.advanceCount < 0) {
+        return null;
+    }
+
+    const advanceCount = item.advanceCount;
 
     return {
         ...base,
@@ -582,11 +594,45 @@ function normalizePreviewResponse(
     if (!item
         || !Array.isArray(item.orderedCombatants)
         || !Array.isArray(item.blocks)
-        || !Array.isArray(item.issues)) {
+        || !Array.isArray(item.issues)
+        || typeof item.requiresAdjudication !== "boolean"
+        || typeof item.usesManualOrderOverride !== "boolean") {
         return null;
     }
 
-    return value as InitiativePreviewResponse;
+    const orderedCombatants =
+        normalizeList(
+            item.orderedCombatants,
+            normalizeInitiativeCombatantPreview);
+    const blocks =
+        normalizeList(
+            item.blocks,
+            normalizeInitiativeBlockPreview);
+    const issues =
+        normalizeList(
+            item.issues,
+            normalizeInitiativeIssue);
+    const cyclicMerge =
+        normalizeCyclicMerge(
+            item.cyclicMerge);
+
+    if (!orderedCombatants
+        || !blocks
+        || !issues
+        || cyclicMerge === undefined) {
+        return null;
+    }
+
+    return {
+        orderedCombatants,
+        blocks,
+        cyclicMerge,
+        issues,
+        requiresAdjudication:
+            item.requiresAdjudication,
+        usesManualOrderOverride:
+            item.usesManualOrderOverride
+    };
 }
 
 function normalizeStateResponse(
@@ -598,12 +644,198 @@ function normalizeStateResponse(
         || !Number.isInteger(item.round)
         || item.round < 1
         || !Array.isArray(item.blocks)
-        || !("activeBlockId" in item)) {
+        || !isNullableString(item.activeBlockId)
+        || typeof item.cyclicMergePending !== "boolean"
+        || typeof item.cyclicMergeCompleted !== "boolean"
+        || typeof item.lowerCyclicBlockSkippedRoundOne !== "boolean") {
         return null;
     }
 
-    return value as InitiativeTurnStateResponse;
+    const blocks =
+        normalizeList(
+            item.blocks,
+            normalizeInitiativeBlockPreview);
+    const lastAdvance =
+        normalizeTurnAdvance(
+            item.lastAdvance);
+    if (!blocks
+        || lastAdvance === undefined) {
+        return null;
+    }
+
+    return {
+        round: item.round,
+        activeBlockId:
+            item.activeBlockId,
+        blocks,
+        cyclicMergePending:
+            item.cyclicMergePending,
+        cyclicMergeCompleted:
+            item.cyclicMergeCompleted,
+        lowerCyclicBlockSkippedRoundOne:
+            item.lowerCyclicBlockSkippedRoundOne,
+        lastAdvance
+    };
 }
+
+function normalizeInitiativeCombatantPreview(
+    value: unknown
+): InitiativeCombatantPreview | null {
+    const base =
+        normalizeInitiativeCombatant(value);
+    const item = record(value);
+    if (!base
+        || !item
+        || typeof item.effectiveInitiative !== "number"
+        || !Number.isFinite(item.effectiveInitiative)) {
+        return null;
+    }
+
+    return {
+        ...base,
+        effectiveInitiative:
+            item.effectiveInitiative,
+        blockType:
+            readTurnBlockType(
+                item.blockType)
+            ?? "standard"
+    };
+}
+
+function normalizeInitiativeBlockPreview(
+    value: unknown
+): InitiativeBlockPreview | null {
+    const item = record(value);
+    if (!item
+        || typeof item.id !== "string"
+        || typeof item.allianceId !== "string"
+        || typeof item.isMerged !== "boolean") {
+        return null;
+    }
+
+    const memberIds =
+        stringArray(item.memberIds);
+    const memberOrder =
+        stringArray(item.memberOrder);
+    const sourceBlockIds =
+        stringArray(item.sourceBlockIds);
+    const blockType =
+        readTurnBlockType(
+            item.blockType);
+
+    if (!memberIds
+        || !memberOrder
+        || !sourceBlockIds
+        || !blockType) {
+        return null;
+    }
+
+    return {
+        id: item.id,
+        allianceId: item.allianceId,
+        blockType,
+        memberIds,
+        memberOrder,
+        sourceBlockIds,
+        isMerged: item.isMerged
+    };
+}
+
+function normalizeInitiativeIssue(
+    value: unknown
+): InitiativeIssuePreview | null {
+    const item = record(value);
+    if (!item
+        || typeof item.code !== "string"
+        || typeof item.message !== "string") {
+        return null;
+    }
+
+    const combatantIds =
+        stringArray(item.combatantIds);
+    if (!combatantIds) return null;
+
+    return {
+        code: item.code,
+        message: item.message,
+        combatantIds
+    };
+}
+
+function normalizeCyclicMerge(
+    value: unknown
+): CyclicMergePreview | null | undefined {
+    if (value === null
+        || value === undefined) {
+        return null;
+    }
+
+    const item = record(value);
+    const blockType =
+        readTurnBlockType(
+            item?.blockType);
+    if (!item
+        || typeof item.topBlockId !== "string"
+        || typeof item.bottomBlockId !== "string"
+        || typeof item.allianceId !== "string"
+        || !blockType) {
+        return undefined;
+    }
+
+    return {
+        topBlockId: item.topBlockId,
+        bottomBlockId: item.bottomBlockId,
+        allianceId: item.allianceId,
+        blockType
+    };
+}
+
+function normalizeTurnAdvance(
+    value: unknown
+): TurnAdvancePreview | null | undefined {
+    if (value === null
+        || value === undefined) {
+        return null;
+    }
+
+    const item = record(value);
+    if (!item
+        || !positiveInteger(item.previousRound)
+        || !positiveInteger(item.currentRound)
+        || !isNullableString(item.previousBlockId)
+        || !isNullableString(item.currentBlockId)
+        || !isNullableString(item.skippedBlockId)
+        || typeof item.roundAdvanced !== "boolean"
+        || typeof item.cyclicMergeCompleted !== "boolean") {
+        return undefined;
+    }
+
+    return {
+        previousRound: item.previousRound,
+        currentRound: item.currentRound,
+        previousBlockId:
+            item.previousBlockId,
+        currentBlockId:
+            item.currentBlockId,
+        roundAdvanced:
+            item.roundAdvanced,
+        cyclicMergeCompleted:
+            item.cyclicMergeCompleted,
+        skippedBlockId:
+            item.skippedBlockId
+    };
+}
+
+function readTurnBlockType(
+    value: unknown
+): TurnBlockType | null {
+    return value === "standard"
+        || value === "kaiju"
+        || value === "mixed"
+            ? value
+            : null;
+}
+
 
 function readInitiativeMode(
     value: unknown
@@ -693,6 +925,21 @@ function nullableString(
     return typeof value === "string"
         ? value
         : null;
+}
+
+function isNullableString(
+    value: unknown
+): value is string | null {
+    return value === null
+        || typeof value === "string";
+}
+
+function positiveInteger(
+    value: unknown
+): value is number {
+    return typeof value === "number"
+        && Number.isInteger(value)
+        && value >= 1;
 }
 
 function nonNegativeInteger(
