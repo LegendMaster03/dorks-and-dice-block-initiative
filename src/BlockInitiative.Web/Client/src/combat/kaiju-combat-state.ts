@@ -559,8 +559,9 @@ function renderKaiju(
             amount.wrapper,
             actionButton("Apply damage", "btn-outline-secondary", () => {
                 area.currentHp = Math.max(
-                    0,
-                    (area.currentHp ?? area.maxHp ?? 0) - amount.value());
+                    TRACKER_LIMITS.min,
+                    (area.currentHp ?? area.maxHp ?? 0)
+                        - amount.value());
                 void evaluateKaiju(id, state, root, true);
             }),
             checkField("Targetable", area.targetable, value => {
