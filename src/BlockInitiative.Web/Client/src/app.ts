@@ -17,7 +17,8 @@ if (!(root instanceof HTMLElement)) {
         "Block Initiative could not find the Dorks & Dice tool root.");
 }
 
-const shell = mountApplicationShell(root);
+const appRoot: HTMLElement = root;
+const shell = mountApplicationShell(appRoot);
 
 const setup = query<HTMLElement>("[data-role='setup']");
 const hostStatus =
@@ -142,9 +143,9 @@ function updateReady(): void {
         editing: runner.isEditing
     });
 
-    root.dataset.initiativeServiceConnected =
+    appRoot.dataset.initiativeServiceConnected =
         String(connected);
-    root.dataset.initiativeRosterReady =
+    appRoot.dataset.initiativeRosterReady =
         String(!previewButton.disabled);
 
     window.dispatchEvent(
