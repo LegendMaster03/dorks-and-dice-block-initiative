@@ -605,6 +605,11 @@ async function performLatestKaijuEvaluation(
             && state.defeatedRound === null
             && currentRound !== null) {
             state.defeatedRound = currentRound;
+            notifyCombatStateChanged();
+        } else if (!evaluation.defeated
+            && state.defeatedRound !== null) {
+            state.defeatedRound = null;
+            notifyCombatStateChanged();
         }
     } catch (error) {
         if ((evaluationRevisions.get(id) ?? 0) === revision) {
@@ -655,6 +660,12 @@ async function getEvaluateUrl(
             });
 
     return await resolvingEvaluateUrl;
+}
+
+function notifyCombatStateChanged(): void {
+    window.dispatchEvent(
+        new CustomEvent(
+            "block-initiative:combat-state-change"));
 }
 
 function requestKaijuCardRefresh(
