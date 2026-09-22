@@ -343,6 +343,9 @@ function normalizeKaijuRuntimeMap(
             finishingDamageThisTurn:
                 stringOrEmpty(
                     item.finishingDamageThisTurn),
+            finishingDamageByTurn:
+                normalizeTurnDamageMap(
+                    item.finishingDamageByTurn),
             defeatedRound:
                 nullablePositiveInteger(
                     item.defeatedRound),
