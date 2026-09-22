@@ -80,7 +80,7 @@ public static class NumericInputLimits
         decimal minimum,
         decimal maximum)
         => new(
-            $\"{label} must be a number between {Format(minimum)} and {Format(maximum)}.\");
+            $"{label} must be a number between {Format(minimum)} and {Format(maximum)}.");
 
     private static string Format(decimal value)
         => value.ToString("0.#############################", CultureInfo.InvariantCulture);
