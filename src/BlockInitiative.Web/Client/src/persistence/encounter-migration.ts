@@ -14,7 +14,9 @@ import {
     normalizeSavedCombatants
 } from "./encounter-roster-normalizer.js";
 import type {
-    SavedEncounter
+    SavedEncounter,
+    SavedRunnerCombat,
+    StateDetail
 } from "./encounter-schema";
 import {
     nullableString,
@@ -28,7 +30,8 @@ export function normalizeSavedEncounter(
     if (!candidate
         || (candidate.version !== 1
             && candidate.version !== 2
-            && candidate.version !== 3)
+            && candidate.version !== 3
+            && candidate.version !== 4)
         || typeof candidate.savedAt !== "string"
         || !isSavedView(candidate.view)
         || !Array.isArray(candidate.players)
@@ -64,6 +67,13 @@ export function normalizeSavedEncounter(
     const state =
         normalizeStateDetail(
             candidate.state);
+    const runnerCombat =
+        normalizeRunnerCombat(
+            candidate.runnerCombat);
+    migrateLegacyFinishingDamage(
+        runnerCombat,
+        state);
+
     const initiativeMode =
         readInitiativeMode(
             candidate.initiativeMode)
@@ -72,7 +82,7 @@ export function normalizeSavedEncounter(
         ?? "block";
 
     return {
-        version: 3,
+        version: 4,
         savedAt: candidate.savedAt,
         view: candidate.view,
         campaignId:
@@ -89,9 +99,7 @@ export function normalizeSavedEncounter(
         otherSides,
         preview,
         state,
-        runnerCombat:
-            normalizeRunnerCombat(
-                candidate.runnerCombat),
+        runnerCombat,
         rulesCoreLinks:
             normalizeRulesCoreLinks(
                 candidate.rulesCoreLinks),
@@ -111,4 +119,45 @@ function isSavedView(
         || value === "preview"
         || value === "running"
         || value === "editing";
+}
+
+
+function migrateLegacyFinishingDamage(
+    runnerCombat: SavedRunnerCombat,
+    state: StateDetail | null
+): void {
+    if (!state?.response.activeBlockId) return;
+
+    const active =
+        state.response.blocks.find(
+            block =>
+                block.id
+                === state.response.activeBlockId);
+    const anchor =
+        active?.memberOrder[0];
+    if (!anchor) return;
+
+    const key =
+        `${state.response.round}:${anchor}`;
+
+    for (const runtime
+        of Object.values(runnerCombat.kaiju)) {
+        if (Object.keys(
+            runtime.finishingDamageByTurn).length > 0) {
+            continue;
+        }
+
+        const raw =
+            runtime.finishingDamageThisTurn.trim();
+        if (!raw) continue;
+
+        const damage = Number(raw);
+        if (!Number.isInteger(damage)
+            || damage < 0) {
+            continue;
+        }
+
+        runtime.finishingDamageByTurn[key] =
+            damage;
+    }
 }
