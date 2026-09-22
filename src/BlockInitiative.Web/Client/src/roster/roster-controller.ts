@@ -9,6 +9,13 @@ import type {
     TurnBlockType
 } from "../api";
 import type { MonsterTemplate } from "../integrations/rules-core/monsters";
+import {
+    applyNumberLimits,
+    describeNumberRange,
+    INITIATIVE_LIMITS,
+    isBoundedNumber,
+    parseBoundedNumber
+} from "../numeric-input-limits";
 import { MonsterRosterService } from "./monster-roster";
 import { TacticalGroupRosterService } from "./tactical-group-roster";
 
@@ -160,7 +167,7 @@ export class RosterController {
                         "initiative").value.trim();
 
             if (!initiative
-                || !Number.isFinite(Number(initiative))) {
+                || !isBoundedNumber(initiative, INITIATIVE_LIMITS)) {
                 ready = false;
             }
         }
@@ -227,20 +234,22 @@ export class RosterController {
                     `Enter initiative for ${name}.`);
             }
 
-            const initiativeTotal = Number(raw);
+            const initiativeTotal =
+                parseBoundedNumber(raw, INITIATIVE_LIMITS);
             const initiativeModifier =
                 modifierRaw
-                    ? Number(modifierRaw)
+                    ? parseBoundedNumber(
+                        modifierRaw,
+                        INITIATIVE_LIMITS)
                     : null;
 
-            if (!Number.isFinite(initiativeTotal)
-                || (
-                    initiativeModifier !== null
-                    && !Number.isFinite(
-                        initiativeModifier)
-                )) {
+            if (initiativeTotal === null) {
                 throw new Error(
-                    `${name} has an invalid initiative value.`);
+                    `${name}'s initiative must be between ${describeNumberRange(INITIATIVE_LIMITS)}.`);
+            }
+            if (modifierRaw && initiativeModifier === null) {
+                throw new Error(
+                    `${name}'s initiative modifier must be between ${describeNumberRange(INITIATIVE_LIMITS)}.`);
             }
 
             return {
@@ -325,6 +334,13 @@ export class RosterController {
         card.dataset.autoName = "false";
         card.innerHTML =
             `<div class="bi-entry-main ${custom ? "custom" : ""}"><div class="bi-field" data-role="name-field"><label>Name</label><input data-field="name" autocomplete="off" placeholder="${blockType === "kaiju" ? "Kaiju name" : allianceId === "players" ? "Player name" : "Start typing a monster name"}"><div class="bi-autocomplete" data-role="monster-results" hidden></div></div>${custom ? '<div class="bi-field"><label>Side</label><input data-field="custom-side" placeholder="e.g. neutral guards"></div>' : ""}<div class="bi-field" data-role="initiative-wrap"><label>Initiative</label><input data-field="initiative" type="number" step="any" placeholder="e.g. 17"></div><button class="btn btn-sm btn-outline-danger" data-action="remove">Remove</button></div><div class="bi-badges mt-2" data-role="badges"></div><div class="bi-monster-meta" data-role="monster-meta" hidden></div><div class="bi-template-actions" data-role="template-actions" hidden><button class="btn btn-sm btn-outline-secondary" data-action="clone-monster"></button></div><details><summary>Advanced options</summary><div class="bi-advanced"><div class="bi-field"><label>Special block type</label><select data-field="block-type"><option value="standard">Standard block</option><option value="kaiju">Kaiju block</option></select></div><div class="bi-field"><label>Acts with controller</label><select data-field="controller"><option value="">No controller</option></select></div><div class="bi-field"><label>Initiative modifier</label><input data-field="modifier" type="number" step="any" placeholder="Optional"></div><div class="bi-field"><label>Rules Core reference</label><input data-field="rules-reference" readonly placeholder="Manual entry"></div></div></details>`;
+
+        applyNumberLimits(
+            this.field<HTMLInputElement>(card, "initiative"),
+            INITIATIVE_LIMITS);
+        applyNumberLimits(
+            this.field<HTMLInputElement>(card, "modifier"),
+            INITIATIVE_LIMITS);
 
         this.field<HTMLSelectElement>(
             card,

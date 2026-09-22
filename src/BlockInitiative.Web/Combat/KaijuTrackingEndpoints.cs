@@ -1,4 +1,6 @@
+using System.Text.Json;
 using BlockInitiative.Core.Combat;
+using BlockInitiative.Web.Validation;
 
 namespace BlockInitiative.Web.Combat;
 
@@ -20,13 +22,29 @@ public static class KaijuTrackingEndpoints
         try
         {
             var state = new KaijuCombatState(
-                request.ChaosThresholdCurrent,
-                request.FinishingBlowTarget,
-                request.FinishingBlowDamageThisTurn,
+                NumericInputLimits.RequiredInteger(
+                    request.ChaosThresholdCurrent,
+                    "Chaos Threshold",
+                    NumericInputLimits.TrackerMinimum,
+                    NumericInputLimits.TrackerMaximum),
+                NumericInputLimits.OptionalInteger(
+                    request.FinishingBlowTarget,
+                    "Finishing Blow target",
+                    1,
+                    NumericInputLimits.TrackerMaximum),
+                NumericInputLimits.RequiredInteger(
+                    request.FinishingBlowDamageThisTurn,
+                    "Finishing Blow damage this turn",
+                    NumericInputLimits.NonNegativeTrackerMinimum,
+                    NumericInputLimits.TrackerMaximum),
                 request.VulnerableAreas.Select(area => new KaijuVulnerableAreaState(
                     area.Id,
                     area.Name,
-                    area.CurrentHitPoints,
+                    NumericInputLimits.RequiredInteger(
+                        area.CurrentHitPoints,
+                        "Vulnerable Area current HP",
+                        NumericInputLimits.TrackerMinimum,
+                        NumericInputLimits.TrackerMaximum),
                     area.Targetable,
                     area.ExploitedOverride)).ToArray(),
                 request.RampageOverride,
@@ -44,9 +62,9 @@ public static class KaijuTrackingEndpoints
 }
 
 public sealed record KaijuEvaluationRequest(
-    int ChaosThresholdCurrent,
-    int? FinishingBlowTarget,
-    int FinishingBlowDamageThisTurn,
+    JsonElement ChaosThresholdCurrent,
+    JsonElement? FinishingBlowTarget,
+    JsonElement FinishingBlowDamageThisTurn,
     IReadOnlyList<KaijuVulnerableAreaRequest>? VulnerableAreas,
     bool? RampageOverride = null,
     bool? DeathThroesOverride = null,
@@ -55,6 +73,6 @@ public sealed record KaijuEvaluationRequest(
 public sealed record KaijuVulnerableAreaRequest(
     string Id,
     string Name,
-    int CurrentHitPoints,
+    JsonElement CurrentHitPoints,
     bool Targetable,
     bool? ExploitedOverride = null);

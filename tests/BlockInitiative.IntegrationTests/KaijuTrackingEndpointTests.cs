@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -55,6 +56,30 @@ public sealed class KaijuTrackingEndpointTests : IClassFixture<WebApplicationFac
         Assert.True(root.GetProperty("defeated").GetBoolean());
         Assert.All(root.GetProperty("vulnerableAreas").EnumerateArray(), area =>
             Assert.True(area.GetProperty("exploited").GetBoolean()));
+    }
+
+    [Fact]
+    public async Task EvaluateRejectsOversizedTrackerValueWithValidationMessage()
+    {
+        const string json = """
+            {
+              "chaosThresholdCurrent": 999999999999999999999999999999999999999999999999999999999999,
+              "finishingBlowTarget": 60,
+              "finishingBlowDamageThisTurn": 0,
+              "vulnerableAreas": []
+            }
+            """;
+
+        using var response = await _client.PostAsync(
+            "/api/kaiju/evaluate",
+            new StringContent(json, Encoding.UTF8, "application/json"));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(
+            "Chaos Threshold must be a number between -1000000000 and 1000000000.",
+            body,
+            StringComparison.Ordinal);
     }
 
     [Fact]

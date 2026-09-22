@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -29,6 +30,40 @@ public sealed class InitiativePreviewEndpointTests : IClassFixture<WebApplicatio
         Assert.Equal("block-1", root.GetProperty("cyclicMerge").GetProperty("topBlockId").GetString());
         Assert.Equal("block-3", root.GetProperty("cyclicMerge").GetProperty("bottomBlockId").GetString());
         Assert.Equal("standard", root.GetProperty("cyclicMerge").GetProperty("blockType").GetString());
+    }
+
+    [Fact]
+    public async Task PreviewRejectsOversizedInitiativeWithValidationMessage()
+    {
+        const string json = """
+            {
+              "combatants": [
+                {
+                  "id": "p",
+                  "name": "Player",
+                  "allianceId": "players",
+                  "initiativeTotal": 999999999999999999999999999999999999999999999999999999999999
+                },
+                {
+                  "id": "e",
+                  "name": "Enemy",
+                  "allianceId": "enemies",
+                  "initiativeTotal": 10
+                }
+              ]
+            }
+            """;
+
+        using var response = await _client.PostAsync(
+            "/api/initiative/preview",
+            new StringContent(json, Encoding.UTF8, "application/json"));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(
+            "Initiative must be a number between -1000000 and 1000000.",
+            body,
+            StringComparison.Ordinal);
     }
 
     [Fact]

@@ -4,6 +4,11 @@ import type {
 import type {
     MonsterTemplate
 } from "../integrations/rules-core/monsters";
+import {
+    applyNumberLimits,
+    INITIATIVE_LIMITS,
+    parseBoundedNumber
+} from "../numeric-input-limits";
 
 export type TacticalGroupRosterCallbacks = {
     addEnemyToGroup: (
@@ -124,12 +129,13 @@ export class TacticalGroupRosterService {
         } else {
             const values = members
                 .map(card =>
-                    Number(
+                    parseBoundedNumber(
                         card.querySelector<HTMLInputElement>(
                             "[data-field='initiative']")
                             ?.value
-                        ?? NaN))
-                .filter(Number.isFinite);
+                        ?? "",
+                        INITIATIVE_LIMITS))
+                .filter((value): value is number => value !== null);
 
             placement =
                 values.length === members.length
@@ -186,6 +192,12 @@ export class TacticalGroupRosterService {
 </div>
 <div class="bi-group-body"><div class="bi-list" data-role="group-members"></div><button class="btn btn-sm btn-outline-secondary" data-action="add-member">+ Different enemy</button></div>`;
 
+        const sharedRoll =
+            query<HTMLInputElement>(
+                "[data-role='shared-roll']",
+                group);
+        applyNumberLimits(sharedRoll, INITIATIVE_LIMITS);
+
         const nameInput =
             query<HTMLInputElement>(
                 "[data-role='group-name']",
@@ -196,10 +208,7 @@ export class TacticalGroupRosterService {
             "input",
             () => this.callbacks.changed());
 
-        query<HTMLInputElement>(
-            "[data-role='shared-roll']",
-            group)
-            .addEventListener("input", () => {
+        sharedRoll.addEventListener("input", () => {
                 this.updateGroupSummary(group);
                 this.callbacks.changed();
             });

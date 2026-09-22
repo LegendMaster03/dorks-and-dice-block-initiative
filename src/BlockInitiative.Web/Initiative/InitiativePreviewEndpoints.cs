@@ -1,4 +1,6 @@
+using System.Text.Json;
 using BlockInitiative.Core.Initiative;
+using BlockInitiative.Web.Validation;
 
 namespace BlockInitiative.Web.Initiative;
 
@@ -116,8 +118,16 @@ public static class InitiativePreviewEndpoints
                 combatant.Id,
                 combatant.Name,
                 combatant.AllianceId,
-                combatant.InitiativeTotal,
-                combatant.InitiativeModifier,
+                NumericInputLimits.RequiredDecimal(
+                    combatant.InitiativeTotal,
+                    "Initiative",
+                    NumericInputLimits.InitiativeMinimum,
+                    NumericInputLimits.InitiativeMaximum),
+                NumericInputLimits.OptionalDecimal(
+                    combatant.InitiativeModifier,
+                    "Initiative modifier",
+                    NumericInputLimits.InitiativeMinimum,
+                    NumericInputLimits.InitiativeMaximum),
                 combatant.ControllerId,
                 combatant.TacticalGroupId,
                 ParseBlockType(combatant.BlockType)))
@@ -251,8 +261,8 @@ public sealed record InitiativeCombatantRequest(
     string Id,
     string Name,
     string AllianceId,
-    decimal InitiativeTotal,
-    decimal? InitiativeModifier = null,
+    JsonElement InitiativeTotal,
+    JsonElement? InitiativeModifier = null,
     string? ControllerId = null,
     string? TacticalGroupId = null,
     string? BlockType = null);
