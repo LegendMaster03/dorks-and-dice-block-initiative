@@ -162,7 +162,7 @@ export class EncounterRunnerController {
             };
             this.render();
         } catch (error) {
-            this.options.results.replaceChildren();
+            this.render();
             this.options.showError(error);
         }
     }
