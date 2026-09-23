@@ -43,7 +43,11 @@ export function sameOrder(left: readonly string[], right: readonly string[]): bo
 export function sameMembers(left: readonly string[], right: readonly string[]): boolean {
     if (left.length !== right.length) return false;
     const expected = new Set(left);
-    return expected.size === left.length && right.every(id => expected.has(id));
+    const actual = new Set(right);
+    return expected.size === left.length
+        && actual.size === right.length
+        && actual.size === expected.size
+        && right.every(id => expected.has(id));
 }
 
 function assertUniqueOrder(order: readonly string[]): void {
