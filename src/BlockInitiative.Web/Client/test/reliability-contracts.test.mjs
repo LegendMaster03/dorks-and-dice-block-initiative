@@ -550,7 +550,7 @@ test("runner transitions and reorder operations share one bidirectional mutation
 });
 
 
-test("preview generation is single-flight and ignores stale roster revisions", async () => {
+test("preview generation is single-flight and publishes only current roster revisions", async () => {
     const app =
         await source("../src/app.ts");
 
@@ -565,7 +565,16 @@ test("preview generation is single-flight and ignores stale roster revisions", a
         /const requestRosterRevision =[\s\S]*rosterRevision/);
     assert.match(
         app,
-        /requestRosterRevision !== rosterRevision[\s\S]*return;/);
+        /requestInitiativePreview[\s\S]*requestRosterRevision !== rosterRevision[\s\S]*return;[\s\S]*publishInitiativePreview/);
+    assert.doesNotMatch(
+        app,
+        /await previewInitiative\(/);
+    assert.match(
+        app,
+        /request: effectiveRequest/);
+    assert.match(
+        app,
+        /runner\.start\([\s\S]*effectiveRequest/);
     assert.match(
         app,
         /requestSequence === previewRequestSequence[\s\S]*busy = false/);

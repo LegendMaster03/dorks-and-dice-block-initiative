@@ -35,6 +35,15 @@ test("order comparisons distinguish sequence from membership", () => {
     assert.equal(sameMembers(original, ["a", "b", "d"]), false);
 });
 
+test("membership comparison rejects duplicates on either side", () => {
+    assert.equal(
+        sameMembers(["a", "b"], ["a", "a"]),
+        false);
+    assert.equal(
+        sameMembers(["a", "a"], ["a", "b"]),
+        false);
+});
+
 test("rejects malformed orders with duplicate members", () => {
     assert.throws(
         () => moveCombatant(["a", "a", "b"], "a", "b", "after"),

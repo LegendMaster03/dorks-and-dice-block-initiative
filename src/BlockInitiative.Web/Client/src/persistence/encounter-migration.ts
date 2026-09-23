@@ -57,7 +57,12 @@ export function normalizeSavedEncounter(
     if (!players
         || !enemyGroups
         || !kaiju
-        || !otherSides) {
+        || !otherSides
+        || !hasUniqueCombatantIds(
+            players,
+            enemyGroups,
+            kaiju,
+            otherSides)) {
         return null;
     }
 
@@ -110,6 +115,25 @@ export function normalizeSavedEncounter(
             normalizeReorderRuntime(
                 candidate.reorderRuntime)
     };
+}
+
+function hasUniqueCombatantIds(
+    players: SavedEncounter["players"],
+    enemyGroups: SavedEncounter["enemyGroups"],
+    kaiju: SavedEncounter["kaiju"],
+    otherSides: SavedEncounter["otherSides"]
+): boolean {
+    const ids = [
+        ...players.map(combatant => combatant.id),
+        ...enemyGroups.flatMap(group =>
+            group.members.map(combatant => combatant.id)),
+        ...kaiju.map(combatant => combatant.id),
+        ...otherSides.flatMap(side =>
+            side.blocks.flatMap(block =>
+                block.members.map(combatant => combatant.id)))
+    ];
+
+    return new Set(ids).size === ids.length;
 }
 
 function isSavedView(

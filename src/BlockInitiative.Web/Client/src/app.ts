@@ -1,4 +1,7 @@
-import { previewInitiative } from "./api";
+import {
+    publishInitiativePreview,
+    requestInitiativePreview
+} from "./api";
 import { mountApplicationShell } from "./application/app-shell";
 import { EncounterRunnerController } from "./application/encounter-runner";
 import { renderInitiativePreview } from "./application/initiative-preview";
@@ -185,8 +188,8 @@ async function buildPreview(
                 roster.currentGroupMode()
         };
 
-        const preview =
-            await previewInitiative(
+        const previewResult =
+            await requestInitiativePreview(
                 previewUrl,
                 request);
 
@@ -195,10 +198,14 @@ async function buildPreview(
             return;
         }
 
+        publishInitiativePreview(previewResult);
+        const preview = previewResult.response;
+        const effectiveRequest = previewResult.request;
+
         renderInitiativePreview({
             results,
             preview,
-            request,
+            request: effectiveRequest,
             editingRunningEncounter:
                 runner.isEditing,
             groupName:
@@ -207,11 +214,11 @@ async function buildPreview(
                 order => void buildPreview(order),
             onStart:
                 () => void runner.start(
-                    request,
+                    effectiveRequest,
                     preview),
             onResume:
                 () => void runner.resume(
-                    request,
+                    effectiveRequest,
                     preview)
         });
 
