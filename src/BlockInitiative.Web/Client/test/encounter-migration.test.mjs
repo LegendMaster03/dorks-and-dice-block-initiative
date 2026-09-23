@@ -210,3 +210,30 @@ test("legacy finishing damage is attached to the saved active turn", () => {
             .finishingDamageByTurn,
         { "3:hero-1": 17 });
 });
+
+
+test("duplicate combatant ids reject the saved encounter before restore", () => {
+    const duplicate = {
+        id: "duplicate-id",
+        name: "Duplicate"
+    };
+
+    const migrated =
+        normalizeSavedEncounter(
+            legacyEncounter({
+                players: [
+                    duplicate
+                ],
+                enemyGroups: [{
+                    groupId: "group-1",
+                    name: "Enemies",
+                    sharedRoll: "",
+                    members: [{
+                        ...duplicate,
+                        name: "Duplicate enemy"
+                    }]
+                }]
+            }));
+
+    assert.equal(migrated, null);
+});
