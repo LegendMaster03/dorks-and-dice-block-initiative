@@ -80,14 +80,12 @@ export function initializeInitiativeModeUi(): void {
         else requestEnhancement();
     });
 
-    // The encounter reset handler reloads immediately, so clear this companion
-    // preference during capture before the persistence module handles the click.
-    root.addEventListener("click", event => {
-        const target = event.target;
-        const element = target instanceof Element ? target : null;
-        if (!element?.closest("[data-action='reset-persisted-encounter']")) return;
-        clearStoredMode();
-    }, true);
+    // Clear the companion preference only after persistence confirms that the
+    // automatic encounter was actually removed. A failed reset leaves the
+    // current encounter and its initiative mode unchanged.
+    window.addEventListener(
+        "block-initiative:encounter-reset",
+        () => clearStoredMode());
 
     window.addEventListener("block-initiative:preview", event => {
         lastPreview = (event as CustomEvent<PreviewDetail>).detail ?? null;
