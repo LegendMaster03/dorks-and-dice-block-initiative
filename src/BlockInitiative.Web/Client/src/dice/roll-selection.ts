@@ -33,7 +33,7 @@ export function selectD20Roll(
         return { mode, rolls: [first], selectedIndex: 0, selected: first, tied: false };
     }
 
-    if (second === undefined) throw new Error(\`\${mode} d20 rolls require two dice.\`);
+    if (second === undefined) throw new Error(`${mode} d20 rolls require two dice.`);
     validateD20(second);
 
     const firstScore = selectionScore(mode, first);
@@ -70,10 +70,10 @@ export function rollModeLabel(mode: D20RollMode): string {
 }
 
 export function formatD20Selection(selection: D20RollSelection): string {
-    if (selection.mode === "normal") return \`d20 \${selection.selected}\`;
+    if (selection.mode === "normal") return `d20 ${selection.selected}`;
     const rolls = selection.rolls.join(", ");
     const tie = selection.tied ? " · selection tie" : "";
-    return \`\${rollModeLabel(selection.mode)} [\${rolls}] → \${selection.selected}\${tie}\`;
+    return `${rollModeLabel(selection.mode)} [${rolls}] → ${selection.selected}${tie}`;
 }
 
 function selectionScore(mode: Exclude<D20RollMode, "normal">, value: number): number {
