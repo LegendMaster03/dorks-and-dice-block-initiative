@@ -403,3 +403,12 @@ test("application shell keeps guidance compact and secondary controls readable a
     assert.match(mode, /\[data-role='block-rule-copy'\]/);
     assert.doesNotMatch(mode, /querySelector<HTMLElement>\("header details"\)/);
 });
+
+
+test("initiative roller keeps physical dice as a first-class manual option", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const source = await readFile(path.resolve(testDirectory, "../src/initiative/initiative-roll-ui.ts"), "utf8");
+    assert.match(source, /physical dice directly in Initiative/);
+    assert.match(source, /change it for this roll, including when using physical dice/);
+    assert.doesNotMatch(source, /readOnly\s*=\s*true/);
+});

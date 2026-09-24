@@ -72,7 +72,7 @@ export function rollModeLabel(mode: D20RollMode): string {
 export function formatD20Selection(selection: D20RollSelection): string {
     if (selection.mode === "normal") return \`d20 \${selection.selected}\`;
     const rolls = selection.rolls.join(", ");
-    const tie = selection.tied ? " · equal selection distance" : "";
+    const tie = selection.tied ? " · selection tie" : "";
     return \`\${rollModeLabel(selection.mode)} [\${rolls}] → \${selection.selected}\${tie}\`;
 }
 

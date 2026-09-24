@@ -31,7 +31,7 @@ test("emphasis preserves an equal-distance tie explicitly", () => {
     const result = selectD20Roll("emphasis", 7, 13);
     assert.equal(result.selected, 7);
     assert.equal(result.tied, true);
-    assert.match(formatD20Selection(result), /equal selection distance/);
+    assert.match(formatD20Selection(result), /selection tie/);
 });
 
 test("normal rolls once while special modes roll twice", () => {

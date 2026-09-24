@@ -195,10 +195,10 @@ function enhanceCombatant(card: HTMLElement): void {
     roll.type = "button";
     roll.className = "btn btn-sm btn-outline-secondary";
     roll.textContent = "Roll";
-    roll.title = "Roll d20 and apply this combatant's initiative modifier.";
+    roll.title = "Roll digitally and apply this combatant's initiative modifier. You can always enter a result from physical dice directly in Initiative.";
     const mode = createRollModeSelect(card.dataset.ruleRollMode);
     mode.dataset.role = "roll-mode";
-    mode.title = "Rules may supply a default roll mode. You can always change it for this roll.";
+    mode.title = "Rules may supply a default roll mode. You can always change it for this roll, including when using physical dice.";
     const audit = document.createElement("span");
     audit.className = "bi-roll-audit";
     audit.dataset.role = "roll-audit";
@@ -233,7 +233,7 @@ function enhanceGroup(group: HTMLElement): void {
     singleRoll.type = "button";
     singleRoll.className = "btn btn-sm btn-outline-primary";
     singleRoll.textContent = "Single roll";
-    singleRoll.title = "Roll one d20 for the group and add the highest initiative modifier in the group.";
+    singleRoll.title = "Roll digitally for the group and add the highest initiative modifier. A physical-dice result can still be entered directly for the group members.";
     singleRoll.dataset.action = "roll-shared-group";
     singleRoll.onclick = () => applyOneRollToGroup(
         group,
