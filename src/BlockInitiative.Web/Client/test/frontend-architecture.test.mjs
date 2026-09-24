@@ -411,5 +411,7 @@ test("initiative roller keeps physical dice as a first-class manual option", asy
     assert.match(source, /physical dice directly in Initiative/);
     assert.match(source, /change it for this roll, including when using physical dice/);
     assert.match(source, /choose the Emphasis result manually/);
+    assert.match(source, /function markManualEmphasisSelection[\s\S]*initiative\.value = ""[\s\S]*dispatchEvent/);
+    assert.match(source, /select\.dataset\.manualOverride = "false"/);
     assert.doesNotMatch(source, /readOnly\s*=\s*true/);
 });

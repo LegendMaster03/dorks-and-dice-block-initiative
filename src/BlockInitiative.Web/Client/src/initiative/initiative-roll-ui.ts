@@ -290,15 +290,11 @@ function applyOneRollToGroup(group: HTMLElement, selection: D20RollSelection): v
     const members = Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"));
     if (!members.length) return;
 
-    if (selection.tied && selection.rolls[0] !== selection.rolls[1]) {
+    if (requiresManualEmphasisSelection(selection)) {
         for (const member of members) {
-            const audit = member.querySelector<HTMLElement>("[data-role='roll-audit']");
-            if (audit) {
-                setTextIfChanged(
-                    audit,
-                    `${formatD20Selection(selection)} · choose the Emphasis result manually`);
-            }
+            markManualEmphasisSelection(member, selection);
         }
+        refreshGroupSummary(group, "average");
         return;
     }
 
@@ -332,13 +328,8 @@ function rollCombatant(card: HTMLElement): void {
     if (modifier === null) return;
 
     const selection = rollD20(readCombatantRollMode(card));
-    if (selection.tied && selection.rolls[0] !== selection.rolls[1]) {
-        const audit = card.querySelector<HTMLElement>("[data-role='roll-audit']");
-        if (audit) {
-            setTextIfChanged(
-                audit,
-                `${formatD20Selection(selection)} · choose the Emphasis result manually`);
-        }
+    if (requiresManualEmphasisSelection(selection)) {
+        markManualEmphasisSelection(card, selection);
         return;
     }
 
@@ -350,6 +341,32 @@ function rollCombatant(card: HTMLElement): void {
         setTextIfChanged(
             audit,
             `${formatD20Selection(selection)} ${formatModifier(modifier)} = ${formatNumber(total)}`);
+    }
+}
+
+function requiresManualEmphasisSelection(selection: D20RollSelection): boolean {
+    return selection.tied && selection.rolls[0] !== selection.rolls[1];
+}
+
+function markManualEmphasisSelection(
+    card: HTMLElement,
+    selection: D20RollSelection
+): void {
+    const initiative =
+        card.querySelector<HTMLInputElement>(
+            "[data-field='initiative']");
+    if (initiative) {
+        initiative.value = "";
+        initiative.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    const audit =
+        card.querySelector<HTMLElement>(
+            "[data-role='roll-audit']");
+    if (audit) {
+        setTextIfChanged(
+            audit,
+            `${formatD20Selection(selection)} · choose the Emphasis result manually`);
     }
 }
 
@@ -423,6 +440,7 @@ function createRollModeSelect(ruleMode: string | undefined): HTMLSelectElement {
     select.className = "form-select form-select-sm bi-roll-mode";
     const normalizedRuleMode = normalizeD20RollMode(ruleMode);
     select.dataset.ruleRollMode = normalizedRuleMode;
+    select.dataset.manualOverride = "false";
     for (const mode of D20_ROLL_MODES) {
         const option = document.createElement("option");
         option.value = mode;
