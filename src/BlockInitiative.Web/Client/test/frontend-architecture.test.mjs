@@ -403,3 +403,22 @@ test("application shell keeps guidance compact and secondary controls readable a
     assert.match(mode, /\[data-role='block-rule-copy'\]/);
     assert.doesNotMatch(mode, /querySelector<HTMLElement>\("header details"\)/);
 });
+
+
+test("initiative dice generation is delegated to the shared Rules Core roller", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const rollUi = await readFile(
+        path.resolve(testDirectory, "../src/initiative/initiative-roll-ui.ts"),
+        "utf8");
+    const diceClient = await readFile(
+        path.resolve(testDirectory, "../src/integrations/rules-core/dice.ts"),
+        "utf8");
+
+    assert.match(rollUi, /rollRulesCoreD20/);
+    assert.doesNotMatch(rollUi, /crypto\.getRandomValues|Math\.random|function rollD20/);
+    assert.match(diceClient, /\/api\/rules\/dice\/roll/);
+    assert.match(diceClient, /selectionMode: DiceSelectionMode = "normal"/);
+    assert.match(diceClient, /"advantage"/);
+    assert.match(diceClient, /"disadvantage"/);
+    assert.match(diceClient, /"emphasis"/);
+});

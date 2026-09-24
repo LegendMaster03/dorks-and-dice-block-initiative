@@ -154,6 +154,45 @@ export async function getRulesCoreJson<T>(
     }
 }
 
+export async function postRulesCoreJson<TRequest, TResponse>(
+    path: string,
+    body: TRequest,
+    label: string,
+    accessDeniedMessage = "Rules Core access is required for this operation."
+): Promise<TResponse> {
+    let response: Response;
+    try {
+        response = await fetch(`${gateway}${path}`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(body)
+        });
+    } catch {
+        throw new Error(`${label} is not available right now.`);
+    }
+
+    if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+            throw new Error(accessDeniedMessage);
+        }
+        throw new Error(`${label} returned HTTP ${response.status}.`);
+    }
+
+    const responseBody = await response.text();
+    if (!responseBody.trim()) {
+        throw new Error(`${label} returned an empty response.`);
+    }
+    try {
+        return JSON.parse(responseBody) as TResponse;
+    } catch {
+        throw new Error(`${label} returned an unreadable response.`);
+    }
+}
+
 export function toHostedToolHref(link: RuleBrowserLink | null | undefined): string | null {
     const slug = link?.toolSlug?.trim();
     const relativePath = link?.toolRelativePath?.trim();

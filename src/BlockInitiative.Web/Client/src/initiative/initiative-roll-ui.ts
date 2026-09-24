@@ -1,10 +1,10 @@
+import { rollRulesCoreD20 } from "../integrations/rules-core/dice";
+import type { RulesCoreDiceOutcome } from "../integrations/rules-core/dice";
 import {
     INITIATIVE_LIMITS,
     parseBoundedNumber
 } from "../numeric-input-limits";
 import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
-
-const D20_SIDES = 20;
 
 type ClickHandler = HTMLButtonElement["onclick"];
 
@@ -54,7 +54,7 @@ function configure(root: HTMLElement): void {
             rollAll.textContent = "Roll all averages";
             rollAll.title = "Roll every standard enemy separately with its modifier, then calculate each tactical group's initiative.";
             rollAll.dataset.action = "roll-all-enemies";
-            rollAll.onclick = () => rollAllEnemies(enemySide, method.value);
+            rollAll.onclick = () => void rollAllEnemies(enemySide, method.value);
             cluster.append(rollAll);
 
             const help = actionRow.querySelector<HTMLElement>(".bi-muted");
@@ -191,7 +191,7 @@ function enhanceCombatant(card: HTMLElement): void {
     const audit = document.createElement("span");
     audit.className = "bi-roll-audit";
     audit.dataset.role = "roll-audit";
-    roll.onclick = () => rollCombatant(card);
+    roll.onclick = () => void rollCombatant(card);
     line.append(roll, audit);
     wrap.append(line);
 }
@@ -212,7 +212,7 @@ function enhanceGroup(group: HTMLElement): void {
     rollAverage.textContent = "Roll average";
     rollAverage.title = "Roll each group member separately as d20 + its own modifier, then use the average as group initiative.";
     rollAverage.dataset.action = "roll-group";
-    rollAverage.onclick = () => rollMembersIndividually(group);
+    rollAverage.onclick = () => void rollMembersIndividually(group);
 
     const singleRoll = document.createElement("button");
     singleRoll.type = "button";
@@ -220,7 +220,7 @@ function enhanceGroup(group: HTMLElement): void {
     singleRoll.textContent = "Single roll";
     singleRoll.title = "Roll one d20 for the group and add the highest initiative modifier in the group.";
     singleRoll.dataset.action = "roll-shared-group";
-    singleRoll.onclick = () => applyOneRollToGroup(group, rollD20());
+    singleRoll.onclick = () => void rollSharedGroup(group);
 
     const result = document.createElement("span");
     result.className = "bi-group-initiative-result";
@@ -246,27 +246,53 @@ function updateGroupRollingUi(group: HTMLElement, grouped: boolean): void {
     }
 }
 
-function rollAllEnemies(enemySide: HTMLElement, mode: string): void {
-    if (mode === "individual") {
-        for (const card of enemySide.querySelectorAll<HTMLElement>(".bi-tactical-group .bi-entry[data-id]")) {
-            rollCombatant(card);
-        }
-    } else {
-        for (const group of enemySide.querySelectorAll<HTMLElement>(".bi-tactical-group")) {
-            rollMembersIndividually(group);
-        }
-    }
+async function rollAllEnemies(
+    enemySide: HTMLElement,
+    mode: string
+): Promise<void> {
+    const cards = Array.from(
+        enemySide.querySelectorAll<HTMLElement>(
+            ".bi-tactical-group .bi-entry[data-id], "
+            + "[data-role='kaiju-list'] .bi-entry[data-id]"));
 
-    for (const card of enemySide.querySelectorAll<HTMLElement>("[data-role='kaiju-list'] .bi-entry[data-id]")) {
-        rollCombatant(card);
+    await rollCombatants(cards);
+
+    for (const group of enemySide.querySelectorAll<HTMLElement>(".bi-tactical-group")) {
+        refreshGroupSummary(group, mode);
     }
 }
 
-function rollMembersIndividually(group: HTMLElement): void {
-    for (const card of group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]")) {
-        rollCombatant(card);
-    }
+async function rollMembersIndividually(group: HTMLElement): Promise<void> {
+    const cards = Array.from(
+        group.querySelectorAll<HTMLElement>(
+            "[data-role='group-members'] .bi-entry[data-id]"));
+    await rollCombatants(cards);
     refreshGroupSummary(group, "average");
+}
+
+async function rollSharedGroup(group: HTMLElement): Promise<void> {
+    const members = Array.from(
+        group.querySelectorAll<HTMLElement>(
+            "[data-role='group-members'] .bi-entry[data-id]"));
+    if (!members.length) return;
+
+    const modifiers = members.map(initiativeModifier);
+    if (modifiers.some(modifier => modifier === null)) return;
+
+    try {
+        const batch = await rollRulesCoreD20(1);
+        const outcome = batch.outcomes[0];
+        if (!outcome || outcome.selectedRoll === null || outcome.requiresChoice) {
+            markGroupRollUnavailable(group, "Roll requires a selection.");
+            return;
+        }
+
+        applyOneRollToGroup(group, outcome.selectedRoll);
+    } catch (error) {
+        markGroupRollUnavailable(
+            group,
+            error instanceof Error ? error.message : "Dice roller unavailable.");
+    }
 }
 
 function applyOneRollToGroup(group: HTMLElement, raw: number): void {
@@ -286,24 +312,77 @@ function applyOneRollToGroup(group: HTMLElement, raw: number): void {
         initiative.dispatchEvent(new Event("input", { bubbles: true }));
 
         const audit = member.querySelector<HTMLElement>("[data-role='roll-audit']");
-        if (audit?.textContent) audit.textContent = "";
+        if (audit) {
+            setTextIfChanged(
+                audit,
+                `d20 ${raw} ${formatModifier(highestModifier)} = ${formatNumber(total)}`);
+        }
     }
 
     refreshGroupSummary(group, "average");
 }
 
-function rollCombatant(card: HTMLElement): void {
-    const initiative = card.querySelector<HTMLInputElement>("[data-field='initiative']");
-    if (!initiative) return;
-    const modifier = initiativeModifier(card);
-    if (modifier === null) return;
+async function rollCombatant(card: HTMLElement): Promise<void> {
+    await rollCombatants([card]);
+}
 
-    const raw = rollD20();
-    const total = raw + modifier;
+async function rollCombatants(cards: readonly HTMLElement[]): Promise<void> {
+    const ready: Array<{ card: HTMLElement; modifier: number }> = [];
+    for (const card of cards) {
+        const modifier = initiativeModifier(card);
+        if (modifier !== null) ready.push({ card, modifier });
+    }
+    if (!ready.length) return;
+
+    try {
+        const batch = await rollRulesCoreD20(ready.length);
+        for (let index = 0; index < ready.length; index++) {
+            const entry = ready[index];
+            const outcome = batch.outcomes[index];
+            if (!outcome || outcome.selectedRoll === null || outcome.requiresChoice) {
+                markCombatantRollUnavailable(entry.card, "Roll requires a selection.");
+                continue;
+            }
+            applyCombatantRoll(entry.card, entry.modifier, outcome);
+        }
+    } catch (error) {
+        const message = error instanceof Error
+            ? error.message
+            : "Dice roller unavailable.";
+        for (const entry of ready) {
+            markCombatantRollUnavailable(entry.card, message);
+        }
+    }
+}
+
+function applyCombatantRoll(
+    card: HTMLElement,
+    modifier: number,
+    outcome: RulesCoreDiceOutcome
+): void {
+    const initiative = card.querySelector<HTMLInputElement>("[data-field='initiative']");
+    if (!initiative || outcome.selectedRoll === null) return;
+
+    const total = outcome.selectedRoll + modifier;
     initiative.value = formatNumber(total);
     initiative.dispatchEvent(new Event("input", { bubbles: true }));
+
     const audit = card.querySelector<HTMLElement>("[data-role='roll-audit']");
-    if (audit) setTextIfChanged(audit, `d20 ${raw} ${formatModifier(modifier)} = ${formatNumber(total)}`);
+    if (audit) {
+        setTextIfChanged(
+            audit,
+            `d20 ${outcome.selectedRoll} ${formatModifier(modifier)} = ${formatNumber(total)}`);
+    }
+}
+
+function markCombatantRollUnavailable(card: HTMLElement, message: string): void {
+    const audit = card.querySelector<HTMLElement>("[data-role='roll-audit']");
+    if (audit) setTextIfChanged(audit, message);
+}
+
+function markGroupRollUnavailable(group: HTMLElement, message: string): void {
+    const result = group.querySelector<HTMLElement>("[data-role='group-initiative-result']");
+    if (result) setTextIfChanged(result, message);
 }
 
 function refreshGroupSummary(group: HTMLElement, mode: string): void {
@@ -369,12 +448,6 @@ function initiativeModifier(
 
     input?.reportValidity();
     return null;
-}
-
-function rollD20(): number {
-    const buffer = new Uint32Array(1);
-    crypto.getRandomValues(buffer);
-    return (buffer[0] % D20_SIDES) + 1;
 }
 
 function formatModifier(value: number): string {
