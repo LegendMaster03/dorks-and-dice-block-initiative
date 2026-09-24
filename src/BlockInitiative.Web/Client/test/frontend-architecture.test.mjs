@@ -410,5 +410,6 @@ test("initiative roller keeps physical dice as a first-class manual option", asy
     const source = await readFile(path.resolve(testDirectory, "../src/initiative/initiative-roll-ui.ts"), "utf8");
     assert.match(source, /physical dice directly in Initiative/);
     assert.match(source, /change it for this roll, including when using physical dice/);
+    assert.match(source, /choose the Emphasis result manually/);
     assert.doesNotMatch(source, /readOnly\s*=\s*true/);
 });
