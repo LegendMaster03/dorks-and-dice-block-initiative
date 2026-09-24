@@ -3,8 +3,15 @@ import {
     parseBoundedNumber
 } from "../numeric-input-limits";
 import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
-
-const D20_SIDES = 20;
+import {
+    D20_ROLL_MODES,
+    type D20RollMode,
+    type D20RollSelection,
+    formatD20Selection,
+    normalizeD20RollMode,
+    rollD20,
+    rollModeLabel
+} from "../dice/roll-selection";
 
 type ClickHandler = HTMLButtonElement["onclick"];
 
@@ -107,6 +114,7 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-enemy-create-row{align-items:center}
 .block-initiative-app .bi-enemy-create-buttons{justify-content:flex-start}
 .block-initiative-app .bi-roll-line{display:flex;gap:.4rem;align-items:center;margin-top:.3rem;flex-wrap:wrap}
+.block-initiative-app .bi-roll-mode{width:auto;min-width:7.5rem}
 .block-initiative-app .bi-roll-audit{font-size:.8rem;opacity:.75}
 .block-initiative-app .bi-group-roll-actions{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
 .block-initiative-app .bi-group-roll-actions[hidden],.block-initiative-app [data-action='roll-group'][hidden]{display:none!important}
@@ -187,12 +195,15 @@ function enhanceCombatant(card: HTMLElement): void {
     roll.type = "button";
     roll.className = "btn btn-sm btn-outline-secondary";
     roll.textContent = "Roll";
-    roll.title = "Roll d20 and apply this combatant's initiative modifier.";
+    roll.title = "Roll digitally and apply this combatant's initiative modifier. You can always enter a result from physical dice directly in Initiative.";
+    const mode = createRollModeSelect(card.dataset.ruleRollMode);
+    mode.dataset.role = "roll-mode";
+    mode.title = "Rules may supply a default roll mode. You can always change it for this roll, including when using physical dice.";
     const audit = document.createElement("span");
     audit.className = "bi-roll-audit";
     audit.dataset.role = "roll-audit";
     roll.onclick = () => rollCombatant(card);
-    line.append(roll, audit);
+    line.append(mode, roll, audit);
     wrap.append(line);
 }
 
@@ -206,6 +217,10 @@ function enhanceGroup(group: HTMLElement): void {
     controls.className = "bi-group-roll-actions";
     controls.dataset.role = "group-roll-actions";
 
+    const mode = createRollModeSelect(group.dataset.ruleRollMode);
+    mode.dataset.role = "group-roll-mode";
+    mode.title = "Select the mode used by Single roll. Roll average uses each member's own roll mode.";
+
     const rollAverage = document.createElement("button");
     rollAverage.type = "button";
     rollAverage.className = "btn btn-sm btn-outline-primary";
@@ -218,16 +233,18 @@ function enhanceGroup(group: HTMLElement): void {
     singleRoll.type = "button";
     singleRoll.className = "btn btn-sm btn-outline-primary";
     singleRoll.textContent = "Single roll";
-    singleRoll.title = "Roll one d20 for the group and add the highest initiative modifier in the group.";
+    singleRoll.title = "Roll digitally for the group and add the highest initiative modifier. A physical-dice result can still be entered directly for the group members.";
     singleRoll.dataset.action = "roll-shared-group";
-    singleRoll.onclick = () => applyOneRollToGroup(group, rollD20());
+    singleRoll.onclick = () => applyOneRollToGroup(
+        group,
+        rollD20(readGroupRollMode(group)));
 
     const result = document.createElement("span");
     result.className = "bi-group-initiative-result";
     result.dataset.role = "group-initiative-result";
     result.textContent = "Group initiative —";
 
-    controls.append(rollAverage, singleRoll, result);
+    controls.append(mode, rollAverage, singleRoll, result);
     actions.insertBefore(controls, actions.firstChild);
 }
 
@@ -269,16 +286,24 @@ function rollMembersIndividually(group: HTMLElement): void {
     refreshGroupSummary(group, "average");
 }
 
-function applyOneRollToGroup(group: HTMLElement, raw: number): void {
+function applyOneRollToGroup(group: HTMLElement, selection: D20RollSelection): void {
     const members = Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"));
     if (!members.length) return;
+
+    if (requiresManualEmphasisSelection(selection)) {
+        for (const member of members) {
+            markManualEmphasisSelection(member, selection);
+        }
+        refreshGroupSummary(group, "average");
+        return;
+    }
 
     const modifiers = members.map(initiativeModifier);
     if (modifiers.some(modifier => modifier === null)) return;
 
     const highestModifier = Math.max(
         ...(modifiers as number[]));
-    const total = raw + highestModifier;
+    const total = selection.selected + highestModifier;
     for (const member of members) {
         const initiative = member.querySelector<HTMLInputElement>("[data-field='initiative']");
         if (!initiative) continue;
@@ -286,7 +311,11 @@ function applyOneRollToGroup(group: HTMLElement, raw: number): void {
         initiative.dispatchEvent(new Event("input", { bubbles: true }));
 
         const audit = member.querySelector<HTMLElement>("[data-role='roll-audit']");
-        if (audit?.textContent) audit.textContent = "";
+        if (audit) {
+            setTextIfChanged(
+                audit,
+                `${formatD20Selection(selection)} ${formatModifier(highestModifier)} = ${formatNumber(total)} · group highest modifier`);
+        }
     }
 
     refreshGroupSummary(group, "average");
@@ -298,12 +327,47 @@ function rollCombatant(card: HTMLElement): void {
     const modifier = initiativeModifier(card);
     if (modifier === null) return;
 
-    const raw = rollD20();
-    const total = raw + modifier;
+    const selection = rollD20(readCombatantRollMode(card));
+    if (requiresManualEmphasisSelection(selection)) {
+        markManualEmphasisSelection(card, selection);
+        return;
+    }
+
+    const total = selection.selected + modifier;
     initiative.value = formatNumber(total);
     initiative.dispatchEvent(new Event("input", { bubbles: true }));
     const audit = card.querySelector<HTMLElement>("[data-role='roll-audit']");
-    if (audit) setTextIfChanged(audit, `d20 ${raw} ${formatModifier(modifier)} = ${formatNumber(total)}`);
+    if (audit) {
+        setTextIfChanged(
+            audit,
+            `${formatD20Selection(selection)} ${formatModifier(modifier)} = ${formatNumber(total)}`);
+    }
+}
+
+function requiresManualEmphasisSelection(selection: D20RollSelection): boolean {
+    return selection.tied && selection.rolls[0] !== selection.rolls[1];
+}
+
+function markManualEmphasisSelection(
+    card: HTMLElement,
+    selection: D20RollSelection
+): void {
+    const initiative =
+        card.querySelector<HTMLInputElement>(
+            "[data-field='initiative']");
+    if (initiative) {
+        initiative.value = "";
+        initiative.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    const audit =
+        card.querySelector<HTMLElement>(
+            "[data-role='roll-audit']");
+    if (audit) {
+        setTextIfChanged(
+            audit,
+            `${formatD20Selection(selection)} · choose the Emphasis result manually`);
+    }
 }
 
 function refreshGroupSummary(group: HTMLElement, mode: string): void {
@@ -371,10 +435,38 @@ function initiativeModifier(
     return null;
 }
 
-function rollD20(): number {
-    const buffer = new Uint32Array(1);
-    crypto.getRandomValues(buffer);
-    return (buffer[0] % D20_SIDES) + 1;
+function createRollModeSelect(ruleMode: string | undefined): HTMLSelectElement {
+    const select = document.createElement("select");
+    select.className = "form-select form-select-sm bi-roll-mode";
+    const normalizedRuleMode = normalizeD20RollMode(ruleMode);
+    select.dataset.ruleRollMode = normalizedRuleMode;
+    select.dataset.manualOverride = "false";
+    for (const mode of D20_ROLL_MODES) {
+        const option = document.createElement("option");
+        option.value = mode;
+        option.textContent = rollModeLabel(mode);
+        option.selected = mode === normalizedRuleMode;
+        select.append(option);
+    }
+    select.addEventListener("change", () => {
+        const effective = normalizeD20RollMode(select.value);
+        select.value = effective;
+        select.dataset.manualOverride =
+            effective === normalizedRuleMode ? "false" : "true";
+    });
+    return select;
+}
+
+function readCombatantRollMode(card: HTMLElement): D20RollMode {
+    return normalizeD20RollMode(
+        card.querySelector<HTMLSelectElement>("[data-role='roll-mode']")?.value
+        ?? card.dataset.ruleRollMode);
+}
+
+function readGroupRollMode(group: HTMLElement): D20RollMode {
+    return normalizeD20RollMode(
+        group.querySelector<HTMLSelectElement>("[data-role='group-roll-mode']")?.value
+        ?? group.dataset.ruleRollMode);
 }
 
 function formatModifier(value: number): string {
