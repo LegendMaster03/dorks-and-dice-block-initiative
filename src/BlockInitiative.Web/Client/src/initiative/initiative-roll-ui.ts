@@ -290,6 +290,18 @@ function applyOneRollToGroup(group: HTMLElement, selection: D20RollSelection): v
     const members = Array.from(group.querySelectorAll<HTMLElement>("[data-role='group-members'] .bi-entry[data-id]"));
     if (!members.length) return;
 
+    if (selection.tied && selection.rolls[0] !== selection.rolls[1]) {
+        for (const member of members) {
+            const audit = member.querySelector<HTMLElement>("[data-role='roll-audit']");
+            if (audit) {
+                setTextIfChanged(
+                    audit,
+                    `${formatD20Selection(selection)} · choose the Emphasis result manually`);
+            }
+        }
+        return;
+    }
+
     const modifiers = members.map(initiativeModifier);
     if (modifiers.some(modifier => modifier === null)) return;
 
@@ -320,6 +332,16 @@ function rollCombatant(card: HTMLElement): void {
     if (modifier === null) return;
 
     const selection = rollD20(readCombatantRollMode(card));
+    if (selection.tied && selection.rolls[0] !== selection.rolls[1]) {
+        const audit = card.querySelector<HTMLElement>("[data-role='roll-audit']");
+        if (audit) {
+            setTextIfChanged(
+                audit,
+                `${formatD20Selection(selection)} · choose the Emphasis result manually`);
+        }
+        return;
+    }
+
     const total = selection.selected + modifier;
     initiative.value = formatNumber(total);
     initiative.dispatchEvent(new Event("input", { bubbles: true }));
