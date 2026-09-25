@@ -1,4 +1,4 @@
-export type RulesCoreMatchKind = "resolved" | "source";
+export type RulesCoreMatchKind = "resolved";
 
 export interface RuleBrowserLink {
     toolSlug: string;
@@ -31,15 +31,6 @@ interface ResolvedCatalogResponse {
     }>;
 }
 
-interface SourceEntitySummary {
-    entityId: string;
-    entityType: string;
-    name: string;
-    sourceCode: string;
-    packageDisplayName: string;
-    editionDisplayName: string;
-}
-
 const gateway = "/tool-host/rules-core/api/upstream";
 
 export async function searchRulesCoreEntity(
@@ -54,73 +45,36 @@ export async function searchRulesCoreEntity(
     const encodedType = encodeURIComponent(entityType);
     const encodedQuery = encodeURIComponent(normalized);
     const resolvedPath = `/api/rules?entityType=${encodedType}&q=${encodedQuery}&limit=${limit}`;
-    const sourcePath = `/api/sources/entities?entityType=${encodedType}&q=${encodedQuery}&limit=${limit}`;
 
-    const [resolvedResult, sourceResult] = await Promise.allSettled([
-        getRulesCoreJson<ResolvedCatalogResponse>(
+    let result: ResolvedCatalogResponse;
+    try {
+        result = await getRulesCoreJson<ResolvedCatalogResponse>(
             resolvedPath,
-            `Rules Core resolved ${entityType} search`),
-        getRulesCoreJson<SourceEntitySummary[]>(
-            sourcePath,
-            `Rules Core source ${entityType} search`)
-    ]);
-
-    if (resolvedResult.status === "rejected" && sourceResult.status === "rejected") {
+            `Rules Core resolved ${entityType} search`);
+    } catch {
         throw new Error(unavailableMessage);
     }
 
-    const matches: RulesCoreSearchMatch[] = [];
-    const seenSourceIds = new Set<string>();
-
-    if (resolvedResult.status === "fulfilled") {
-        const rules = Array.isArray(resolvedResult.value?.rules)
-            ? resolvedResult.value.rules
-            : [];
-
-        for (const rule of rules) {
-            if (typeof rule?.entityType !== "string"
-                || rule.entityType.toLowerCase() !== entityType.toLowerCase()) continue;
-            if (!rule.conceptKey || !rule.sourceEntityId || !rule.displayName) continue;
-
-            matches.push({
-                kind: "resolved",
-                id: `rule:${rule.conceptKey}`,
-                conceptKey: rule.conceptKey,
-                sourceEntityId: rule.sourceEntityId,
-                displayName: rule.displayName,
-                sourceCode: rule.sourceCode ?? "",
-                packageDisplayName: rule.packageDisplayName ?? "",
-                editionDisplayName: rule.editionDisplayName ?? "",
-                browserLink: rule.browserLink ?? null
-            });
-            seenSourceIds.add(rule.sourceEntityId);
-            if (matches.length >= limit) return matches;
-        }
-    }
-
-    if (sourceResult.status === "fulfilled") {
-        const entities = Array.isArray(sourceResult.value) ? sourceResult.value : [];
-        for (const entity of entities) {
-            if (typeof entity?.entityType !== "string"
-                || entity.entityType.toLowerCase() !== entityType.toLowerCase()) continue;
-            if (!entity.entityId || !entity.name || seenSourceIds.has(entity.entityId)) continue;
-
-            matches.push({
-                kind: "source",
-                id: `source:${entity.entityId}`,
-                conceptKey: null,
-                sourceEntityId: entity.entityId,
-                displayName: entity.name,
-                sourceCode: entity.sourceCode ?? "",
-                packageDisplayName: entity.packageDisplayName ?? "",
-                editionDisplayName: entity.editionDisplayName ?? "",
-                browserLink: null
-            });
-            if (matches.length >= limit) break;
-        }
-    }
-
-    return matches;
+    const rules = Array.isArray(result?.rules) ? result.rules : [];
+    return rules
+        .filter(rule =>
+            typeof rule?.entityType === "string"
+            && rule.entityType.toLowerCase() === entityType.toLowerCase()
+            && Boolean(rule.conceptKey)
+            && Boolean(rule.sourceEntityId)
+            && Boolean(rule.displayName))
+        .slice(0, limit)
+        .map(rule => ({
+            kind: "resolved" as const,
+            id: `rule:${rule.conceptKey}`,
+            conceptKey: rule.conceptKey,
+            sourceEntityId: rule.sourceEntityId,
+            displayName: rule.displayName,
+            sourceCode: rule.sourceCode ?? "",
+            packageDisplayName: rule.packageDisplayName ?? "",
+            editionDisplayName: rule.editionDisplayName ?? "",
+            browserLink: rule.browserLink ?? null
+        }));
 }
 
 export async function getRulesCoreJson<T>(

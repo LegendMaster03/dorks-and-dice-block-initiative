@@ -30,15 +30,6 @@ interface ResolvedRuleDetail {
     browserLink?: RuleBrowserLink | null;
 }
 
-interface SourceEntityDetail {
-    entityId?: string;
-    name?: string;
-    sourceCode?: string;
-    packageDisplayName?: string;
-    editionDisplayName?: string;
-    document?: unknown;
-}
-
 export async function searchRulesCoreMonsters(
     query: string,
     limit = 8
@@ -54,35 +45,22 @@ export async function searchRulesCoreMonsters(
 export async function loadMonsterTemplate(
     match: MonsterSearchMatch
 ): Promise<MonsterTemplate> {
-    let template: MonsterTemplate;
-
-    if (match.kind === "resolved" && match.conceptKey) {
-        const detail = await getRulesCoreJson<ResolvedRuleDetail>(
-            `/api/rules/${encodeURIComponent(match.conceptKey)}`,
-            "Rules Core monster details",
-            "Rules Core monster lookup requires access to the Rules Core tool or source package.");
-        template = templateFromDocument(
-            match,
-            typeof detail.displayName === "string" && detail.displayName.trim()
-                ? detail.displayName
-                : match.displayName,
-            isRecord(detail.document) ? detail.document : {},
-            detail.editionDisplayName ?? match.editionDisplayName,
-            detail.browserLink ?? match.browserLink ?? null);
-    } else {
-        const detail = await getRulesCoreJson<SourceEntityDetail>(
-            `/api/sources/entities/${encodeURIComponent(match.sourceEntityId)}`,
-            "Rules Core monster details",
-            "Rules Core monster lookup requires access to the Rules Core tool or source package.");
-        template = templateFromDocument(
-            match,
-            typeof detail.name === "string" && detail.name.trim()
-                ? detail.name
-                : match.displayName,
-            isRecord(detail.document) ? detail.document : {},
-            detail.editionDisplayName ?? match.editionDisplayName,
-            null);
+    if (!match.conceptKey) {
+        throw new Error("Rules Core returned a monster without a resolved concept identity.");
     }
+
+    const detail = await getRulesCoreJson<ResolvedRuleDetail>(
+        `/api/rules/${encodeURIComponent(match.conceptKey)}`,
+        "Rules Core monster details",
+        "Rules Core monster lookup requires access to the effective Rules Core ruling.");
+    const template = templateFromDocument(
+        match,
+        typeof detail.displayName === "string" && detail.displayName.trim()
+            ? detail.displayName
+            : match.displayName,
+        isRecord(detail.document) ? detail.document : {},
+        detail.editionDisplayName ?? match.editionDisplayName,
+        detail.browserLink ?? match.browserLink ?? null);
 
     announceTemplateLink(template);
     return template;
