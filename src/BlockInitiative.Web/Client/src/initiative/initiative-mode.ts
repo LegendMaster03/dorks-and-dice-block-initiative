@@ -223,10 +223,14 @@ function updatePreviewCopy(root: HTMLElement): void {
         heading.textContent = `Turn ${index + 1}`;
     });
 
-    const tieDescription = Array.from(results.querySelectorAll<HTMLParagraphElement>(".bi-message.bi-warning p"))
-        .find(paragraph => paragraph.textContent === "Opposing placements tied. Reorder the tied units only; grouped units stay together.");
+    const tieDescription =
+        results.querySelector<HTMLParagraphElement>(
+            "[data-role='tie-adjudication-description']");
     if (tieDescription) {
-        tieDescription.textContent = "Initiative placements tied. Reorder the tied units only; grouped units stay together.";
+        tieDescription.textContent =
+            "Initiative placements tied. Drag the tied units into the desired order; "
+            + "grouped units stay together. Keyboard: focus the grip and use "
+            + "Arrow Up or Arrow Down.";
     }
 
     const roundBoundary = Array.from(results.querySelectorAll<HTMLElement>("strong"))

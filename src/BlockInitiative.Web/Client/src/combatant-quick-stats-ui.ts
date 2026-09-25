@@ -358,10 +358,10 @@ function ensureManualStatsSetup(card: HTMLElement): HTMLElement {
     const basics = document.createElement("div");
     basics.className = "bi-quick-stats-entry-grid";
     basics.append(
-        textEntryField("AC", "armor-class", "e.g. 15"),
-        textEntryField("Touch AC", "touch-armor-class", "e.g. 12"),
-        textEntryField("Flat-Footed AC", "flat-footed-armor-class", "e.g. 13"),
-        textEntryField("Speed", "speed", "e.g. 30 ft.")
+        numberEntryField("AC", "armor-class", "e.g. 15"),
+        numberEntryField("Touch AC", "touch-armor-class", "e.g. 12"),
+        numberEntryField("Flat-Footed AC", "flat-footed-armor-class", "e.g. 13"),
+        textEntryField("Speed", "speed", "e.g. 30 ft., fly 60 ft.")
     );
 
     const modifier = card.querySelector<HTMLInputElement>("[data-field='modifier']");
@@ -421,6 +421,24 @@ function abilityEntryField(key: AbilityKey): HTMLElement {
 
     cell.append(heading, score, save);
     return cell;
+}
+
+function numberEntryField(
+    labelText: string,
+    key: string,
+    placeholder: string
+): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "bi-field";
+    const label = document.createElement("label");
+    label.textContent = labelText;
+    const input = document.createElement("input");
+    input.type = "number";
+    input.dataset.quickStat = key;
+    input.placeholder = placeholder;
+    applyNumberLimits(input, TRACKER_LIMITS);
+    wrap.append(label, input);
+    return wrap;
 }
 
 function textEntryField(labelText: string, key: string, placeholder: string): HTMLElement {
