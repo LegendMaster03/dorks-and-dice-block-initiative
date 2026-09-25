@@ -415,3 +415,41 @@ test("initiative roller keeps physical dice as a first-class manual option", asy
     assert.match(source, /select\.dataset\.manualOverride = "false"/);
     assert.doesNotMatch(source, /readOnly\s*=\s*true/);
 });
+
+
+test("tie adjudication uses drag ordering with keyboard fallback and persistent attention styling", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const preview = await readFile(
+        path.resolve(testDirectory, "../src/application/initiative-preview.ts"),
+        "utf8");
+    const drag = await readFile(
+        path.resolve(testDirectory, "../src/initiative/tie-order-drag.ts"),
+        "utf8");
+
+    assert.match(preview, /enableTieOrderDrag\(list/);
+    assert.match(preview, /bi-adjudication/);
+    assert.match(preview, /data-role='tie-adjudication-description'|tieAdjudicationDescription|tie-adjudication-description/);
+    assert.doesNotMatch(preview, /\[\["Earlier",\s*-1\],\s*\["Later",\s*1\]\]/);
+    assert.match(drag, /dragstart/);
+    assert.match(drag, /ArrowUp/);
+    assert.match(drag, /ArrowDown/);
+    assert.match(drag, /\.bi-adjudication\{/);
+    assert.match(drag, /box-shadow:/);
+});
+
+test("manual armor class fields are numeric while speed remains descriptive movement text", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const quickStats = await readFile(
+        path.resolve(testDirectory, "../src/combatant-quick-stats-ui.ts"),
+        "utf8");
+    const setup = await readFile(
+        path.resolve(testDirectory, "../src/encounter-setup-polish-ui.ts"),
+        "utf8");
+
+    assert.match(quickStats, /numberEntryField\("AC", "armor-class"/);
+    assert.match(quickStats, /numberEntryField\("Touch AC", "touch-armor-class"/);
+    assert.match(quickStats, /numberEntryField\("Flat-Footed AC", "flat-footed-armor-class"/);
+    assert.match(quickStats, /textEntryField\("Speed", "speed", "e\.g\. 30 ft\., fly 60 ft\."/);
+    assert.match(setup, /input\.type = "number"/);
+    assert.match(setup, /applyNumberLimits\(input, TRACKER_LIMITS\)/);
+});

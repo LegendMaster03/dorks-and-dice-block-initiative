@@ -1,3 +1,4 @@
+import { applyNumberLimits, TRACKER_LIMITS } from "./numeric-input-limits";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
 
 type PreviewDetail = {
@@ -129,9 +130,9 @@ function ensureArmorClassFields(card: HTMLElement): void {
             const label = document.createElement("label");
             label.textContent = definition.label;
             const input = document.createElement("input");
-            input.type = "text";
-            input.inputMode = "numeric";
+            input.type = "number";
             input.dataset.role = definition.role;
+            applyNumberLimits(input, TRACKER_LIMITS);
             field.append(label, input);
             group.append(field);
         }
