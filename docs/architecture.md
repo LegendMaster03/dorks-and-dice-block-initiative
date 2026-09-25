@@ -90,6 +90,14 @@ Combat-state coordination does not own Standard or Kaiju implementation details.
 
 Inheritance is used where there is a real domain subtype relationship, such as Core turn blocks and initiative modes. Browser modules generally use composition where lifecycle ownership is the more meaningful relationship.
 
+## Hex Crawl encounter handoff
+
+Block Initiative accepts a versioned `hexEncounter` handoff payload from the Hex Crawl Tool. The browser client validates the payload locally before using it and removes the consumed query parameter so a reload can not duplicate imported roster entries.
+
+The handoff carries expedition/watch/hex/location/outcome/note context and may include structured combatants. Structured combatants are imported into the setup roster when there is no saved Block Initiative encounter being restored. An existing saved encounter takes precedence over automatic roster import. Free-text encounter notes are displayed as context only; Block Initiative does not parse prose into monster identities.
+
+This integration remains outside `BlockInitiative.Core`. Hex Crawl owns expedition state and encounter triggering; Block Initiative owns tactical roster construction, initiative, and combat execution. Rules Core remains the authority for source-backed monster details when a structured combatant reference is available.
+
 ## Campaign integration
 
 Campaign support is an optional host integration, not a prerequisite for initiative tracking. Standalone and anonymous hosted sessions retain the manual roster workflow.
