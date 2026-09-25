@@ -807,12 +807,11 @@ async function loadTemplateStats(
     const id = templateId.slice(separator + 1);
     if (!id) return null;
 
-    const path = kind === "rule"
-        ? `/api/rules/${encodeURIComponent(id)}`
-        : kind === "source"
-            ? `/api/sources/entities/${encodeURIComponent(id)}`
-            : null;
-    if (!path) return null;
+    // Legacy source:<id> template references remain valid encounter data, but
+    // Rules Core source documents are not a runtime rule-resolution surface.
+    // Only a resolved rule identity can be used to refresh derived combat stats.
+    if (kind !== "rule") return null;
+    const path = `/api/rules/${encodeURIComponent(id)}`;
 
     const response = await fetch(`${gateway}${path}`, {
         credentials: "same-origin",

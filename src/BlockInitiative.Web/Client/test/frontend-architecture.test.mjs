@@ -453,3 +453,24 @@ test("manual armor class fields are numeric while speed remains descriptive move
     assert.match(setup, /input\.type = "number"/);
     assert.match(setup, /applyNumberLimits\(input, TRACKER_LIMITS\)/);
 });
+
+
+test("Rules Core monster integration consumes effective rules and never raw source entities", async () => {
+    const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const client = await readFile(
+        path.resolve(testDirectory, "../src/integrations/rules-core/client.ts"),
+        "utf8");
+    const monsters = await readFile(
+        path.resolve(testDirectory, "../src/integrations/rules-core/monsters.ts"),
+        "utf8");
+    const quickStats = await readFile(
+        path.resolve(testDirectory, "../src/combatant-quick-stats-ui.ts"),
+        "utf8");
+
+    assert.match(client, /RulesCoreMatchKind = "resolved"/);
+    assert.doesNotMatch(client, /\/api\/sources\/entities/);
+    assert.doesNotMatch(client, /kind:\s*"source"/);
+    assert.doesNotMatch(monsters, /\/api\/sources\/entities/);
+    assert.doesNotMatch(quickStats, /\/api\/sources\/entities/);
+    assert.match(monsters, /\/api\/rules\/\$\{encodeURIComponent\(match\.conceptKey\)\}/);
+});
