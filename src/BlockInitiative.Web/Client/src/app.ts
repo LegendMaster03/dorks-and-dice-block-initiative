@@ -184,13 +184,14 @@ function renderHexCrawlHandoff(
         : handoff.summary;
     copy.append(title, context, summary);
 
-    if (savedEncounterExists && handoff.combatants.length > 0) {
-        const warning = document.createElement("div");
-        warning.className = "bi-muted";
-        warning.textContent =
-            "A saved Block Initiative encounter is being restored, so the imported combatant roster was not applied automatically.";
-        copy.append(warning);
-    }
+    const rosterStatus = document.createElement("div");
+    rosterStatus.className = "bi-muted";
+    rosterStatus.textContent = savedEncounterExists && handoff.combatants.length > 0
+        ? "A saved Block Initiative encounter is being restored, so the imported combatant roster was not applied automatically."
+        : handoff.combatants.length > 0
+            ? `Imported ${handoff.combatants.reduce((sum, combatant) => sum + combatant.quantity, 0)} combatant(s). Enter or roll initiative to continue.`
+            : "Hex Crawl did not include a structured combatant roster for this encounter. Add the combatants here, then build initiative blocks.";
+    copy.append(rosterStatus);
 
     host.append(copy);
     if (handoff.returnPath) {
