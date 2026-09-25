@@ -68,6 +68,7 @@ export function mountApplicationShell(root: HTMLElement): HTMLElement {
         </div>
       </details>
     </header>
+    <section class="bi-message bi-warning" data-role="hex-crawl-handoff" hidden></section>
     <section class="card card-body bi-grid" data-role="setup">
       <div><h3 class="h5 mb-1">Set up the encounter</h3><div class="bi-muted">Only name and initiative are required for manual entries. Rules Core can fill monster data when available.</div></div>
       <div class="bi-sides">

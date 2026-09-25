@@ -9,6 +9,7 @@ import type {
     TurnBlockType
 } from "../api";
 import type { MonsterTemplate } from "../integrations/rules-core/monsters";
+import type { HexCrawlHandoffCombatant } from "../integrations/hex-crawl-handoff";
 import {
     applyNumberLimits,
     describeNumberRange,
@@ -115,6 +116,47 @@ export class RosterController {
             "standard",
             false);
         this.groups.initialize();
+    }
+
+    public importHandoffCombatants(
+        combatants: readonly HexCrawlHandoffCombatant[]
+    ): void {
+        for (const imported of combatants) {
+            for (let copy = 0; copy < imported.quantity; copy++) {
+                const card = this.emptyCard(imported.side)
+                    ?? (imported.side === "players"
+                        ? this.addCombatant("players", "standard", false)
+                        : this.addEnemyToGroup(
+                            this.query<HTMLElement>(".bi-tactical-group"),
+                            null,
+                            false));
+
+                this.field<HTMLInputElement>(card, "name").value =
+                    imported.quantity > 1
+                        ? `${imported.name} ${copy + 1}`
+                        : imported.name;
+                if (imported.initiativeModifier !== null) {
+                    this.field<HTMLInputElement>(card, "modifier").value =
+                        String(imported.initiativeModifier);
+                }
+                if (imported.rulesCoreConceptKey) {
+                    this.field<HTMLInputElement>(card, "rules-reference").value =
+                        `rule:${imported.rulesCoreConceptKey}`;
+                }
+                card.dataset.autoName = "false";
+                this.updateBadges(card);
+            }
+        }
+
+        this.refreshControllers();
+        this.changed();
+    }
+
+    private emptyCard(side: "players" | "enemies"): HTMLElement | null {
+        return this.cards().find(card =>
+            card.dataset.alliance === side
+            && !this.field<HTMLInputElement>(card, "name").value.trim())
+            ?? null;
     }
 
     public setRulesCoreSearchEnabled(

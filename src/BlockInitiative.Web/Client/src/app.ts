@@ -13,6 +13,9 @@ import {
 } from "./host";
 import type { ToolHostContext } from "./host";
 import { RosterController } from "./roster/roster-controller";
+import { consumeHexCrawlHandoffUrl, parseHexCrawlHandoff } from "./integrations/hex-crawl-handoff";
+import type { HexCrawlEncounterHandoff } from "./integrations/hex-crawl-handoff";
+import { readAutomaticEncounter } from "./persistence/encounter-storage";
 
 const root = document.getElementById("tool-root");
 if (!(root instanceof HTMLElement)) {
@@ -59,6 +62,7 @@ roster = new RosterController({
     showError
 });
 roster.initialize();
+consumeHexCrawlHandoff();
 
 previewButton.onclick =
     () => void buildPreview();
@@ -137,6 +141,66 @@ function handleRosterChanged(): void {
             : "Build initiative blocks";
 
     updateReady();
+}
+
+function consumeHexCrawlHandoff(): void {
+    let handoff: HexCrawlEncounterHandoff | null = null;
+    try {
+        handoff = parseHexCrawlHandoff(window.location.search);
+    } catch (error) {
+        showError(error);
+    }
+    if (!handoff) return;
+
+    const existing = readAutomaticEncounter();
+    renderHexCrawlHandoff(handoff, Boolean(existing));
+    if (!existing && handoff.combatants.length > 0) {
+        roster.importHandoffCombatants(handoff.combatants);
+    }
+
+    const cleanPath = consumeHexCrawlHandoffUrl(new URL(window.location.href));
+    window.history.replaceState(window.history.state, "", cleanPath);
+}
+
+function renderHexCrawlHandoff(
+    handoff: HexCrawlEncounterHandoff,
+    savedEncounterExists: boolean
+): void {
+    const host = query<HTMLElement>("[data-role='hex-crawl-handoff']");
+    host.replaceChildren();
+
+    const copy = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = `Hex Crawl encounter · ${handoff.outcome}`;
+    const context = document.createElement("div");
+    context.className = "bi-muted";
+    const hex = handoff.hex ? ` · hex ${handoff.hex.q},${handoff.hex.r}` : "";
+    const timing = handoff.occursAtHours !== null ? ` · ${handoff.occursAtHours} h into watch` : "";
+    context.textContent =
+        `${handoff.expeditionName} · ${handoff.contextName} · watch ${handoff.watchNumber}${hex}${timing}`;
+    const summary = document.createElement("div");
+    summary.textContent = handoff.locationName
+        ? `${handoff.locationName}: ${handoff.summary}`
+        : handoff.summary;
+    copy.append(title, context, summary);
+
+    if (savedEncounterExists && handoff.combatants.length > 0) {
+        const warning = document.createElement("div");
+        warning.className = "bi-muted";
+        warning.textContent =
+            "A saved Block Initiative encounter is being restored, so the imported combatant roster was not applied automatically.";
+        copy.append(warning);
+    }
+
+    host.append(copy);
+    if (handoff.returnPath) {
+        const back = document.createElement("a");
+        back.className = "btn btn-sm btn-outline-secondary";
+        back.href = handoff.returnPath;
+        back.textContent = "Return to Hex Crawl";
+        host.append(back);
+    }
+    host.hidden = false;
 }
 
 function updateReady(): void {
