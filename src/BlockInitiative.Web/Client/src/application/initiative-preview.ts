@@ -8,6 +8,7 @@ import {
     formatNumber,
     friendlyAlliance
 } from "./presentation";
+import { enableTieOrderDrag } from "../initiative/tie-order-drag";
 
 export type InitiativePreviewViewOptions = {
     results: HTMLElement;
@@ -235,22 +236,31 @@ function renderTie(
     const { preview, request } = options;
 
     const box = document.createElement("section");
-    box.className = "bi-message bi-warning";
+    box.className = "bi-message bi-warning bi-adjudication";
+    box.dataset.role = "tie-adjudication";
 
     const title = document.createElement("strong");
     title.textContent = "DM ruling needed";
 
     const description = document.createElement("p");
+    description.dataset.role = "tie-adjudication-description";
     description.textContent =
-        "Opposing placements tied. Reorder the tied units only; "
-        + "grouped units stay together.";
+        "Opposing placements tied. Drag the tied units into the desired order; "
+        + "grouped units stay together. Keyboard: focus the grip and use "
+        + "Arrow Up or Arrow Down.";
 
-    box.append(title, description);
+    const live = document.createElement("div");
+    live.className = "visually-hidden";
+    live.setAttribute("aria-live", "polite");
+    live.setAttribute("aria-atomic", "true");
+
+    box.append(title, description, live);
 
     for (const issue of preview.issues) {
         const list = document.createElement("ol");
-        list.className = "bi-list";
+        list.className = "bi-list bi-tie-order";
         list.dataset.tie = "true";
+        list.setAttribute("aria-label", "Initiative tie order");
 
         for (const unit of tieUnits(
             issue.combatantIds,
@@ -258,28 +268,27 @@ function renderTie(
             request,
             options.groupName)) {
             const item = document.createElement("li");
-            item.className = "bi-row";
+            item.className = "bi-tie-unit";
             item.dataset.ids = unit.ids.join(",");
+
+            const row = document.createElement("div");
+            row.className = "bi-tie-unit-row";
+            row.dataset.role = "tie-unit-row";
 
             const label = document.createElement("strong");
             label.textContent = unit.label;
 
-            const controls = document.createElement("span");
-            controls.className = "bi-badges";
-
-            for (const [buttonLabel, direction]
-                of [["Earlier", -1], ["Later", 1]] as const) {
-                const button = document.createElement("button");
-                button.className = "btn btn-sm btn-outline-secondary";
-                button.textContent = buttonLabel;
-                button.onclick = () => move(item, direction);
-                controls.append(button);
-            }
-
-            item.append(label, controls);
+            row.append(label);
+            item.append(row);
             list.append(item);
         }
 
+        enableTieOrderDrag(list, message => {
+            live.textContent = "";
+            window.setTimeout(() => {
+                live.textContent = message;
+            }, 0);
+        });
         box.append(list);
     }
 
@@ -371,23 +380,6 @@ function tieUnits(
     }
 
     return units;
-}
-
-function move(
-    element: HTMLElement,
-    direction: -1 | 1
-): void {
-    const sibling =
-        direction < 0
-            ? element.previousElementSibling
-            : element.nextElementSibling;
-    if (!sibling) return;
-
-    if (direction < 0) {
-        element.parentElement?.insertBefore(element, sibling);
-    } else {
-        element.parentElement?.insertBefore(sibling, element);
-    }
 }
 
 function renderRoundBoundary(
