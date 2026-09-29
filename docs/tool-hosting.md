@@ -27,13 +27,13 @@ GET /tool-host/{slug}/api/campaigns
 GET /tool-host/{slug}/api/campaigns/{campaignId}/context
 ```
 
-The first endpoint supplies the active campaigns visible to the current account. The second supplies the site's stable campaign projection: all roles held by the requesting account, active table participants, and active campaign-linked characters.
+The first endpoint supplies the active campaigns visible to the current account. The second supplies the site's stable campaign projection: all roles held by the requesting account, active campaign members, and active campaign-linked characters.
 
 Block Initiative treats those concepts separately:
 
-- campaign membership and roles describe authority;
-- participants describe people at the table and may not have accounts or characters;
-- linked characters are the records that can be added directly to the player combatant roster.
+- campaign membership and roles describe account access and authority;
+- linked characters are the records that can be added directly to the player combatant roster;
+- ad hoc or accountless combatants remain encounter-local entries owned by Block Initiative rather than campaign identities owned by the Site.
 
 Selecting a campaign does not replace manual encounter data. The **Add campaign characters** action adds missing active linked characters to the player roster while preserving existing manually entered combatants. Imported cards retain their campaign and character IDs as integration metadata so later persistence or character synchronization can use stable identities instead of display-name matching.
 

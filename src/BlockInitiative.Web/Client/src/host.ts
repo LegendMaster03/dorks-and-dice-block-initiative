@@ -16,10 +16,15 @@ export interface ToolHostCampaignSummary {
     role: "DM" | "Player" | string;
 }
 
-export interface ToolHostCampaignParticipant {
+export interface ToolHostCampaignMember {
+    userId: string;
+    roles: string[];
+}
+
+export interface ToolHostLegacyCampaignParticipant {
     participantId: string;
     displayName: string;
-    userId: string | null;
+    userId?: string | null;
 }
 
 export interface ToolHostCampaignCharacter {
@@ -32,26 +37,21 @@ export interface ToolHostCampaignContext {
     campaignId: string;
     name: string;
     requestingUserRoles: string[];
-    participants: ToolHostCampaignParticipant[];
+    members?: ToolHostCampaignMember[];
+    participants?: ToolHostLegacyCampaignParticipant[];
     characters: ToolHostCampaignCharacter[];
 }
 
 const contextCache = new Map<string, ToolHostContext>();
-const contextRequests =
-    new Map<string, Promise<ToolHostContext>>();
+const contextRequests = new Map<string, Promise<ToolHostContext>>();
 
-export async function loadToolHostContext(
-    url: string
-): Promise<ToolHostContext> {
+export async function loadToolHostContext(url: string): Promise<ToolHostContext> {
     const cached = contextCache.get(url);
     if (cached) return cached;
 
     let request = contextRequests.get(url);
     if (!request) {
-        request = getJsonWithRetry<ToolHostContext>(
-            url,
-            "Tool Host context"
-        )
+        request = getJsonWithRetry<ToolHostContext>(url, "Tool Host context")
             .then(context => {
                 contextCache.set(url, context);
                 return context;
@@ -65,14 +65,9 @@ export async function loadToolHostContext(
     return await request;
 }
 
-export async function loadToolHostCampaigns(
-    context: ToolHostContext
-): Promise<ToolHostCampaignSummary[]> {
+export async function loadToolHostCampaigns(context: ToolHostContext): Promise<ToolHostCampaignSummary[]> {
     if (!context.user) return [];
-    return await getJsonWithRetry<ToolHostCampaignSummary[]>(
-        `${context.apiBaseUrl}/campaigns`,
-        "Tool Host campaigns"
-    );
+    return await getJsonWithRetry<ToolHostCampaignSummary[]>(`${context.apiBaseUrl}/campaigns`, "Tool Host campaigns");
 }
 
 export async function loadToolHostCampaignContext(
@@ -80,8 +75,7 @@ export async function loadToolHostCampaignContext(
     campaignId: string
 ): Promise<ToolHostCampaignContext> {
     if (!context.user) {
-        throw new Error(
-            "Campaign context requires a signed-in Dorks & Dice account.");
+        throw new Error("Campaign context requires a signed-in Dorks & Dice account.");
     }
 
     return await getJsonWithRetry<ToolHostCampaignContext>(
@@ -90,38 +84,20 @@ export async function loadToolHostCampaignContext(
     );
 }
 
-export function initiativePreviewUrl(
-    context: ToolHostContext | null
-): string {
-    return toolApiUrl(
-        context,
-        "/api/initiative/preview");
+export function initiativePreviewUrl(context: ToolHostContext | null): string {
+    return toolApiUrl(context, "/api/initiative/preview");
 }
 
-export function initiativeStateUrl(
-    context: ToolHostContext | null
-): string {
-    return toolApiUrl(
-        context,
-        "/api/initiative/state");
+export function initiativeStateUrl(context: ToolHostContext | null): string {
+    return toolApiUrl(context, "/api/initiative/state");
 }
 
-function toolApiUrl(
-    context: ToolHostContext | null,
-    path: string
-): string {
-    return context
-        ? `${context.apiBaseUrl}/upstream${path}`
-        : path;
+function toolApiUrl(context: ToolHostContext | null, path: string): string {
+    return context ? `${context.apiBaseUrl}/upstream${path}` : path;
 }
 
-async function getJsonWithRetry<T>(
-    url: string,
-    label: string,
-    attempts = 3
-): Promise<T> {
+async function getJsonWithRetry<T>(url: string, label: string, attempts = 3): Promise<T> {
     let lastError: unknown;
-
     for (let attempt = 1; attempt <= attempts; attempt++) {
         try {
             return await getJson<T>(url, label);
@@ -132,44 +108,31 @@ async function getJsonWithRetry<T>(
         }
     }
 
-    throw lastError instanceof Error
-        ? lastError
-        : new Error(`${label} is unavailable.`);
+    throw lastError instanceof Error ? lastError : new Error(`${label} is unavailable.`);
 }
 
-async function getJson<T>(
-    url: string,
-    label: string
-): Promise<T> {
+async function getJson<T>(url: string, label: string): Promise<T> {
     let response: Response;
     try {
         response = await fetch(url, {
             credentials: "same-origin",
-            headers: {
-                Accept: "application/json"
-            }
+            headers: { Accept: "application/json" }
         });
     } catch (error) {
-        throw new Error(
-            `${label} is not available right now.`,
-            { cause: error });
+        throw new Error(`${label} is not available right now.`, { cause: error });
     }
 
     if (!response.ok) {
-        throw new Error(
-            `${label} returned HTTP ${response.status}.`);
+        throw new Error(`${label} returned HTTP ${response.status}.`);
     }
 
     try {
         return await response.json() as T;
     } catch (error) {
-        throw new Error(
-            `${label} returned an unreadable response.`,
-            { cause: error });
+        throw new Error(`${label} returned an unreadable response.`, { cause: error });
     }
 }
 
 function delay(milliseconds: number): Promise<void> {
-    return new Promise(resolve =>
-        window.setTimeout(resolve, milliseconds));
+    return new Promise(resolve => window.setTimeout(resolve, milliseconds));
 }

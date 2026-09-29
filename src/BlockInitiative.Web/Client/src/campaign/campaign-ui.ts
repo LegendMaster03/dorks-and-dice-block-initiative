@@ -74,63 +74,39 @@ export function initializeCampaignUi(): void {
     void initializeHostedCampaigns();
 
     async function initializeHostedCampaigns(): Promise<void> {
-        const requestSequence =
-            ++campaignCatalogRequestSequence;
-
+        const requestSequence = ++campaignCatalogRequestSequence;
         panel.hidden = false;
-        setCampaignCatalogState(
-            appRoot,
-            "loading");
+        setCampaignCatalogState(appRoot, "loading");
         select.disabled = true;
         importButton.disabled = true;
-        status.textContent =
-            "Checking signed-in campaign access…";
+        status.textContent = "Checking signed-in campaign access…";
 
         try {
-            const loadedHostContext =
-                await loadToolHostContext(contextUrl!);
-            if (requestSequence
-                !== campaignCatalogRequestSequence) {
-                return;
-            }
+            const loadedHostContext = await loadToolHostContext(contextUrl!);
+            if (requestSequence !== campaignCatalogRequestSequence) return;
 
             hostContext = loadedHostContext;
             if (!hostContext.user) {
-                setCampaignCatalogState(
-                    appRoot,
-                    "unavailable");
+                setCampaignCatalogState(appRoot, "unavailable");
                 panel.remove();
                 return;
             }
 
             panel.hidden = false;
-            const loadedCampaignSummaries =
-                await loadToolHostCampaigns(hostContext);
-            if (requestSequence
-                !== campaignCatalogRequestSequence) {
-                return;
-            }
+            const loadedCampaignSummaries = await loadToolHostCampaigns(hostContext);
+            if (requestSequence !== campaignCatalogRequestSequence) return;
 
-            campaignSummaries =
-                loadedCampaignSummaries;
+            campaignSummaries = loadedCampaignSummaries;
             populateCampaignOptions(select, campaignSummaries);
-            setCampaignCatalogState(
-                appRoot,
-                "ready");
+            setCampaignCatalogState(appRoot, "ready");
             select.disabled = false;
             status.textContent = campaignSummaries.length === 0
                 ? "This account has no active campaigns. Manual encounter setup remains available."
                 : `${campaignSummaries.length} active campaign${campaignSummaries.length === 1 ? " is" : "s are"} available.`;
         } catch (error) {
-            if (requestSequence
-                !== campaignCatalogRequestSequence) {
-                return;
-            }
-
+            if (requestSequence !== campaignCatalogRequestSequence) return;
             hostContext = null;
-            setCampaignCatalogState(
-                appRoot,
-                "error");
+            setCampaignCatalogState(appRoot, "error");
             select.disabled = true;
             importButton.disabled = true;
             renderCampaignRetry(error);
@@ -139,19 +115,13 @@ export function initializeCampaignUi(): void {
 
     function renderCampaignRetry(error: unknown): void {
         status.replaceChildren();
-
         const text = document.createElement("span");
-        text.textContent =
-            campaignErrorMessage(error) + " ";
-
+        text.textContent = campaignErrorMessage(error) + " ";
         const retry = document.createElement("button");
         retry.type = "button";
-        retry.className =
-            "btn btn-sm btn-outline-secondary";
+        retry.className = "btn btn-sm btn-outline-secondary";
         retry.textContent = "Retry campaign access";
-        retry.onclick =
-            () => void initializeHostedCampaigns();
-
+        retry.onclick = () => void initializeHostedCampaigns();
         status.append(text, retry);
     }
 
@@ -170,7 +140,7 @@ export function initializeCampaignUi(): void {
         if (!hostContext?.user) return;
         select.disabled = true;
         importButton.disabled = true;
-        status.textContent = "Loading campaign roster…";
+        status.textContent = "Loading campaign context…";
 
         try {
             const loaded = await loadToolHostCampaignContext(hostContext, campaignId);
@@ -185,8 +155,9 @@ export function initializeCampaignUi(): void {
                 ? loaded.requestingUserRoles.join(", ")
                 : "member";
             const characterLabel = `${loaded.characters.length} linked character${loaded.characters.length === 1 ? "" : "s"}`;
-            const participantLabel = `${loaded.participants.length} active participant${loaded.participants.length === 1 ? "" : "s"}`;
-            status.textContent = `${loaded.name}: ${characterLabel}; ${participantLabel}. Your campaign role${loaded.requestingUserRoles.length === 1 ? "" : "s"}: ${roles}.`;
+            const memberCount = loaded.members?.length ?? loaded.participants?.length ?? 0;
+            const memberLabel = `${memberCount} active member${memberCount === 1 ? "" : "s"}`;
+            status.textContent = `${loaded.name}: ${characterLabel}; ${memberLabel}. Your campaign role${loaded.requestingUserRoles.length === 1 ? "" : "s"}: ${roles}.`;
         } catch (error) {
             if (requestSequence !== campaignRequestSequence) return;
             campaignContext = null;
@@ -195,35 +166,21 @@ export function initializeCampaignUi(): void {
             dispatchCampaignChange(appRoot, null);
             status.textContent = campaignErrorMessage(error);
         } finally {
-            if (requestSequence === campaignRequestSequence) {
-                select.disabled = false;
-            }
+            if (requestSequence === campaignRequestSequence) select.disabled = false;
         }
     }
 }
 
-type CampaignCatalogState =
-    "loading" | "ready" | "unavailable" | "error";
+type CampaignCatalogState = "loading" | "ready" | "unavailable" | "error";
 
-function setCampaignCatalogState(
-    root: HTMLElement,
-    state: CampaignCatalogState
-): void {
-    root.dataset.campaignCatalogState =
-        state;
-    window.dispatchEvent(
-        new CustomEvent(
-            "block-initiative:campaign-catalog-change",
-            { detail: { state } }));
+function setCampaignCatalogState(root: HTMLElement, state: CampaignCatalogState): void {
+    root.dataset.campaignCatalogState = state;
+    window.dispatchEvent(new CustomEvent("block-initiative:campaign-catalog-change", { detail: { state } }));
 }
 
-function populateCampaignOptions(
-    select: HTMLSelectElement,
-    campaigns: readonly ToolHostCampaignSummary[]
-): void {
+function populateCampaignOptions(select: HTMLSelectElement, campaigns: readonly ToolHostCampaignSummary[]): void {
     const manual = select.options[0] ?? new Option("Manual encounter", "");
     select.replaceChildren(manual);
-
     for (const campaign of campaigns) {
         const option = document.createElement("option");
         option.value = campaign.id;
@@ -232,10 +189,7 @@ function populateCampaignOptions(
     }
 }
 
-function importCampaignCharacters(
-    root: HTMLElement,
-    campaign: ToolHostCampaignContext
-): number {
+function importCampaignCharacters(root: HTMLElement, campaign: ToolHostCampaignContext): number {
     const playerContainer = root.querySelector<HTMLElement>("[data-role='players']");
     const addPlayerButton = root.querySelector<HTMLButtonElement>("[data-action='add-player']");
     if (!playerContainer || !addPlayerButton) return 0;
@@ -248,13 +202,7 @@ function importCampaignCharacters(
     let added = 0;
 
     for (const character of missing) {
-        let card =
-            uniqueUnlinkedNameMatch(
-                playerContainer,
-                character.name,
-                missing)
-            ?? firstBlankPlayerCard(
-                playerContainer);
+        let card = uniqueUnlinkedNameMatch(playerContainer, character.name, missing) ?? firstBlankPlayerCard(playerContainer);
         if (!card) {
             addPlayerButton.click();
             card = playerCards(playerContainer).at(-1) ?? null;
@@ -285,35 +233,18 @@ function uniqueUnlinkedNameMatch(
     name: string,
     missing: readonly { characterId: string; name: string }[]
 ): HTMLElement | null {
-    const normalized =
-        normalizeCharacterName(name);
-    const matchingCharacters =
-        missing.filter(character =>
-            normalizeCharacterName(
-                character.name) === normalized);
-    if (matchingCharacters.length !== 1) {
-        return null;
-    }
+    const normalized = normalizeCharacterName(name);
+    const matchingCharacters = missing.filter(character => normalizeCharacterName(character.name) === normalized);
+    if (matchingCharacters.length !== 1) return null;
 
-    const cards =
-        playerCards(container)
-            .filter(card =>
-                !card.dataset.campaignCharacterId
-                && normalizeCharacterName(
-                    nameInput(card)?.value ?? "")
-                    === normalized);
-
-    return cards.length === 1
-        ? cards[0]
-        : null;
+    const cards = playerCards(container).filter(card =>
+        !card.dataset.campaignCharacterId
+        && normalizeCharacterName(nameInput(card)?.value ?? "") === normalized);
+    return cards.length === 1 ? cards[0] : null;
 }
 
-function normalizeCharacterName(
-    value: string
-): string {
-    return value
-        .trim()
-        .toLocaleLowerCase("en-US");
+function normalizeCharacterName(value: string): string {
+    return value.trim().toLocaleLowerCase("en-US");
 }
 
 function firstBlankPlayerCard(container: HTMLElement): HTMLElement | null {
@@ -327,13 +258,8 @@ function nameInput(card: HTMLElement): HTMLInputElement | null {
     return card.querySelector<HTMLInputElement>("input[data-field='name']");
 }
 
-function dispatchCampaignChange(
-    root: HTMLElement,
-    context: ToolHostCampaignContext | null
-): void {
-    root.dispatchEvent(new CustomEvent("block-initiative:campaign-change", {
-        detail: context
-    }));
+function dispatchCampaignChange(root: HTMLElement, context: ToolHostCampaignContext | null): void {
+    root.dispatchEvent(new CustomEvent("block-initiative:campaign-change", { detail: context }));
 }
 
 function campaignErrorMessage(error: unknown): string {
@@ -349,7 +275,6 @@ function required<T extends Element>(scope: ParentNode, selector: string): T {
 
 function installStyles(root: HTMLElement): void {
     if (root.querySelector("style[data-bi-campaign-styles]")) return;
-
     const style = document.createElement("style");
     style.dataset.biCampaignStyles = "true";
     style.textContent = `

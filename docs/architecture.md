@@ -102,15 +102,11 @@ This integration remains outside `BlockInitiative.Core`. Hex Crawl owns expediti
 
 Campaign support is an optional host integration, not a prerequisite for initiative tracking. Standalone and anonymous hosted sessions retain the manual roster workflow.
 
-The main site remains authoritative for campaign membership, roles, participants, and campaign-character associations. Block Initiative consumes the Tool Host's stable read-only campaign projection and does not access the site's campaign persistence directly.
+The main site remains authoritative for campaign membership, roles, and campaign-character associations. Block Initiative consumes the Tool Host's stable read-only campaign projection and does not access the site's campaign persistence directly.
 
-The distinction between campaign concepts remains intact:
+Campaign membership is the canonical campaign roster. Accountless guests are not represented as shadow campaign identities; temporary or ad hoc combatants are created directly in Block Initiative, where that concept is actually needed.
 
-- membership and roles represent authenticated campaign authority;
-- participants represent people at the table, including guests without accounts;
-- campaign-linked characters represent character records that can seed player combatants.
-
-The initial integration is deliberately additive. Selecting a campaign exposes context to the encounter workspace and allows active linked characters to be added to the player roster. Existing manual combatants are retained, and participants are not automatically converted into characters or combatants.
+The initial integration is deliberately additive. Selecting a campaign exposes context to the encounter workspace and allows active linked characters to be added to the player roster. Existing manual combatants are retained.
 
 Imported combatant cards retain stable campaign/character identifiers as metadata. That creates a future synchronization and persistence boundary without making display names authoritative or introducing persistence into `BlockInitiative.Core`.
 
@@ -159,7 +155,6 @@ This is intentionally the same core-plus-module pattern used elsewhere in Dorks 
 
 Kaiju-specific design is documented in [`kaiju-integration.md`](kaiju-integration.md).
 
-
 ## Initiative mode modules
 
 `InitiativeEngine` is the shared orchestration core. It validates the roster, resolves controller and tactical-group placement, orders initiative, and then delegates mode-specific behavior to an `InitiativeModeStrategy`.
@@ -173,7 +168,6 @@ InitiativeModeStrategy (abstract core)
 Each mode module owns only what differs between modes: tie adjudication policy, conversion of ordered placements into turns, and optional cyclic-merge planning. The engine does not branch on the mode after resolving the strategy. `InitiativeModeStrategyFactory` is the single mapping from the public `InitiativeMode` value to a concrete mode module.
 
 This keeps new initiative modes additive: a new mode should be implemented as a module instead of adding another set of conditionals to `InitiativeEngine`.
-
 
 Tactical-group calculation follows the same boundary. `TacticalGroupRules` owns group identity, while `TacticalGroupInitiativeResolver` owns average/shared-roll calculation and stable grouped sorting. The engine consumes those results as inputs to the common placement pipeline.
 
