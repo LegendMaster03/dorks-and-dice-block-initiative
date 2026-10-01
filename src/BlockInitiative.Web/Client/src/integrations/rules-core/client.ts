@@ -31,7 +31,7 @@ interface ResolvedCatalogResponse {
     }>;
 }
 
-const gateway = "/tool-host/rules-core/api/upstream";
+const gateway = "/tool-host/registrations/rules-core/api/upstream";
 
 export async function searchRulesCoreEntity(
     entityType: string,
