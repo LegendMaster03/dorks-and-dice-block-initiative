@@ -64,7 +64,7 @@ type HealthSnapshot = {
     max: number | null;
 };
 
-const gateway = "/tool-host/rules-core/api/upstream";
+const gateway = "/tool-host/registrations/rules-core/api/upstream";
 const templateStats = new Map<string, MonsterCombatStats | null>();
 const pendingTemplates = new Set<string>();
 const templateRetryAfter = new Map<string, number>();
