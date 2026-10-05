@@ -55,6 +55,9 @@ export type HexCrawlHandoffJourneyProvenance = {
     eventOccurrenceId: string;
     processId: string | null;
     processKey: string | null;
+    destinationReference: string | null;
+    routeReference: string | null;
+    locationReference: string | null;
     stageKey: string | null;
     eventKey: string;
     eventType: string | null;
@@ -269,6 +272,9 @@ function parseJourneyProvenance(value: unknown): HexCrawlHandoffJourneyProvenanc
         eventOccurrenceId: guid(item.eventOccurrenceId, "journey event occurrence id"),
         processId: nullableGuid(item.processId, "journey process id"),
         processKey: nullableText(item.processKey),
+        destinationReference: nullableText(item.destinationReference, 1000),
+        routeReference: nullableText(item.routeReference, 1000),
+        locationReference: nullableText(item.locationReference, 1000),
         stageKey: nullableText(item.stageKey),
         eventKey: text(item.eventKey, "journey event key"),
         eventType: nullableText(item.eventType),
