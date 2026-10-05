@@ -70,6 +70,7 @@ Client/src/
 │   ├── standard-combat-state.ts   # Standard HP implementation
 │   └── kaiju-combat-state.ts      # Kaiju combat implementation
 ├── integrations/
+│   ├── hex-crawl-handoff.ts       # versioned transient encounter handoff boundary
 │   └── rules-core/
 │       ├── client.ts              # shared transport/search/link contract
 │       ├── monsters.ts            # Monster adapter
@@ -92,11 +93,11 @@ Inheritance is used where there is a real domain subtype relationship, such as C
 
 ## Hex Crawl encounter handoff
 
-Block Initiative accepts a versioned `hexEncounter` handoff payload from the Hex Crawl Tool. The browser client validates the payload locally before using it and removes the consumed query parameter so a reload can not duplicate imported roster entries.
+Block Initiative accepts only the version 2 Hex Crawl encounter handoff contract. Hex Crawl first asks its server to assemble the authoritative structured snapshot for one recorded runtime encounter or resolved journey event. The Hex Crawl client stages that exact JSON in tab-scoped `sessionStorage` under a stable handoff GUID and navigates to Block Initiative with only `hexEncounterId=<guid>` in the URL. Block Initiative validates the requested GUID, contract version/source, identity match, bounds, structured fields, and safe return path before using the payload. The staged entry and URL parameter are consumed so refreshes can not duplicate the transient import; the full handoff is never placed in the query string.
 
-The handoff carries expedition/watch/hex/location/outcome/note context and may include structured combatants. Structured combatants are imported into the setup roster when there is no saved Block Initiative encounter being restored. An existing saved encounter takes precedence over automatic roster import. Free-text encounter notes are displayed as context only; Block Initiative does not parse prose into monster identities.
+The handoff can carry expedition/time/hex/location/outcome/note context, structured combatants, encounter circumstances, linked persistent effects and resource state, journey/process provenance, and linked scene references. Structured combatants are imported into the setup roster only when there is no saved Block Initiative encounter being restored. Existing saved encounter state takes precedence over transient automatic roster import. Free-text summary and notes are display context only; Block Initiative does not infer combatants or encounter semantics from prose.
 
-This integration remains outside `BlockInitiative.Core`. Hex Crawl owns expedition state and encounter triggering; Block Initiative owns tactical roster construction, initiative, and combat execution. Rules Core remains the authority for source-backed monster details when a structured combatant reference is available.
+This integration remains outside `BlockInitiative.Core`. Hex Crawl owns expedition state, historical encounter/journey provenance, and handoff assembly; Block Initiative owns tactical roster construction, initiative, and combat execution. Rules Core remains the authority for source-backed monster details when a structured combatant reference is available.
 
 ## Campaign integration
 
