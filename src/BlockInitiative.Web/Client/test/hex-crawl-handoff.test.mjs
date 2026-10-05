@@ -7,6 +7,7 @@ import {
 } from "../.test-dist/integrations/hex-crawl-handoff.js";
 
 const handoffId = "0e953165-42ca-48b5-9a74-d834ddfbcd73";
+const consequenceId = "a51fcf44-a0f1-459d-b988-bf076f587a1f";
 
 function payload(overrides = {}) {
     return {
@@ -80,7 +81,7 @@ test("parses and consumes a bounded version 2 Hex Crawl encounter handoff", () =
     assert.equal(transport.entries.size, 0);
 });
 
-test("preserves structured journey context without parsing encounter prose", () => {
+test("preserves structured journey, effect, resource, and composition context without parsing prose", () => {
     const journey = payload({
         identity: {
             handoffId,
@@ -91,19 +92,56 @@ test("preserves structured journey context without parsing encounter prose", () 
         timeContext: { day: 2, watchNumber: null, expeditionElapsedHours: 31 },
         worldContext: { overworldId: null, hex: null, location: null },
         encounter: { outcome: "JourneyEvent", summary: "crossing complication", dmNote: null },
-        circumstances: [{
-            consequenceId: "a51fcf44-a0f1-459d-b988-bf076f587a1f",
-            consequenceKey: "ambush",
-            circumstanceKey: "surprised",
-            value: "party",
-            target: { scope: "Party", targetId: null },
-            provenance: {
-                sourceKind: "JourneyEvent",
-                sourceKey: "crossing-event",
-                sourceReference: null,
-                providerName: null,
-                note: null
+        circumstances: [
+            {
+                consequenceId,
+                consequenceKey: "ambush",
+                circumstanceKey: "surprised",
+                value: "party",
+                target: { scope: "Party", targetId: null },
+                provenance: {
+                    sourceKind: "JourneyEvent",
+                    sourceKey: "crossing-event",
+                    sourceReference: null,
+                    providerName: null,
+                    note: null
+                }
+            },
+            {
+                consequenceId,
+                consequenceKey: "ambush",
+                circumstanceKey: "reinforcements",
+                value: "2-scouts",
+                target: { scope: "Party", targetId: null },
+                provenance: {
+                    sourceKind: "JourneyEvent",
+                    sourceKey: "crossing-event",
+                    sourceReference: null,
+                    providerName: null,
+                    note: null
+                }
             }
+        ],
+        effects: [{
+            id: "4645cfbf-ad17-46e4-aee7-aab61eaa9910",
+            effectKey: "fatigue",
+            target: { scope: "Party", targetId: null },
+            level: 1,
+            magnitude: null,
+            unit: null,
+            state: null,
+            sourceConsequenceIds: [consequenceId]
+        }],
+        resources: [{
+            id: "fb8f1ab7-acff-43f5-9146-931f36a032e2",
+            resourceKey: "torches",
+            target: { scope: "Party", targetId: null },
+            inventoryModel: "Counted",
+            isDepleted: true,
+            quantity: 0,
+            unit: "torch",
+            symbolicState: null,
+            supplyDieSides: null
         }],
         journeyProvenance: {
             eventOccurrenceId: "ea2c99d9-64df-407c-8e0b-a5789013cfd7",
@@ -130,6 +168,12 @@ test("preserves structured journey context without parsing encounter prose", () 
     const handoff = parseHexCrawlHandoff(transport.search, transport.storage);
     assert.equal(handoff.encounter.summary, "crossing complication");
     assert.equal(handoff.circumstances[0].circumstanceKey, "surprised");
+    assert.equal(handoff.circumstances[1].circumstanceKey, "reinforcements");
+    assert.equal(handoff.circumstances[1].value, "2-scouts");
+    assert.equal(handoff.effects[0].effectKey, "fatigue");
+    assert.deepEqual(handoff.effects[0].sourceConsequenceIds, [consequenceId]);
+    assert.equal(handoff.resources[0].resourceKey, "torches");
+    assert.equal(handoff.resources[0].isDepleted, true);
     assert.equal(handoff.journeyProvenance.eventKey, "ambush");
     assert.equal(handoff.journeyProvenance.destinationReference, "refuge-A");
     assert.equal(handoff.journeyProvenance.routeReference, "route-A");
