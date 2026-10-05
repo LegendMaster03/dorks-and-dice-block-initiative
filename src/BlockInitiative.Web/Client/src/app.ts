@@ -144,11 +144,17 @@ function handleRosterChanged(): void {
 }
 
 function consumeHexCrawlHandoff(): void {
+    const hasHandoffId = new URLSearchParams(window.location.search).has("hexEncounterId");
     let handoff: HexCrawlEncounterHandoff | null = null;
     try {
         handoff = parseHexCrawlHandoff(window.location.search);
     } catch (error) {
         showError(error);
+    } finally {
+        if (hasHandoffId) {
+            const cleanPath = consumeHexCrawlHandoffUrl(new URL(window.location.href));
+            window.history.replaceState(window.history.state, "", cleanPath);
+        }
     }
     if (!handoff) return;
 
@@ -157,9 +163,6 @@ function consumeHexCrawlHandoff(): void {
     if (!existing && handoff.combatants.length > 0) {
         roster.importHandoffCombatants(handoff.combatants);
     }
-
-    const cleanPath = consumeHexCrawlHandoffUrl(new URL(window.location.href));
-    window.history.replaceState(window.history.state, "", cleanPath);
 }
 
 function renderHexCrawlHandoff(
