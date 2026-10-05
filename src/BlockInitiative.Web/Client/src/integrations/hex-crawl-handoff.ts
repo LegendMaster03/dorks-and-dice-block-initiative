@@ -103,14 +103,33 @@ export type HexCrawlEncounterHandoff = {
     linkedScenes: HexCrawlHandoffLinkedScene[];
 };
 
+export interface HexCrawlHandoffStorage {
+    getItem(key: string): string | null;
+    removeItem(key: string): void;
+}
+
+export const hexCrawlHandoffStoragePrefix = "dorks-and-dice:hex-encounter-handoff:";
+
 const maxPayloadLength = 48_000;
 const maxCombatants = 100;
 const maxContextItems = 50;
 const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export function parseHexCrawlHandoff(search: string): HexCrawlEncounterHandoff | null {
-    const raw = new URLSearchParams(search).get("hexEncounter");
-    if (raw === null) return null;
+export function parseHexCrawlHandoff(
+    search: string,
+    storage: HexCrawlHandoffStorage = window.sessionStorage): HexCrawlEncounterHandoff | null {
+    const requestedIdRaw = new URLSearchParams(search).get("hexEncounterId");
+    if (requestedIdRaw === null) return null;
+    const requestedId = guid(requestedIdRaw, "handoff id");
+    const key = `${hexCrawlHandoffStoragePrefix}${requestedId}`;
+    const raw = storage.getItem(key);
+    if (raw === null) {
+        throw new Error("The Hex Crawl encounter handoff is no longer available in this browser tab.");
+    }
+
+    // The handoff is single-consumption transport state. Remove it before parsing so malformed
+    // or unsupported payloads can not be replayed indefinitely by refreshing the destination.
+    storage.removeItem(key);
     if (raw.length === 0 || raw.length > maxPayloadLength) {
         throw new Error("The Hex Crawl encounter handoff is empty or too large.");
     }
@@ -132,12 +151,16 @@ export function parseHexCrawlHandoff(search: string): HexCrawlEncounterHandoff |
     const timeContext = record(value.timeContext, "time context");
     const worldContext = record(value.worldContext, "world context");
     const encounter = record(value.encounter, "encounter");
+    const parsedId = guid(identity.handoffId, "handoff id");
+    if (parsedId.toLowerCase() !== requestedId.toLowerCase()) {
+        throw new Error("The Hex Crawl encounter handoff identity does not match the requested handoff.");
+    }
 
     return {
         version: 2,
         sourceTool: "hex-crawl",
         identity: {
-            handoffId: guid(identity.handoffId, "handoff id"),
+            handoffId: parsedId,
             encounterOccurrenceId: text(identity.encounterOccurrenceId, "encounter occurrence id"),
             expeditionId: guid(identity.expeditionId, "expedition id"),
             expeditionName: text(identity.expeditionName, "expedition name")
@@ -171,7 +194,7 @@ export function parseHexCrawlHandoff(search: string): HexCrawlEncounterHandoff |
 
 export function consumeHexCrawlHandoffUrl(url: URL): string {
     const next = new URL(url.toString());
-    next.searchParams.delete("hexEncounter");
+    next.searchParams.delete("hexEncounterId");
     return `${next.pathname}${next.search}${next.hash}`;
 }
 
