@@ -107,8 +107,11 @@ test("preserves structured journey context without parsing encounter prose", () 
         }],
         journeyProvenance: {
             eventOccurrenceId: "ea2c99d9-64df-407c-8e0b-a5789013cfd7",
-            processId: null,
-            processKey: null,
+            processId: "51b06820-626d-4810-adfd-0a36f6b80df3",
+            processKey: "road-to-refuge",
+            destinationReference: "refuge-A",
+            routeReference: "route-A",
+            locationReference: "crossing-A",
             stageKey: "crossing",
             eventKey: "ambush",
             eventType: "encounter",
@@ -128,6 +131,9 @@ test("preserves structured journey context without parsing encounter prose", () 
     assert.equal(handoff.encounter.summary, "crossing complication");
     assert.equal(handoff.circumstances[0].circumstanceKey, "surprised");
     assert.equal(handoff.journeyProvenance.eventKey, "ambush");
+    assert.equal(handoff.journeyProvenance.destinationReference, "refuge-A");
+    assert.equal(handoff.journeyProvenance.routeReference, "route-A");
+    assert.equal(handoff.journeyProvenance.locationReference, "crossing-A");
     assert.equal(handoff.worldContext.hex, null);
 });
 
