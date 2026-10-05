@@ -171,18 +171,51 @@ function renderHexCrawlHandoff(
 
     const copy = document.createElement("div");
     const title = document.createElement("strong");
-    title.textContent = `Hex Crawl encounter · ${handoff.outcome}`;
+    title.textContent = `Hex Crawl encounter · ${handoff.encounter.outcome}`;
+
     const context = document.createElement("div");
     context.className = "bi-muted";
-    const hex = handoff.hex ? ` · hex ${handoff.hex.q},${handoff.hex.r}` : "";
-    const timing = handoff.occursAtHours !== null ? ` · ${handoff.occursAtHours} h into watch` : "";
+    const watch = handoff.timeContext.watchNumber !== null
+        ? ` · watch ${handoff.timeContext.watchNumber}`
+        : "";
+    const hex = handoff.worldContext.hex
+        ? ` · hex ${handoff.worldContext.hex.q},${handoff.worldContext.hex.r}`
+        : "";
     context.textContent =
-        `${handoff.expeditionName} · ${handoff.contextName} · watch ${handoff.watchNumber}${hex}${timing}`;
+        `${handoff.identity.expeditionName} · day ${handoff.timeContext.day}${watch}${hex} · ${handoff.timeContext.expeditionElapsedHours} h elapsed`;
+
     const summary = document.createElement("div");
-    summary.textContent = handoff.locationName
-        ? `${handoff.locationName}: ${handoff.summary}`
-        : handoff.summary;
+    summary.textContent = handoff.worldContext.location
+        ? `${handoff.worldContext.location.name}: ${handoff.encounter.summary}`
+        : handoff.encounter.summary;
     copy.append(title, context, summary);
+
+    if (handoff.encounter.dmNote) {
+        const note = document.createElement("div");
+        note.className = "bi-muted";
+        note.textContent = `DM note: ${handoff.encounter.dmNote}`;
+        copy.append(note);
+    }
+
+    const structuredCount = handoff.circumstances.length
+        + handoff.effects.length
+        + handoff.resources.length
+        + handoff.linkedScenes.length;
+    if (structuredCount > 0 || handoff.journeyProvenance) {
+        const structured = document.createElement("div");
+        structured.className = "bi-muted";
+        const parts = [
+            `${handoff.circumstances.length} circumstance(s)`,
+            `${handoff.effects.length} effect(s)`,
+            `${handoff.resources.length} resource(s)`,
+            `${handoff.linkedScenes.length} linked scene(s)`
+        ];
+        if (handoff.journeyProvenance) {
+            parts.push(`journey event ${handoff.journeyProvenance.eventKey}`);
+        }
+        structured.textContent = `Structured Hex Crawl context: ${parts.join(" · ")}.`;
+        copy.append(structured);
+    }
 
     const rosterStatus = document.createElement("div");
     rosterStatus.className = "bi-muted";
@@ -194,10 +227,10 @@ function renderHexCrawlHandoff(
     copy.append(rosterStatus);
 
     host.append(copy);
-    if (handoff.returnPath) {
+    if (handoff.returnContext.returnPath) {
         const back = document.createElement("a");
         back.className = "btn btn-sm btn-outline-secondary";
-        back.href = handoff.returnPath;
+        back.href = handoff.returnContext.returnPath;
         back.textContent = "Return to Hex Crawl";
         host.append(back);
     }
