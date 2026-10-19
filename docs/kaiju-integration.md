@@ -38,6 +38,7 @@ Kaiju deliberately do **not** use that ordinary HP tracker. The public Kaiju Fig
 - each **Vulnerable Area**, with its own HP pool;
 - whether each Vulnerable Area is currently targetable;
 - whether each Vulnerable Area is exploited;
+- optional creature-specific effects associated with exploiting each area;
 - the current Behaviour or table-facing phase;
 - **Rampage** state;
 - **Death Throes**;
@@ -51,6 +52,12 @@ The tracker preserves raw values separately from derived state. DM overrides can
 ## Behaviour versus phase
 
 The Kaiju Fighting rules describe **Behaviours** that can activate from different triggers and are not universally an ordered phase ladder. The UI therefore uses **Behaviour / phase** as a free table-facing field rather than assuming every Kaiju follows phase 1, phase 2, phase 3.
+
+## Encounter reference panels
+
+The current Behaviour / phase is editable directly from the encounter card and updates its visible label immediately. Each Vulnerable Area has an optional exploitation-effect description, editable in setup and from the encounter card. Exploited areas open the associated reference automatically; the tracker does not invent mechanical effects for creatures whose area descriptions are blank.
+
+Non-player Standard and Kaiju combatants also share an optional, collapsed Legendary Actions panel. It records manual descriptions, action costs, and editable maximum/remaining uses. The DM controls when uses are spent or reset because timing and action economies differ across creatures and rulesets. Neither the exploitation text nor legendary-action notes are applied as automatic rule modifications.
 
 ## Initiative relationship
 

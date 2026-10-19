@@ -888,7 +888,8 @@ function requestKaijuCardRefresh(
             if (active.dataset.kaijuDeferredRefresh !== "true") {
                 active.dataset.kaijuDeferredRefresh = "true";
                 active.addEventListener("blur", () => {
-                    requestKaijuCardRefresh(root, combatantId);
+                    // Let the pending pointer click finish before replacing controls.
+                    window.setTimeout(() => requestKaijuCardRefresh(root, combatantId), 120);
                 }, { once: true });
             }
             return;

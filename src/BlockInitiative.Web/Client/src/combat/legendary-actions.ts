@@ -98,6 +98,7 @@ function renderLegendaryActions(
             if (state.remainingUses === null
                 || state.remainingUses === oldMax) {
                 state.remainingUses = value;
+                syncUseFields(details, state);
             }
             notifyChanged();
         }, undefined, NON_NEGATIVE_TRACKER_LIMITS),
