@@ -34,7 +34,7 @@ test("v1 encounters migrate to complete v4 defaults", () => {
     assert.equal(migrated.initiativeMode, "block");
     assert.deepEqual(
         migrated.runnerCombat,
-        { standard: {}, kaiju: {} });
+        { standard: {}, kaiju: {}, legendary: {} });
     assert.deepEqual(migrated.actedRounds, {});
     assert.deepEqual(
         migrated.reorderRuntime,
@@ -43,6 +43,18 @@ test("v1 encounters migrate to complete v4 defaults", () => {
             baselineOrder: null,
             history: []
         });
+});
+
+test("exploitation references and legendary action counts survive normalization", () => {
+    const migrated = normalizeSavedEncounter(legacyEncounter({
+        runnerCombat: {
+            legendary: { ogre: { notes: "Tail attack", maxUses: 3, remainingUses: 1 } },
+            kaiju: { titan: { areas: [{ name: "Tail", currentHp: "0", maxHp: "40", targetable: true, exploitationEffect: "Lose tail sweep" }] } }
+        }
+    }));
+    assert.ok(migrated);
+    assert.deepEqual(migrated.runnerCombat.legendary.ogre, { notes: "Tail attack", maxUses: 3, remainingUses: 1 });
+    assert.equal(migrated.runnerCombat.kaiju.titan.areas[0].exploitationEffect, "Lose tail sweep");
 });
 
 test("legacy initiative mode is inferred from saved state", () => {

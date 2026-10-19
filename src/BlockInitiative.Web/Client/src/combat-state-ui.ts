@@ -13,6 +13,7 @@ import type {
     PreviewDetail,
     TurnStateDetail
 } from "./combat/combat-state-types";
+import { pruneLegendaryActionStates, syncLegendaryActionState } from "./combat/legendary-actions";
 import {
     findRunnerCard,
     installCombatStateStyles
@@ -92,6 +93,7 @@ function enhanceCombatSetup(root: HTMLElement): void {
             .filter(Boolean));
     pruneStandardCombatStates(activeIds);
     pruneKaijuCombatStates(activeIds);
+    pruneLegendaryActionStates(activeIds);
 
     for (const card of cards) {
         const combatantId = card.dataset.id;
@@ -141,5 +143,6 @@ function syncRunnerCombatState(root: HTMLElement): void {
         const isActive = activeCombatants.has(combatant.id);
         syncStandardCombatState(card, combatant, isActive);
         syncKaijuCombatState(root, card, combatant, isActive);
+        syncLegendaryActionState(card, combatant);
     }
 }

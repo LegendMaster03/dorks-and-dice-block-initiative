@@ -68,6 +68,10 @@ test("complete runtime persistence includes turn markers and Kaiju metadata", as
 
     assert.match(schema, /actedRounds/);
     assert.match(schema, /defeatedRound/);
+    assert.match(schema, /exploitationEffect/);
+    assert.match(schema, /SavedLegendaryActionsRuntime/);
+    assert.match(capture, /readLegendaryActionRuntime/);
+    assert.match(restore, /restoreLegendaryActionRuntime/);
     assert.match(capture, /captureActedRounds/);
     assert.match(capture, /readKaijuRuntimeMetadata/);
     assert.match(restore, /restoreActedRounds/);
@@ -84,6 +88,8 @@ test("removed combatants are pruned from module-owned runtime maps", async () =>
 
     assert.match(combat, /pruneStandardCombatStates/);
     assert.match(combat, /pruneKaijuCombatStates/);
+    assert.match(combat, /pruneLegendaryActionStates/);
+    assert.match(combat, /syncLegendaryActionState/);
     assert.match(conditions, /pruneConditions/);
     assert.match(quickStats, /pruneActedRounds/);
 });

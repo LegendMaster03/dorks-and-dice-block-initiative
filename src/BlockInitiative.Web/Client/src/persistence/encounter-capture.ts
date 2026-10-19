@@ -2,6 +2,7 @@ import {
     conditionsFor
 } from "../conditions/condition-model";
 import { readKaijuRuntimeMetadata } from "../combat/kaiju-combat-state";
+import { readLegendaryActionRuntime } from "../combat/legendary-actions";
 import { captureActedRounds } from "../combatant-turn-markers";
 import {
     captureCombatantReorderRuntime
@@ -277,7 +278,7 @@ function captureControls(scope: HTMLElement): SavedControl[] {
     const controls =
         Array.from(
             scope.querySelectorAll<
-                HTMLInputElement | HTMLSelectElement>("input,select"));
+                HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input,select,textarea"));
 
     return controls.map(control => ({
         key: controlKey(control, scope),
@@ -296,10 +297,16 @@ function captureRunnerCombat(
 ): SavedRunnerCombat {
     const result: SavedRunnerCombat = {
         standard: {},
-        kaiju: {}
+        kaiju: {},
+        legendary: {}
     };
     const ordered =
         lastPreview?.response.orderedCombatants ?? [];
+
+    for (const combatant of ordered) {
+        const legendary = readLegendaryActionRuntime(combatant.id);
+        if (legendary) result.legendary[combatant.id] = legendary;
+    }
 
     for (const combatant of ordered.filter(
         combatant =>
@@ -361,8 +368,8 @@ function captureRunnerCombat(
                         maxHp:
                             numberText(
                                 area.maxHp),
-                        targetable:
-                            area.targetable
+                        targetable: area.targetable,
+                        exploitationEffect: area.exploitationEffect
                     }))
             };
             continue;
@@ -433,11 +440,8 @@ function captureRunnerCombat(
                                     row,
                                     "Max HP")?.value
                                 ?? "",
-                            targetable:
-                                checkboxByText(
-                                    row,
-                                    "Targetable")?.checked
-                                ?? false
+                            targetable: checkboxByText(row, "Targetable")?.checked ?? false,
+                             exploitationEffect: row.querySelector<HTMLTextAreaElement>("textarea")?.value ?? ""
                         }))
                     : []
         };

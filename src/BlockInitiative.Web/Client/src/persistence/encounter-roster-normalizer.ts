@@ -53,7 +53,8 @@ export function normalizeRunnerCombat(
                 runtime?.standard),
         kaiju:
             normalizeKaijuRuntimeMap(
-                runtime?.kaiju)
+                runtime?.kaiju),
+        legendary: normalizeLegendaryRuntimeMap(runtime?.legendary)
     };
 }
 
@@ -328,6 +329,27 @@ function normalizeStandardRuntimeMap(
     return result;
 }
 
+function normalizeLegendaryRuntimeMap(value: unknown): SavedRunnerCombat["legendary"] {
+    const source = record(value);
+    if (!source) return {};
+    const result: SavedRunnerCombat["legendary"] = {};
+    for (const [id, raw] of Object.entries(source)) {
+        const item = record(raw);
+        if (!item) continue;
+        result[id] = {
+            notes: stringOrEmpty(item.notes),
+            maxUses: nullableTrackerCount(item.maxUses),
+            remainingUses: nullableTrackerCount(item.remainingUses)
+        };
+    }
+    return result;
+}
+
+function nullableTrackerCount(value: unknown): number | null {
+    return typeof value === "number" && Number.isInteger(value)
+        && value >= 0 && value <= 1_000_000_000 ? value : null;
+}
+
 function normalizeKaijuRuntimeMap(
     value: unknown
 ): SavedRunnerCombat["kaiju"] {
@@ -384,8 +406,8 @@ function normalizeKaijuAreas(
                 stringOrEmpty(item.currentHp),
             maxHp:
                 stringOrEmpty(item.maxHp),
-            targetable:
-                item.targetable !== false
+            targetable: item.targetable !== false,
+            exploitationEffect: stringOrEmpty(item.exploitationEffect)
         }];
     });
 }

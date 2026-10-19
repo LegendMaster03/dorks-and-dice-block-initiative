@@ -5,6 +5,7 @@ import type { InitiativeTurnStateResponse } from "../api";
 import {
     restoreKaijuRuntimeMetadata
 } from "../combat/kaiju-combat-state";
+import { restoreLegendaryActionRuntime } from "../combat/legendary-actions";
 import { restoreActedRounds } from "../combatant-turn-markers";
 import {
     restoreCombatantReorderRuntime
@@ -727,8 +728,7 @@ function applyControls(
     const current =
         Array.from(
             scope.querySelectorAll<
-                HTMLInputElement | HTMLSelectElement>(
-                    "input,select"));
+                HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input,select,textarea"));
     const byKey =
         new Map(
             current.map(control => [
@@ -839,8 +839,8 @@ function restoreRunnerValuesIntoSetup(
                             parseBoundedNumber(
                                 area.maxHp,
                                 NON_NEGATIVE_TRACKER_LIMITS),
-                        targetable:
-                            area.targetable
+                        targetable: area.targetable,
+                        exploitationEffect: area.exploitationEffect
                     }))
             });
 
@@ -859,6 +859,12 @@ function restoreRunnerValuesIntoSetup(
                 row,
                 "Current HP",
                 area.currentHp);
+
+            const effect = row.querySelector<HTMLTextAreaElement>("textarea");
+            if (effect) {
+                effect.value = area.exploitationEffect;
+                effect.dispatchEvent(new Event("input", { bubbles: true }));
+            }
 
             const targetable =
                 checkboxByText(row, "Targetable");
@@ -1076,6 +1082,10 @@ function restoreRunnerValues(
 ): void {
     const ordered =
         lastPreview?.response.orderedCombatants ?? [];
+
+    for (const [combatantId, runtime] of Object.entries(saved.legendary)) {
+        restoreLegendaryActionRuntime(combatantId, runtime, root);
+    }
 
     for (const combatant of ordered.filter(
         combatant =>
