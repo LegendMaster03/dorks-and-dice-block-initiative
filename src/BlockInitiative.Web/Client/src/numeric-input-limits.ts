@@ -89,12 +89,12 @@ export function isPlainNumericText(
     return new RegExp(`^${sign}${body}$`).test(text);
 }
 
-function permittedNumericInsertion(
+export function permittedNumericInsertion(
     text: string,
     limits: NumericLimits
 ): boolean {
     for (const character of text) {
-        if (/\\d/.test(character)) continue;
+        if (/[0-9]/.test(character)) continue;
         if (character === "." && !limits.integer) continue;
         if (character === "-" && limits.min < 0) continue;
         return false;

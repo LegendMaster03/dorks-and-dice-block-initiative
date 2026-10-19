@@ -107,6 +107,7 @@ function enhanceAreaRow(row: HTMLElement): void {
     const name = findField(grid, "Name");
     const maxHp = findField(grid, "Max HP");
     const currentHp = findField(grid, "Current HP");
+    const exploitationEffect = findField(grid, "Effect when exploited");
     const targetable = controls.querySelector<HTMLElement>(".bi-inline-check");
     const targetableInput = targetable?.querySelector<HTMLInputElement>("input[type='checkbox']");
     const exploited = findField(controls, "Exploited");
@@ -130,6 +131,7 @@ function enhanceAreaRow(row: HTMLElement): void {
     }
 
     row.replaceChildren(name, hp, targetable, exploited, remove);
+    if (exploitationEffect) row.append(exploitationEffect);
 }
 
 function buildPoolEditor(
@@ -372,6 +374,7 @@ function installStyles(documentRef: Document): void {
 .block-initiative-app .bi-kaiju-area-targetable{margin:0!important;justify-self:center}
 .block-initiative-app .bi-kaiju-area-exploited select{width:8rem;max-width:8rem}
 .block-initiative-app .bi-kaiju-area-remove{width:auto!important;justify-self:start;padding:.25rem .5rem}
+.block-initiative-app .bi-kaiju-area-compact>.bi-long-note{grid-column:1/-1}
 
 @media(max-width:900px){
   .block-initiative-app .bi-kaiju-entry>.bi-entry-main{grid-template-columns:minmax(12rem,1fr) 6rem 12rem auto!important}

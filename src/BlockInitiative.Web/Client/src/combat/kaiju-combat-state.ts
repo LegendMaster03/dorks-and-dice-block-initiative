@@ -17,7 +17,8 @@ import {
     overrideBool,
     overrideField,
     statusBadge,
-    textField
+    textField,
+    textareaField
 } from "./combat-ui";
 import type { OverrideValue } from "./combat-ui";
 import type { PreviewCombatant } from "./combat-state-types";
@@ -28,6 +29,7 @@ type AreaState = {
     maxHp: number | null;
     currentHp: number | null;
     targetable: boolean;
+    exploitationEffect: string;
     exploitedOverride: OverrideValue;
 };
 
@@ -67,6 +69,7 @@ export type KaijuRuntimeMetadata = {
         currentHp: number | null;
         maxHp: number | null;
         targetable: boolean;
+        exploitationEffect: string;
     }>;
 };
 
@@ -187,7 +190,8 @@ export function readKaijuRuntimeMetadata(
                 name: area.name,
                 currentHp: area.currentHp,
                 maxHp: area.maxHp,
-                targetable: area.targetable
+                targetable: area.targetable,
+                exploitationEffect: area.exploitationEffect
             }))
         }
         : null;
@@ -220,6 +224,8 @@ export function restoreKaijuRuntimeMetadata(
                 area.maxHp;
             existing.targetable =
                 area.targetable;
+            existing.exploitationEffect =
+                area.exploitationEffect ?? "";
             return existing;
         });
 
@@ -417,6 +423,9 @@ function renderSetupAreas(
             numberField("Current HP", area.currentHp, value => {
                 area.currentHp = value;
                 void evaluateKaiju(kaijuId, state, root, false);
+            }),
+            textareaField("Effect when exploited", area.exploitationEffect, value => {
+                area.exploitationEffect = value;
             })
         );
 
@@ -477,7 +486,18 @@ function renderKaiju(
     source.innerHTML =
         `Kaiju Fighting rules by Loot Tavern — <a href="https://www.patreon.com/posts/ryokos-kaiju-to-141132181" target="_blank" rel="noopener noreferrer">view the official Kaiju Fighting Lite rules</a>.`;
 
-    title.append(heading, phase, source);
+    const behaviourEditor = textField(
+        "Current behaviour / phase",
+        state.behaviourPhase,
+        value => {
+            state.behaviourPhase = value;
+            phase.textContent = value
+                ? `Behaviour / phase: ${value}`
+                : "Behaviour / phase not recorded";
+            notifyCombatStateChanged();
+        });
+    behaviourEditor.classList.add("bi-behaviour-editor");
+    title.append(heading, behaviourEditor, phase, source);
 
     const statuses = document.createElement("div");
     statuses.className = "bi-statuses";
@@ -548,11 +568,6 @@ function renderKaiju(
     chaos.append(chaosControls);
     panel.append(chaos);
 
-    panel.append(textField(
-        "Current behaviour / phase",
-        state.behaviourPhase,
-        value => { state.behaviourPhase = value; }));
-
     const areaSection = document.createElement("section");
     areaSection.innerHTML =
         `<strong>Vulnerable Areas</strong><div class="bi-note">Weak points have separate HP pools and can become targetable as Behaviours change.</div>`;
@@ -580,6 +595,21 @@ function renderKaiju(
 
         rowHead.append(areaName, flags);
         row.append(rowHead);
+
+        const effectDetails = document.createElement("details");
+        effectDetails.className = "bi-exploited-effect";
+        effectDetails.open = derived?.exploited === true;
+        const effectSummary = document.createElement("summary");
+        effectSummary.textContent = area.exploitationEffect
+            ? "Effect when exploited"
+            : "Effect when exploited (not recorded)";
+        effectDetails.append(
+            effectSummary,
+            textareaField("Effect when exploited", area.exploitationEffect, value => {
+                area.exploitationEffect = value;
+                notifyCombatStateChanged();
+            }));
+        row.append(effectDetails);
 
         const controls = document.createElement("div");
         controls.className = "bi-combat-controls";
@@ -847,11 +877,24 @@ function requestKaijuCardRefresh(
     combatantId: string
 ): void {
     queueMicrotask(() => {
-        findRunnerCard(root, combatantId)
+        const panel = findRunnerCard(root, combatantId)
             ?.querySelector<HTMLElement>(
                 ":scope > [data-card-slot='state'] > [data-card-state='kaiju']"
-            )
-            ?.remove();
+            );
+        const active = document.activeElement;
+        if (panel?.contains(active)
+            && (active instanceof HTMLInputElement
+                || active instanceof HTMLTextAreaElement)) {
+            if (active.dataset.kaijuDeferredRefresh !== "true") {
+                active.dataset.kaijuDeferredRefresh = "true";
+                active.addEventListener("blur", () => {
+                    // Let the pending pointer click finish before replacing controls.
+                    window.setTimeout(() => requestKaijuCardRefresh(root, combatantId), 120);
+                }, { once: true });
+            }
+            return;
+        }
+        panel?.remove();
         requestEnhancement();
     });
 }
@@ -943,6 +986,7 @@ function newArea(index: number): AreaState {
         maxHp: null,
         currentHp: null,
         targetable: true,
+        exploitationEffect: "",
         exploitedOverride: "auto"
     };
 }

@@ -98,6 +98,7 @@ export type SavedStandardRuntime = {
 
 export type SavedKaijuAreaRuntime = {
     name: string;
+    exploitationEffect: string;
     currentHp: string;
     maxHp: string;
     targetable: boolean;
@@ -114,9 +115,16 @@ export type SavedKaijuRuntime = {
     areas: SavedKaijuAreaRuntime[];
 };
 
+export type SavedLegendaryActionsRuntime = {
+    notes: string;
+    maxUses: number | null;
+    remainingUses: number | null;
+};
+
 export type SavedRunnerCombat = {
     standard: Record<string, SavedStandardRuntime>;
     kaiju: Record<string, SavedKaijuRuntime>;
+    legendary: Record<string, SavedLegendaryActionsRuntime>;
 };
 
 export type SavedRulesCoreLink = Record<string, unknown> & {

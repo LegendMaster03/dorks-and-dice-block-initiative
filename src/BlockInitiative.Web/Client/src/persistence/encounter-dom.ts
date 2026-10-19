@@ -68,7 +68,7 @@ export function checkboxByText(
 }
 
 export function controlKey(
-    control: HTMLInputElement | HTMLSelectElement,
+    control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
     scope: HTMLElement
 ): string {
     const area = control.closest<HTMLElement>(".bi-area-row");

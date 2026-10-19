@@ -26,6 +26,18 @@ test("Kaiju evaluation coalesces stale requests and retries URL resolution", asy
     assert.doesNotMatch(kaiju, /Math\.trunc\(/);
 });
 
+test("Kaiju controls protect focused fields and compact setup retains exploitation notes", async () => {
+    const kaiju = await source("../src/combat/kaiju-combat-state.ts");
+    const compact = await source("../src/kaiju-layout-ui.ts");
+    const refs = await source("../src/combat/legendary-actions.ts");
+
+    assert.match(kaiju, /kaijuDeferredRefresh/);
+    assert.match(kaiju, /phase\.textContent = value/);
+    assert.match(kaiju, /exploitationEffect/);
+    assert.match(compact, /row\.append\(exploitationEffect\)/);
+    assert.match(refs, /syncUseFields\(details, state\)/);
+});
+
 test("failed turn advance re-renders the existing runner state", async () => {
     const runner =
         await source("../src/application/encounter-runner.ts");
@@ -68,6 +80,10 @@ test("complete runtime persistence includes turn markers and Kaiju metadata", as
 
     assert.match(schema, /actedRounds/);
     assert.match(schema, /defeatedRound/);
+    assert.match(schema, /exploitationEffect/);
+    assert.match(schema, /SavedLegendaryActionsRuntime/);
+    assert.match(capture, /readLegendaryActionRuntime/);
+    assert.match(restore, /restoreLegendaryActionRuntime/);
     assert.match(capture, /captureActedRounds/);
     assert.match(capture, /readKaijuRuntimeMetadata/);
     assert.match(restore, /restoreActedRounds/);
@@ -84,6 +100,8 @@ test("removed combatants are pruned from module-owned runtime maps", async () =>
 
     assert.match(combat, /pruneStandardCombatStates/);
     assert.match(combat, /pruneKaijuCombatStates/);
+    assert.match(combat, /pruneLegendaryActionStates/);
+    assert.match(combat, /syncLegendaryActionState/);
     assert.match(conditions, /pruneConditions/);
     assert.match(quickStats, /pruneActedRounds/);
 });
