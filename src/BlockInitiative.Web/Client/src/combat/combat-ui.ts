@@ -16,7 +16,7 @@ export function installCombatStateStyles(root: HTMLElement): void {
     style.textContent = `
 .block-initiative-app .bi-combat-config{border-top:1px solid var(--bi-border);margin-top:.7rem;padding-top:.7rem}
 .block-initiative-app .bi-combat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}.block-initiative-app .bi-combat-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
-.block-initiative-app .bi-area-list{display:grid;gap:.55rem;margin-top:.55rem}
+.block-initiative-app .bi-area-list{display:grid;gap:.55rem;margin-top:.55rem}.block-initiative-app .bi-combat-grid>.bi-long-note{grid-column:1/-1}.block-initiative-app .bi-long-note textarea{width:100%;resize:vertical}.block-initiative-app .bi-exploited-effect{margin-top:.45rem}.block-initiative-app .bi-behaviour-editor{margin:.35rem 0}
 .block-initiative-app .bi-health-row,.block-initiative-app .bi-area-row,.block-initiative-app .bi-kaiju-panel{border:1px solid var(--bi-border);border-radius:.55rem;padding:.65rem}.block-initiative-app .bi-health-row.active,.block-initiative-app .bi-kaiju-panel.active{border-width:2px}
 .block-initiative-app .bi-combat-controls{display:flex;flex-wrap:wrap;gap:.4rem;align-items:end;margin-top:.45rem}.block-initiative-app .bi-combat-controls .bi-field{min-width:6rem;flex:1 1 7rem}
 .block-initiative-app .bi-statuses{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}.block-initiative-app .bi-status{border:1px solid currentColor;border-radius:999px;padding:.12rem .48rem;font-size:.78rem}.block-initiative-app .bi-status.strong{font-weight:700}
@@ -81,6 +81,24 @@ export function textField(
         "input",
         () => setter(input.value.trim()));
     wrap.append(label, input);
+    return wrap;
+}
+
+export function textareaField(
+    labelText: string,
+    value: string,
+    setter: (value: string) => void
+): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "bi-field bi-long-note";
+    const label = document.createElement("label");
+    label.textContent = labelText;
+    const textarea = document.createElement("textarea");
+    textarea.className = "form-control";
+    textarea.rows = 2;
+    textarea.value = value;
+    textarea.addEventListener("input", () => setter(textarea.value));
+    wrap.append(label, textarea);
     return wrap;
 }
 
