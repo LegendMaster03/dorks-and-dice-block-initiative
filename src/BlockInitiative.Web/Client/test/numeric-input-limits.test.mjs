@@ -7,7 +7,8 @@ import {
     POSITIVE_TRACKER_LIMITS,
     TRACKER_LIMITS,
     isPlainNumericText,
-    parseBoundedNumber
+    parseBoundedNumber,
+    permittedNumericInsertion
 } from "../.test-dist/numeric-input-limits.js";
 
 test("initiative input limits accept boundary and fractional values but reject oversized values", () => {
@@ -46,4 +47,21 @@ test("plain numeric input syntax rejects exponent notation and alphabetic text",
     assert.equal(isPlainNumericText("12abc", TRACKER_LIMITS), false);
     assert.equal(isPlainNumericText("12.5", TRACKER_LIMITS), false);
     assert.equal(isPlainNumericText("-4", NON_NEGATIVE_TRACKER_LIMITS), false);
+});
+
+
+test("keyboard guard allows digits but rejects exponent notation and letters", () => {
+    for (const digit of "0123456789") {
+        assert.equal(permittedNumericInsertion(digit, TRACKER_LIMITS), true);
+        assert.equal(permittedNumericInsertion(digit, INITIATIVE_LIMITS), true);
+    }
+    assert.equal(permittedNumericInsertion("123", TRACKER_LIMITS), true);
+    assert.equal(permittedNumericInsertion("-12", TRACKER_LIMITS), true);
+    assert.equal(permittedNumericInsertion("-12", NON_NEGATIVE_TRACKER_LIMITS), false);
+    assert.equal(permittedNumericInsertion(".5", INITIATIVE_LIMITS), true);
+    assert.equal(permittedNumericInsertion(".5", TRACKER_LIMITS), false);
+    assert.equal(permittedNumericInsertion("e", TRACKER_LIMITS), false);
+    assert.equal(permittedNumericInsertion("E", INITIATIVE_LIMITS), false);
+    assert.equal(permittedNumericInsertion("1e3", TRACKER_LIMITS), false);
+    assert.equal(permittedNumericInsertion("abc", TRACKER_LIMITS), false);
 });
