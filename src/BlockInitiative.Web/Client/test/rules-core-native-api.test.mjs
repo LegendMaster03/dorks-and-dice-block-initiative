@@ -33,7 +33,7 @@ function mockApi(routes) {
 }
 
 const discover = {
-    "/api/rulesets": { body: {
+    "/api/consumer/v1/rulesets": { body: {
         rulesets: [{ id: "first-party-001", capabilities: { read: true, write: false } }]
     } }
 };
@@ -41,7 +41,7 @@ const discover = {
 test("searches native monster category and returns stable native identifiers", async () => {
     const requested = mockApi({
         ...discover,
-        "/api/rulesets/first-party-001/rules?category=monster&q=goblin&limit=8&offset=0": {
+        "/api/consumer/v1/rulesets/first-party-001/rules?category=monster&q=goblin&limit=8&offset=0": {
             body: { rulesetId: "first-party-001", fingerprint, total: 1, rules: [
                 { id: "monster.goblin-warrior", name: "Goblin Warrior", kind: "monster" },
                 { id: "condition.poisoned", name: "Poisoned", kind: "condition" }
@@ -50,18 +50,18 @@ test("searches native monster category and returns stable native identifiers", a
     });
     assert.deepEqual(await searchRulesCoreMonsters(" goblin "), [nativeMatch]);
     assert.deepEqual(requested, [
-        "/api/rulesets",
-        "/api/rulesets/first-party-001/rules?category=monster&q=goblin&limit=8&offset=0"
+        "/api/consumer/v1/rulesets",
+        "/api/consumer/v1/rulesets/first-party-001/rules?category=monster&q=goblin&limit=8&offset=0"
     ]);
 });
 
 test("searches ordinary and leveled native conditions without inventing legacy metadata", async () => {
     mockApi({
         ...discover,
-        "/api/rulesets/first-party-001/rules?category=condition&q=ex&limit=10&offset=0": {
+        "/api/consumer/v1/rulesets/first-party-001/rules?category=condition&q=ex&limit=10&offset=0": {
             body: { rulesetId: "first-party-001", fingerprint, total: 0, rules: [] }
         },
-        "/api/rulesets/first-party-001/rules?category=leveled-condition&q=ex&limit=10&offset=0": {
+        "/api/consumer/v1/rulesets/first-party-001/rules?category=leveled-condition&q=ex&limit=10&offset=0": {
             body: { rulesetId: "first-party-001", fingerprint, total: 1, rules: [
                 { id: "condition.exhaustion", name: "Exhaustion", kind: "leveled-condition" }
             ] }
@@ -78,7 +78,7 @@ test("extracts monster combat statistics from the nested native definition", asy
     const events = [];
     globalThis.window = { dispatchEvent: event => events.push(event) };
     mockApi({
-        "/api/rulesets/first-party-001/rules/monster.goblin-warrior": {
+        "/api/consumer/v1/rulesets/first-party-001/rules/monster.goblin-warrior": {
             body: { rulesetId: "first-party-001", fingerprint, rule: {
                 id: "monster.goblin-warrior", name: "Goblin Warrior", kind: "monster",
                 definition: {
@@ -101,15 +101,15 @@ test("extracts monster combat statistics from the nested native definition", asy
     assert.equal(events[0].detail.templateId, nativeMatch.id);
 });
 
-test("does not use private endpoints when the ruleset is not publicly listed", async () => {
-    const requested = mockApi({ "/api/rulesets": { body: { rulesets: [] } } });
-    await assert.rejects(() => searchRulesCoreMonsters("goblin"), /not made this ruleset available/);
-    assert.deepEqual(requested, ["/api/rulesets"]);
+test("reports a truly unavailable native catalog without accessing private Wiki routes", async () => {
+    const requested = mockApi({ "/api/consumer/v1/rulesets": { body: { rulesets: [] } } });
+    await assert.rejects(() => searchRulesCoreMonsters("goblin"), /not loaded the selected ruleset/);
+    assert.deepEqual(requested, ["/api/consumer/v1/rulesets"]);
 });
 
 test("rejects a mismatched native monster detail instead of filling an empty template", async () => {
     mockApi({
-        "/api/rulesets/first-party-001/rules/monster.goblin-warrior": {
+        "/api/consumer/v1/rulesets/first-party-001/rules/monster.goblin-warrior": {
             body: { rulesetId: "first-party-001", fingerprint, rule: {
                 id: "monster.ogre", name: "Ogre", kind: "monster", definition: {}
             } }
@@ -128,7 +128,7 @@ test("enforces native API query-length limits before a network request", async (
 
 test("native monster detail rehydration uses the same validated stat-block loader", async () => {
     const requested = mockApi({
-        "/api/rulesets/first-party-001/rules/monster.goblin-warrior": {
+        "/api/consumer/v1/rulesets/first-party-001/rules/monster.goblin-warrior": {
             body: { rulesetId: "first-party-001", fingerprint, rule: {
                 id: "monster.goblin-warrior", name: "Goblin Warrior", kind: "monster",
                 definition: { id: "monster.goblin-warrior", kind: "monster",
@@ -137,7 +137,7 @@ test("native monster detail rehydration uses the same validated stat-block loade
         }
     });
     assert.equal((await loadNativeMonsterCombatStats(nativeMatch.id)).maxHp, 10);
-    assert.deepEqual(requested, ["/api/rulesets/first-party-001/rules/monster.goblin-warrior"]);
+    assert.deepEqual(requested, ["/api/consumer/v1/rulesets/first-party-001/rules/monster.goblin-warrior"]);
 });
 
 test("legacy and malformed template identities do not hit removed APIs", async () => {
@@ -149,36 +149,45 @@ test("legacy and malformed template identities do not hit removed APIs", async (
     assert.equal(count, 0);
 });
 
-test("detects native snapshot changes between search and selection", async () => {
+test("accepts a current native detail after the catalog fingerprint changes", async () => {
     mockApi({
-        "/api/rulesets/first-party-001/rules/monster.goblin-warrior": {
+        "/api/consumer/v1/rulesets/first-party-001/rules/monster.goblin-warrior": {
             body: { rulesetId: "first-party-001", fingerprint: "b".repeat(64), rule: {
                 id: "monster.goblin-warrior", kind: "monster", name: "Goblin Warrior",
                 definition: { id: "monster.goblin-warrior", kind: "monster", definition: { hp: 10 } }
             } }
         }
     });
-    await assert.rejects(() => loadMonsterTemplate(nativeMatch), /changed since this monster was selected/);
+    const template = await loadMonsterTemplate(nativeMatch);
+    assert.equal(template.name, "Goblin Warrior");
 });
 
-test("rejects combined condition searches that cross catalog snapshots", async () => {
+test("accepts concurrently changing catalog versions in condition searches", async () => {
     mockApi({
         ...discover,
-        "/api/rulesets/first-party-001/rules?category=condition&q=ex&limit=10&offset=0": {
+        "/api/consumer/v1/rulesets/first-party-001/rules?category=condition&q=ex&limit=10&offset=0": {
             body: { rulesetId: "first-party-001", fingerprint, total: 0, rules: [] }
         },
-        "/api/rulesets/first-party-001/rules?category=leveled-condition&q=ex&limit=10&offset=0": {
+        "/api/consumer/v1/rulesets/first-party-001/rules?category=leveled-condition&q=ex&limit=10&offset=0": {
             body: { rulesetId: "first-party-001", fingerprint: "b".repeat(64), total: 0, rules: [] }
         }
     });
-    await assert.rejects(() => searchRulesCoreConditions("ex"), /changed during search/);
+    assert.deepEqual(await searchRulesCoreConditions("ex"), []);
 });
 
 test("returns null for a removed native template but preserves the saved encounter", async () => {
     mockApi({
-        "/api/rulesets/first-party-001/rules/monster.goblin-warrior": {
+        "/api/consumer/v1/rulesets/first-party-001/rules/monster.goblin-warrior": {
             status: 404, body: { error: "rule_not_found" }
         }
     });
     assert.equal(await loadNativeMonsterCombatStats(nativeMatch.id), null);
+});
+
+test("denies unauthenticated catalog responses rather than silently falling back to public data", async () => {
+    const requested = mockApi({
+        "/api/consumer/v1/rulesets": { status: 401, body: { error: "invalid_ticket" } }
+    });
+    await assert.rejects(() => searchRulesCoreMonsters("goblin"), /access is required/);
+    assert.deepEqual(requested, ["/api/consumer/v1/rulesets"]);
 });

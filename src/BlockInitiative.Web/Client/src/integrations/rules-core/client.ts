@@ -33,16 +33,16 @@ const safeRuleId = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
 const fingerprintPattern = /^[a-f0-9]{64}$/i;
 
 /**
- * Read only the distribution-approved, explicitly selected native ruleset.
- * A missing public listing is not authorization to call the private Wiki API.
+ * Read the live native catalog through the user-authenticated Site gateway.
+ * The current fingerprint identifies a version; it is not an access grant.
  */
 async function ensureNativeRuleset(): Promise<void> {
     const response = await getRulesCoreJson<NativeRulesetsResponse>(
-        "/api/rulesets", "Rules Core ruleset catalog");
+        "/api/consumer/v1/rulesets", "Rules Core ruleset catalog");
     if (!Array.isArray(response.rulesets)
         || !response.rulesets.some(item =>
             item?.id === nativeRulesetId && item.capabilities?.read === true)) {
-        throw new Error("Rules Core has not made this ruleset available for Block Initiative.");
+        throw new Error("Rules Core has not loaded the selected ruleset.");
     }
 }
 
@@ -60,12 +60,9 @@ export async function searchRulesCoreEntity(
     await ensureNativeRuleset();
     const pages = await Promise.all(categories.map(category =>
         getRulesCoreJson<NativeRulesPage>(
-            `/api/rulesets/${nativeRulesetId}/rules?category=${encodeURIComponent(category)}`
+            `/api/consumer/v1/rulesets/${nativeRulesetId}/rules?category=${encodeURIComponent(category)}`
                 + `&q=${encodeURIComponent(term)}&limit=${pageSize}&offset=0`,
             `Rules Core ${category} search`)));
-    if (pages.length > 1 && pages.some(page => page.fingerprint !== pages[0]?.fingerprint)) {
-        throw new Error("Rules Core changed during search. Search again.");
-    }
     return pages.flatMap((page, index) => {
         if (page?.rulesetId !== nativeRulesetId || !Array.isArray(page.rules)
             || !fingerprintPattern.test(page.fingerprint ?? "")) {
