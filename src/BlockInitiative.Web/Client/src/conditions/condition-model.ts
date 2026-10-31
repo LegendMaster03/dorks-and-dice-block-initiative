@@ -10,6 +10,8 @@ export type TrackedCondition = {
     browserLink: RuleBrowserLink | null;
     browserHref: string | null;
     origin: ConditionOrigin;
+    rulesetId?: string | null;
+    ruleId?: string | null;
 };
 
 const trackedConditions = new Map<string, TrackedCondition[]>();

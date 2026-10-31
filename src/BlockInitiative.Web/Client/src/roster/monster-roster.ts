@@ -113,10 +113,7 @@ export class MonsterRosterService {
 
         field<HTMLInputElement>(
             card,
-            "rules-reference").value =
-            template.match.conceptKey
-                ? `rule:${template.match.conceptKey}`
-                : `source:${template.match.sourceEntityId}`;
+            "rules-reference").value = template.match.id;
 
         const meta = query<HTMLElement>(
             "[data-role='monster-meta']",
@@ -140,8 +137,7 @@ export class MonsterRosterService {
             template.challengeRating
                 ? `CR ${template.challengeRating}`
                 : null,
-            template.match.sourceCode,
-            template.match.editionDisplayName
+            template.match.rulesetId
         ].filter((value): value is string => Boolean(value));
 
         meta.textContent =
@@ -294,13 +290,7 @@ export class MonsterRosterService {
         title.textContent = match.displayName;
 
         const detail = document.createElement("small");
-        detail.textContent =
-            `${match.sourceCode} · ${match.editionDisplayName}`
-            + (
-                match.kind === "resolved"
-                    ? " · resolved rules"
-                    : " · source"
-            );
+        detail.textContent = `Native rule · ${match.rulesetId}`;
 
         button.append(title, detail);
         button.onmousedown =

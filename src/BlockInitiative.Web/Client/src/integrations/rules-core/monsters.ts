@@ -1,7 +1,7 @@
-import { projectMonsterCombatStats } from "../../roster/monster-combat-stats";
-import type { MonsterCombatStats } from "../../roster/monster-combat-stats";
-import { getRulesCoreJson, searchRulesCoreEntity } from "./client";
-import type { RuleBrowserLink, RulesCoreSearchMatch } from "./client";
+import { projectMonsterCombatStats } from "../../roster/monster-combat-stats.js";
+import type { MonsterCombatStats } from "../../roster/monster-combat-stats.js";
+import { getRulesCoreJson, nativeRulesetId, searchRulesCoreEntity } from "./client.js";
+import type { RuleBrowserLink, RulesCoreSearchMatch } from "./client.js";
 
 export type MonsterSearchMatch = RulesCoreSearchMatch;
 
@@ -19,66 +19,52 @@ export interface MonsterTemplate {
     browserLink: RuleBrowserLink | null;
 }
 
-interface ResolvedRuleDetail {
-    conceptKey?: string;
-    displayName?: string;
-    sourceEntityId?: string;
-    sourceCode?: string;
-    packageDisplayName?: string;
-    editionDisplayName?: string;
-    document?: unknown;
-    browserLink?: RuleBrowserLink | null;
+interface NativeMonsterDetail {
+    rulesetId: string;
+    rule: {
+        id: string;
+        name: string;
+        kind: string;
+        definition: unknown;
+    };
 }
 
 export async function searchRulesCoreMonsters(
     query: string,
     limit = 8
 ): Promise<MonsterSearchMatch[]> {
-    return await searchRulesCoreEntity(
-        "monster",
-        query,
-        limit,
-        "Rules Core monster lookup is not available right now. "
-            + "You can keep using a manual monster name.");
+    return searchRulesCoreEntity(["monster"], query, limit);
 }
 
 export async function loadMonsterTemplate(
     match: MonsterSearchMatch
 ): Promise<MonsterTemplate> {
-    if (!match.conceptKey) {
-        throw new Error("Rules Core returned a monster without a resolved concept identity.");
+    if (match.rulesetId !== nativeRulesetId || match.category !== "monster"
+        || !/^monster\.[a-z0-9-]+(?:\.[a-z0-9-]+)*$/.test(match.ruleId)) {
+        throw new Error("Rules Core returned an invalid native monster identity.");
     }
 
-    const detail = await getRulesCoreJson<ResolvedRuleDetail>(
-        `/api/rules/${encodeURIComponent(match.conceptKey)}`,
-        "Rules Core monster details",
-        "Rules Core monster lookup requires access to the effective Rules Core ruling.");
-    const template = templateFromDocument(
-        match,
-        typeof detail.displayName === "string" && detail.displayName.trim()
-            ? detail.displayName
-            : match.displayName,
-        isRecord(detail.document) ? detail.document : {},
-        detail.editionDisplayName ?? match.editionDisplayName,
-        detail.browserLink ?? match.browserLink ?? null);
+    const detail = await getRulesCoreJson<NativeMonsterDetail>(
+        `/api/rulesets/${encodeURIComponent(match.rulesetId)}/rules/${encodeURIComponent(match.ruleId)}`,
+        "Rules Core monster details");
+    if (detail?.rulesetId !== match.rulesetId
+        || detail.rule?.id !== match.ruleId
+        || detail.rule?.kind !== "monster"
+        || !isRecord(detail.rule.definition)) {
+        throw new Error("Rules Core returned a mismatched native monster definition.");
+    }
 
-    announceTemplateLink(template);
-    return template;
-}
+    // Native records contain metadata at the root and a mechanical definition below it.
+    const native = detail.rule.definition;
+    if (native.id !== match.ruleId || native.kind !== "monster"
+        || !isRecord(native.definition)) {
+        throw new Error("Rules Core returned an invalid native monster stat block.");
+    }
 
-function templateFromDocument(
-    match: MonsterSearchMatch,
-    fallbackName: string,
-    document: Record<string, unknown>,
-    editionDisplayName: string,
-    browserLink: RuleBrowserLink | null
-): MonsterTemplate {
-    const name = typeof document.name === "string" && document.name.trim()
-        ? document.name.trim()
-        : fallbackName;
-    const combatStats = projectMonsterCombatStats(document, editionDisplayName);
-
-    return {
+    const document = native.definition;
+    const combatStats = projectMonsterCombatStats(document);
+    const name = detail.rule.name?.trim() || match.displayName;
+    const template: MonsterTemplate = {
         match,
         name,
         maxHp: combatStats.maxHp,
@@ -89,8 +75,10 @@ function templateFromDocument(
         challengeRating: readChallengeRating(document.cr),
         combatStats,
         document,
-        browserLink
+        browserLink: null
     };
+    announceTemplateLink(template);
+    return template;
 }
 
 function announceTemplateLink(template: MonsterTemplate): void {

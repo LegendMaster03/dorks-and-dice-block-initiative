@@ -932,7 +932,9 @@ function restoreConditions(
                         condition.browserLink,
                     browserHref:
                         condition.browserHref,
-                    origin: condition.origin
+                    origin: condition.origin,
+                    rulesetId: condition.rulesetId ?? null,
+                    ruleId: condition.ruleId ?? null
                 });
         }
     }

@@ -44,6 +44,8 @@ export type SavedCondition = {
     browserLink: RuleBrowserLink | null;
     browserHref: string | null;
     origin: ConditionOrigin;
+    rulesetId?: string | null;
+    ruleId?: string | null;
 };
 
 export type SavedCombatant = {
