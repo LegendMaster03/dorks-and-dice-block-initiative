@@ -188,6 +188,6 @@ test("denies unauthenticated catalog responses rather than silently falling back
     const requested = mockApi({
         "/api/consumer/v1/rulesets": { status: 401, body: { error: "invalid_ticket" } }
     });
-    await assert.rejects(() => searchRulesCoreMonsters("goblin"), /requires access/);
+    await assert.rejects(() => searchRulesCoreMonsters("goblin"), /access is required/);
     assert.deepEqual(requested, ["/api/consumer/v1/rulesets"]);
 });
