@@ -455,7 +455,7 @@ test("manual armor class fields are numeric while speed remains descriptive move
 });
 
 
-test("Rules Core integration consumes public native rules and never legacy or private sources", async () => {
+test("Rules Core integration consumes Site-authenticated live native rules and never legacy sources", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
     const client = await readFile(
         path.resolve(testDirectory, "../src/integrations/rules-core/client.ts"),
@@ -468,10 +468,11 @@ test("Rules Core integration consumes public native rules and never legacy or pr
         "utf8");
 
     assert.match(client, /nativeRulesetId = "first-party-001"/);
-    assert.match(client, /"\/api\/rulesets"/);
-    assert.match(client, /\/api\/rulesets\/\$\{nativeRulesetId\}\/rules/);
+    assert.match(client, /"\/api\/consumer\/v1\/rulesets"/);
+    assert.match(client, /\/api\/consumer\/v1\/rulesets\/\$\{nativeRulesetId\}\/rules/);
     assert.doesNotMatch(client, /\/api\/rules\?entityType=/);
     assert.doesNotMatch(client, /\/api\/private\/rulesets/);
+    assert.doesNotMatch(client, /"\/api\/rulesets"/);
     assert.doesNotMatch(client, /\/api\/sources\/entities/);
     assert.doesNotMatch(monsters, /\/api\/sources\/entities/);
     assert.doesNotMatch(quickStats, /\/api\/sources\/entities/);

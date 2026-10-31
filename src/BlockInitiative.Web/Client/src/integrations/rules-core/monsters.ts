@@ -50,16 +50,13 @@ async function readNativeMonsterDocument(
     }
 
     const detail = await getRulesCoreJson<NativeMonsterDetail>(
-        `/api/rulesets/${encodeURIComponent(match.rulesetId)}/rules/${encodeURIComponent(match.ruleId)}`,
+        `/api/consumer/v1/rulesets/${encodeURIComponent(match.rulesetId)}/rules/${encodeURIComponent(match.ruleId)}`,
         "Rules Core monster details");
     if (detail?.rulesetId !== match.rulesetId
         || detail.rule?.id !== match.ruleId
         || detail.rule?.kind !== "monster"
         || !isRecord(detail.rule.definition)) {
         throw new Error("Rules Core returned a mismatched native monster definition.");
-    }
-    if (match.fingerprint !== null && detail.fingerprint !== match.fingerprint) {
-        throw new Error("Rules Core changed since this monster was selected. Search again.");
     }
     if (!/^[a-f0-9]{64}$/i.test(detail.fingerprint ?? "")) {
         throw new Error("Rules Core returned an invalid catalog fingerprint.");
