@@ -455,7 +455,7 @@ test("manual armor class fields are numeric while speed remains descriptive move
 });
 
 
-test("Rules Core monster integration consumes effective rules and never raw source entities", async () => {
+test("Rules Core integration consumes public native rules and never legacy or private sources", async () => {
     const testDirectory = path.dirname(fileURLToPath(import.meta.url));
     const client = await readFile(
         path.resolve(testDirectory, "../src/integrations/rules-core/client.ts"),
@@ -467,10 +467,15 @@ test("Rules Core monster integration consumes effective rules and never raw sour
         path.resolve(testDirectory, "../src/combatant-quick-stats-ui.ts"),
         "utf8");
 
-    assert.match(client, /RulesCoreMatchKind = "resolved"/);
+    assert.match(client, /nativeRulesetId = "first-party-001"/);
+    assert.match(client, /"\/api\/rulesets"/);
+    assert.match(client, /\/api\/rulesets\/\$\{nativeRulesetId\}\/rules/);
+    assert.doesNotMatch(client, /\/api\/rules\?entityType=/);
+    assert.doesNotMatch(client, /\/api\/private\/rulesets/);
     assert.doesNotMatch(client, /\/api\/sources\/entities/);
-    assert.doesNotMatch(client, /kind:\s*"source"/);
     assert.doesNotMatch(monsters, /\/api\/sources\/entities/);
     assert.doesNotMatch(quickStats, /\/api\/sources\/entities/);
-    assert.match(monsters, /\/api\/rules\/\$\{encodeURIComponent\(match\.conceptKey\)\}/);
+    assert.match(monsters, /match\.ruleId/);
+    assert.match(monsters, /native\.definition/);
+    assert.doesNotMatch(monsters, /match\.conceptKey/);
 });
