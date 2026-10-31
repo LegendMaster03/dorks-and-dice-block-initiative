@@ -1,5 +1,5 @@
-import { searchRulesCoreEntity } from "./client";
-import type { RulesCoreSearchMatch } from "./client";
+import { searchRulesCoreEntity } from "./client.js";
+import type { RulesCoreSearchMatch } from "./client.js";
 
 export type ConditionSearchMatch = RulesCoreSearchMatch;
 
@@ -7,10 +7,5 @@ export async function searchRulesCoreConditions(
     query: string,
     limit = 10
 ): Promise<ConditionSearchMatch[]> {
-    return await searchRulesCoreEntity(
-        "condition",
-        query,
-        limit,
-        "Rules Core condition lookup is not available right now. "
-            + "You can still add the condition manually.");
+    return searchRulesCoreEntity(["condition", "leveled-condition"], query, limit);
 }

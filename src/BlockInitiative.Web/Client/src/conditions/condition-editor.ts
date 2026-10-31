@@ -259,7 +259,9 @@ function buildConditionPicker(
             note: note.value.trim(),
             browserLink: null,
             browserHref: null,
-            origin: "manual"
+            origin: "manual",
+            rulesetId: null,
+            ruleId: null
         });
         closeAllConditionPopovers(picker.ownerDocument);
         notifyConditionChange(root, combatantId, true);
@@ -368,10 +370,7 @@ function paintSearchResults(
         name.textContent = match.displayName;
 
         const meta = document.createElement("small");
-        meta.textContent = [
-            match.editionDisplayName,
-            match.packageDisplayName
-        ].filter(Boolean).join(" · ");
+        meta.textContent = `${match.category} · ${match.rulesetId}`;
 
         button.append(name, meta);
         button.onclick = () => {
@@ -387,12 +386,11 @@ function paintSearchResults(
                 name: match.displayName,
                 level: parsedLevel,
                 note: note.value.trim(),
-                browserLink: match.browserLink,
+                browserLink: null,
                 browserHref: null,
-                origin:
-                    match.kind === "resolved"
-                        ? "rules-core"
-                        : "source"
+                origin: "rules-core",
+                rulesetId: match.rulesetId,
+                ruleId: match.ruleId
             });
             closeAllConditionPopovers(button.ownerDocument);
             notifyConditionChange(root, combatantId, true);

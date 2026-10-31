@@ -249,3 +249,29 @@ test("duplicate combatant ids reject the saved encounter before restore", () => 
 
     assert.equal(migrated, null);
 });
+
+test("native condition identity survives save normalization independently of encounter ID", () => {
+    const migrated = normalizeSavedEncounter(legacyEncounter({
+        version: 4,
+        players: [{
+            id: "combatant-1",
+            name: "Hero",
+            conditions: [{
+                id: "encounter-condition-1",
+                name: "Exhaustion",
+                level: 2,
+                note: "until rest",
+                origin: "rules-core",
+                rulesetId: "first-party-001",
+                ruleId: "condition.exhaustion"
+            }]
+        }]
+    }));
+    assert.ok(migrated);
+    const condition = migrated.players[0].conditions[0];
+    assert.equal(condition.id, "encounter-condition-1");
+    assert.equal(condition.rulesetId, "first-party-001");
+    assert.equal(condition.ruleId, "condition.exhaustion");
+    assert.equal(condition.level, 2);
+    assert.equal(condition.note, "until rest");
+});

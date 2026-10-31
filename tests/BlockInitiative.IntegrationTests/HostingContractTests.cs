@@ -79,7 +79,7 @@ public sealed class HostingContractTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Duration / note", content, StringComparison.Ordinal);
         Assert.Contains("Add manually", content, StringComparison.Ordinal);
         Assert.Contains("View rule", content, StringComparison.Ordinal);
-        Assert.Contains("Rules Core condition lookup", content, StringComparison.Ordinal);
+        Assert.Contains("Rules Core condition search is unavailable", content, StringComparison.Ordinal);
         Assert.Contains("does not enforce condition effects", content, StringComparison.Ordinal);
         Assert.Contains("bi-card-context-conditions", content, StringComparison.Ordinal);
         Assert.Contains("conditionEditorRole", content, StringComparison.Ordinal);

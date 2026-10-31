@@ -1,4 +1,5 @@
-export type RulesCoreMatchKind = "resolved";
+/** The first playable native ruleset. Other rulesets require an explicit selection contract. */
+export const nativeRulesetId = "first-party-001";
 
 export interface RuleBrowserLink {
     toolSlug: string;
@@ -7,74 +8,83 @@ export interface RuleBrowserLink {
 }
 
 export interface RulesCoreSearchMatch {
-    kind: RulesCoreMatchKind;
     id: string;
-    conceptKey: string | null;
-    sourceEntityId: string;
+    rulesetId: string;
+    ruleId: string;
     displayName: string;
-    sourceCode: string;
-    packageDisplayName: string;
-    editionDisplayName: string;
-    browserLink: RuleBrowserLink | null;
+    category: string;
+    /** Exact native catalog snapshot used to populate this match. */
+    fingerprint: string | null;
 }
 
-interface ResolvedCatalogResponse {
-    rules?: Array<{
-        conceptKey: string;
-        entityType: string;
-        displayName: string;
-        sourceEntityId: string;
-        sourceCode: string;
-        packageDisplayName: string;
-        editionDisplayName: string;
-        browserLink?: RuleBrowserLink | null;
-    }>;
+interface NativeRulesetsResponse {
+    rulesets: Array<{ id: string; capabilities: { read: boolean } }>;
+}
+
+interface NativeRulesPage {
+    rulesetId: string;
+    fingerprint: string;
+    total: number;
+    rules: Array<{ id: string; name: string; kind: string }>;
 }
 
 const gateway = "/tool-host/registrations/rules-core/api/upstream";
+const safeRuleId = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+const fingerprintPattern = /^[a-f0-9]{64}$/i;
+
+/**
+ * Read only the distribution-approved, explicitly selected native ruleset.
+ * A missing public listing is not authorization to call the private Wiki API.
+ */
+async function ensureNativeRuleset(): Promise<void> {
+    const response = await getRulesCoreJson<NativeRulesetsResponse>(
+        "/api/rulesets", "Rules Core ruleset catalog");
+    if (!Array.isArray(response.rulesets)
+        || !response.rulesets.some(item =>
+            item?.id === nativeRulesetId && item.capabilities?.read === true)) {
+        throw new Error("Rules Core has not made this ruleset available for Block Initiative.");
+    }
+}
 
 export async function searchRulesCoreEntity(
-    entityType: string,
+    categories: readonly string[],
     query: string,
-    limit: number,
-    unavailableMessage: string
+    limit: number
 ): Promise<RulesCoreSearchMatch[]> {
-    const normalized = query.trim();
-    if (normalized.length < 2) return [];
-
-    const encodedType = encodeURIComponent(entityType);
-    const encodedQuery = encodeURIComponent(normalized);
-    const resolvedPath = `/api/rules?entityType=${encodedType}&q=${encodedQuery}&limit=${limit}`;
-
-    let result: ResolvedCatalogResponse;
-    try {
-        result = await getRulesCoreJson<ResolvedCatalogResponse>(
-            resolvedPath,
-            `Rules Core resolved ${entityType} search`);
-    } catch {
-        throw new Error(unavailableMessage);
+    const term = query.trim();
+    if (term.length < 2) return [];
+    if (term.length > 200) {
+        throw new Error("Rules Core searches can not exceed 200 characters.");
     }
-
-    const rules = Array.isArray(result?.rules) ? result.rules : [];
-    return rules
-        .filter(rule =>
-            typeof rule?.entityType === "string"
-            && rule.entityType.toLowerCase() === entityType.toLowerCase()
-            && Boolean(rule.conceptKey)
-            && Boolean(rule.sourceEntityId)
-            && Boolean(rule.displayName))
-        .slice(0, limit)
-        .map(rule => ({
-            kind: "resolved" as const,
-            id: `rule:${rule.conceptKey}`,
-            conceptKey: rule.conceptKey,
-            sourceEntityId: rule.sourceEntityId,
-            displayName: rule.displayName,
-            sourceCode: rule.sourceCode ?? "",
-            packageDisplayName: rule.packageDisplayName ?? "",
-            editionDisplayName: rule.editionDisplayName ?? "",
-            browserLink: rule.browserLink ?? null
-        }));
+    const pageSize = Math.max(1, Math.min(100, Math.trunc(limit) || 1));
+    await ensureNativeRuleset();
+    const pages = await Promise.all(categories.map(category =>
+        getRulesCoreJson<NativeRulesPage>(
+            `/api/rulesets/${nativeRulesetId}/rules?category=${encodeURIComponent(category)}`
+                + `&q=${encodeURIComponent(term)}&limit=${pageSize}&offset=0`,
+            `Rules Core ${category} search`)));
+    if (pages.length > 1 && pages.some(page => page.fingerprint !== pages[0]?.fingerprint)) {
+        throw new Error("Rules Core changed during search. Search again.");
+    }
+    return pages.flatMap((page, index) => {
+        if (page?.rulesetId !== nativeRulesetId || !Array.isArray(page.rules)
+            || !fingerprintPattern.test(page.fingerprint ?? "")) {
+            throw new Error("Rules Core returned an invalid native search response.");
+        }
+        return page.rules
+            .filter(rule => rule?.kind === categories[index]
+                && typeof rule.id === "string" && safeRuleId.test(rule.id)
+                && typeof rule.name === "string" && rule.name.trim())
+            .map(rule => ({
+                id: `native:${nativeRulesetId}:${rule.id}`,
+                rulesetId: nativeRulesetId,
+                ruleId: rule.id,
+                displayName: rule.name,
+                category: rule.kind,
+                fingerprint: page.fingerprint
+            }));
+    }).sort((left, right) => left.displayName.localeCompare(right.displayName))
+        .slice(0, pageSize);
 }
 
 export async function getRulesCoreJson<T>(
@@ -108,6 +118,7 @@ export async function getRulesCoreJson<T>(
     }
 }
 
+/** Retain navigation already recorded in old saves. Native API supplies no browser links. */
 export function toHostedToolHref(link: RuleBrowserLink | null | undefined): string | null {
     const slug = link?.toolSlug?.trim();
     const relativePath = link?.toolRelativePath?.trim();

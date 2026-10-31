@@ -6,7 +6,8 @@ import {
 } from "./combatant-turn-markers";
 import { defenseRows, mergeMonsterCombatStats } from "./encounter-card-model";
 import { collectEncounterCards, mountEncounterCardSlot, renderEncounterCard } from "./encounter-card-renderer";
-import { abilityKeys, projectMonsterCombatStats } from "./roster/monster-combat-stats";
+import { abilityKeys } from "./roster/monster-combat-stats";
+import { loadNativeMonsterCombatStats } from "./integrations/rules-core/monsters";
 import type { AbilityKey, MonsterCombatStats } from "./roster/monster-combat-stats";
 import {
     applyNumberLimits,
@@ -49,11 +50,6 @@ type StateDetail = {
     };
 };
 
-type RulesCoreDetail = {
-    document?: unknown;
-    editionDisplayName?: string;
-};
-
 type RulesCoreTemplateStatsDetail = {
     templateId?: string;
     combatStats?: MonsterCombatStats | null;
@@ -64,7 +60,6 @@ type HealthSnapshot = {
     max: number | null;
 };
 
-const gateway = "/tool-host/registrations/rules-core/api/upstream";
 const templateStats = new Map<string, MonsterCombatStats | null>();
 const pendingTemplates = new Set<string>();
 const templateRetryAfter = new Map<string, number>();
@@ -800,36 +795,7 @@ function queueMissingTemplateStats(root: HTMLElement): void {
 async function loadTemplateStats(
     templateId: string
 ): Promise<MonsterCombatStats | null> {
-    const separator = templateId.indexOf(":");
-    if (separator <= 0) return null;
-
-    const kind = templateId.slice(0, separator);
-    const id = templateId.slice(separator + 1);
-    if (!id) return null;
-
-    // Legacy source:<id> template references remain valid encounter data, but
-    // Rules Core source documents are not a runtime rule-resolution surface.
-    // Only a resolved rule identity can be used to refresh derived combat stats.
-    if (kind !== "rule") return null;
-    const path = `/api/rules/${encodeURIComponent(id)}`;
-
-    const response = await fetch(`${gateway}${path}`, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" }
-    });
-
-    if (response.status === 404) return null;
-    if (!response.ok) {
-        throw new Error(
-            `Rules Core combat stats returned HTTP ${response.status}.`);
-    }
-
-    const detail = await response.json() as RulesCoreDetail;
-    if (!isRecord(detail.document)) return null;
-
-    return projectMonsterCombatStats(
-        detail.document,
-        detail.editionDisplayName ?? "");
+    return loadNativeMonsterCombatStats(templateId);
 }
 
 function collectHealth(root: HTMLElement, combatants: CombatantPreview[]): Map<string, HealthSnapshot> {

@@ -216,6 +216,8 @@ function normalizeCondition(
                 item.level),
         note: stringOrEmpty(item.note),
         browserLink,
+        rulesetId: nullableString(item.rulesetId),
+        ruleId: nullableString(item.ruleId),
         browserHref:
             nullableString(
                 item.browserHref)
