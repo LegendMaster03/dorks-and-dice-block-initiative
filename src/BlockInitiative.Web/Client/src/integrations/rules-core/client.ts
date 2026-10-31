@@ -13,6 +13,8 @@ export interface RulesCoreSearchMatch {
     ruleId: string;
     displayName: string;
     category: string;
+    /** Exact native catalog snapshot used to populate this match. */
+    fingerprint: string | null;
 }
 
 interface NativeRulesetsResponse {
@@ -21,12 +23,14 @@ interface NativeRulesetsResponse {
 
 interface NativeRulesPage {
     rulesetId: string;
+    fingerprint: string;
     total: number;
     rules: Array<{ id: string; name: string; kind: string }>;
 }
 
 const gateway = "/tool-host/registrations/rules-core/api/upstream";
 const safeRuleId = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+const fingerprintPattern = /^[a-f0-9]{64}$/i;
 
 /**
  * Read only the distribution-approved, explicitly selected native ruleset.
@@ -59,8 +63,12 @@ export async function searchRulesCoreEntity(
             `/api/rulesets/${nativeRulesetId}/rules?category=${encodeURIComponent(category)}`
                 + `&q=${encodeURIComponent(term)}&limit=${pageSize}&offset=0`,
             `Rules Core ${category} search`)));
+    if (pages.length > 1 && pages.some(page => page.fingerprint !== pages[0]?.fingerprint)) {
+        throw new Error("Rules Core changed during search. Search again.");
+    }
     return pages.flatMap((page, index) => {
-        if (page?.rulesetId !== nativeRulesetId || !Array.isArray(page.rules)) {
+        if (page?.rulesetId !== nativeRulesetId || !Array.isArray(page.rules)
+            || !fingerprintPattern.test(page.fingerprint ?? "")) {
             throw new Error("Rules Core returned an invalid native search response.");
         }
         return page.rules
@@ -72,7 +80,8 @@ export async function searchRulesCoreEntity(
                 rulesetId: nativeRulesetId,
                 ruleId: rule.id,
                 displayName: rule.name,
-                category: rule.kind
+                category: rule.kind,
+                fingerprint: page.fingerprint
             }));
     }).sort((left, right) => left.displayName.localeCompare(right.displayName))
         .slice(0, pageSize);

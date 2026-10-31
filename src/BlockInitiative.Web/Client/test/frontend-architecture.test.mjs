@@ -475,6 +475,8 @@ test("Rules Core integration consumes public native rules and never legacy or pr
     assert.doesNotMatch(client, /\/api\/sources\/entities/);
     assert.doesNotMatch(monsters, /\/api\/sources\/entities/);
     assert.doesNotMatch(quickStats, /\/api\/sources\/entities/);
+    assert.doesNotMatch(quickStats, /\/api\/rules\/\$\{/);
+    assert.match(quickStats, /loadNativeMonsterCombatStats/);
     assert.match(monsters, /match\.ruleId/);
     assert.match(monsters, /native\.definition/);
     assert.doesNotMatch(monsters, /match\.conceptKey/);

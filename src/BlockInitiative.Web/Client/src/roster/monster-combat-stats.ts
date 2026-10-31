@@ -254,11 +254,42 @@ function readInitiativeModifier(
         const direct = readInitiativeValue(candidate);
         if (direct !== null) return direct;
     }
+    // Native 5.x-derived monster records encode Initiative proficiency as a
+    // multiplier of the CR-based proficiency bonus rather than a final bonus.
+    const nativeInitiative = isRecord(document.initiative) ? document.initiative : null;
+    const multiplier = nativeInitiative?.proficiency;
+    if (typeof multiplier === "number" && Number.isInteger(multiplier)
+        && multiplier >= 0 && dexterityModifier !== null) {
+        const proficiencyBonus = monsterProficiencyBonus(document.cr);
+        if (proficiencyBonus !== null) {
+            return dexterityModifier + multiplier * proficiencyBonus;
+        }
+    }
+
     for (const label of ["Initiative", "Init"]) {
         const value = readNumber(legacy.get(label));
         if (value !== null) return value;
     }
     return dexterityModifier;
+}
+
+/** Current native monster foundation retains the 5.x CR proficiency scale. */
+function monsterProficiencyBonus(value: unknown): number | null {
+    const raw = isRecord(value) ? value.cr : value;
+    let rating: number;
+    if (typeof raw === "number") {
+        rating = raw;
+    } else if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        const fraction = /^([0-9]+)[/]([0-9]+)$/.exec(trimmed);
+        rating = fraction
+            ? Number(fraction[1]) / Number(fraction[2])
+            : /^[0-9]+(?:[.][0-9]+)?$/.test(trimmed) ? Number(trimmed) : NaN;
+    } else {
+        return null;
+    }
+    if (!Number.isFinite(rating) || rating < 0 || rating > 30) return null;
+    return 2 + Math.floor(Math.max(0, rating - 1) / 4);
 }
 
 function readInitiativeValue(value: unknown): number | null {

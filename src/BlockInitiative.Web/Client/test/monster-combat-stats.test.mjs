@@ -153,3 +153,33 @@ test("extracts 3.5e goblin HP, initiative, and speed without swallowing descript
     assert.deepEqual(stats.abilities.STR, { score: 13, modifier: 1, save: null });
     assert.deepEqual(stats.abilities.DEX, { score: 11, modifier: 0, save: null });
 });
+
+test("native initiative proficiency uses the documented CR-based scale", () => {
+    const spy = projectMonsterCombatStats({
+        dex: 15, cr: "1", initiative: { proficiency: 1 }
+    });
+    const treant = projectMonsterCombatStats({
+        dex: 8, cr: "9", initiative: { proficiency: 1 }
+    });
+    const dragon = projectMonsterCombatStats({
+        dex: 10, cr: { cr: "24", xpLair: 75000 }, initiative: { proficiency: 2 }
+    });
+    assert.equal(spy.initiativeModifier, 4); // +2 Dexterity +2 proficiency
+    assert.equal(treant.initiativeModifier, 3); // -1 Dexterity +4 proficiency
+    assert.equal(dragon.initiativeModifier, 14); // +0 Dexterity +2 × +7 proficiency
+});
+
+test("explicit initiative takes precedence and invalid CR does not create bonuses", () => {
+    const explicit = projectMonsterCombatStats({
+        dex: 16, cr: "10", initiative: { bonus: 9, proficiency: 1 }
+    });
+    const invalid = projectMonsterCombatStats({
+        dex: 16, cr: "unknown", initiative: { proficiency: 2 }
+    });
+    const fractional = projectMonsterCombatStats({
+        dex: 14, cr: "1/4", initiative: { proficiency: 1 }
+    });
+    assert.equal(explicit.initiativeModifier, 9);
+    assert.equal(invalid.initiativeModifier, 3);
+    assert.equal(fractional.initiativeModifier, 4);
+});
