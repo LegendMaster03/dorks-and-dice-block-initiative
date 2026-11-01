@@ -4,7 +4,7 @@ import { parseHTML } from "linkedom";
 
 import { collectEncounterCards, mountEncounterCardSlot, mountEncounterCardState, removeEncounterCardState, renderEncounterCard, renderEncounterCardMetrics } from "../.test-dist/encounter-card-renderer.js";
 import { initializeHealthControlUi } from "../.test-dist/health-control-ui.js";
-import { requestEnhancement } from "../.test-dist/render-lifecycle.js";
+import { requestEnhancement, shouldEnhanceForAppEvent } from "../.test-dist/render-lifecycle.js";
 
 const { window, document } = parseHTML("<html><head></head><body><div id='tool-root' class='block-initiative-app'></div></body></html>");
 const root = document.getElementById("tool-root");
@@ -212,3 +212,62 @@ test("compact HP damage can enter negative hit points", async () => {
     assert.equal(current.value, "-3");
 });
 
+
+
+test("health and kaiju editors own their transient events without full enhancement", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div class="bi-hp-editor">
+        <button class="bi-hp-summary" type="button">HP</button>
+        <div class="bi-hp-popover"><input type="number"></div>
+      </div>
+      <div class="bi-kaiju-pool-editor"><input type="number"></div>
+      <div class="bi-condition-picker"><input></div>
+      <div class="bi-condition-menu"><input></div>
+      <input data-role="roster-field">`;
+    root.append(container);
+
+    for (const selector of [
+        ".bi-hp-summary", ".bi-hp-popover input",
+        ".bi-kaiju-pool-editor input", ".bi-condition-picker input",
+        ".bi-condition-menu input"
+    ]) {
+        const element = container.querySelector(selector);
+        assert.ok(element);
+        const event = new window.Event("input", { bubbles: true });
+        element.dispatchEvent(event);
+        assert.equal(shouldEnhanceForAppEvent(event), false, selector);
+    }
+
+    const ordinary = container.querySelector("[data-role='roster-field']");
+    assert.ok(ordinary);
+    const event = new window.Event("input", { bubbles: true });
+    ordinary.dispatchEvent(event);
+    assert.equal(shouldEnhanceForAppEvent(event), true);
+    container.remove();
+});
+
+test("already-ordered card slots are never reattached on a subsequent render", () => {
+    const card = document.createElement("article");
+    card.className = "bi-runner-member";
+    const identity = document.createElement("div");
+    const metrics = document.createElement("div");
+    const health = document.createElement("input");
+    health.type = "number";
+    metrics.append(health);
+    mountEncounterCardSlot(card, "identity", identity);
+    mountEncounterCardSlot(card, "metrics", metrics);
+    root.append(card);
+
+    let appends = 0;
+    const append = card.append.bind(card);
+    card.append = (...nodes) => {
+        appends += 1;
+        return append(...nodes);
+    };
+    mountEncounterCardSlot(card, "metrics", metrics);
+    mountEncounterCardSlot(card, "identity", identity);
+    assert.equal(appends, 0, "re-render must not detach a focused metric input");
+    assert.equal(health.parentElement, metrics);
+    card.remove();
+});
