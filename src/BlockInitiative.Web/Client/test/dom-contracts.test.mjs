@@ -234,16 +234,22 @@ test("health and kaiju editors own their transient events without full enhanceme
     ]) {
         const element = container.querySelector(selector);
         assert.ok(element);
-        const event = new window.Event("input", { bubbles: true });
-        element.dispatchEvent(event);
-        assert.equal(shouldEnhanceForAppEvent(event), false, selector);
+        let shouldEnhance = null;
+        element.addEventListener("input", event => {
+            shouldEnhance = shouldEnhanceForAppEvent(event);
+        }, { once: true });
+        element.dispatchEvent(new window.Event("input", { bubbles: true }));
+        assert.equal(shouldEnhance, false, selector);
     }
 
     const ordinary = container.querySelector("[data-role='roster-field']");
     assert.ok(ordinary);
-    const event = new window.Event("input", { bubbles: true });
-    ordinary.dispatchEvent(event);
-    assert.equal(shouldEnhanceForAppEvent(event), true);
+    let ordinaryEnhancement = null;
+    ordinary.addEventListener("input", event => {
+        ordinaryEnhancement = shouldEnhanceForAppEvent(event);
+    }, { once: true });
+    ordinary.dispatchEvent(new window.Event("input", { bubbles: true }));
+    assert.equal(ordinaryEnhancement, true);
     container.remove();
 });
 
