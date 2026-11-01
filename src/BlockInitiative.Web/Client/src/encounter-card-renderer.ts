@@ -46,10 +46,14 @@ export function mountEncounterCardSlot(
 }
 
 export function orderEncounterCardSlots(card: HTMLElement): void {
-    const ordered = directCardSlots(card)
-        .sort((left, right) =>
-            slotOrderIndex(left.dataset.cardSlot) - slotOrderIndex(right.dataset.cardSlot));
+    const current = directCardSlots(card);
+    const ordered = [...current].sort((left, right) =>
+        slotOrderIndex(left.dataset.cardSlot) - slotOrderIndex(right.dataset.cardSlot));
 
+    // Re-appending an already ordered child disconnects and reconnects its
+    // focused inputs. This previously broke typing in an open HP popover,
+    // allowing Backspace to navigate the browser instead of editing HP.
+    if (ordered.every((element, index) => element === current[index])) return;
     for (const element of ordered) card.append(element);
 }
 

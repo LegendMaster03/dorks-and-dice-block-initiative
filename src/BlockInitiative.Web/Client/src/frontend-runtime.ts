@@ -20,7 +20,7 @@ import { initializePlayerDisplayOverrides } from "./player-display-overrides";
 import { initializeRulesCoreLinkUi } from "./rules-core-link-ui";
 import { initializeSetupLayoutUi } from "./setup-layout-ui";
 import { initializeTrackerLayoutUi } from "./tracker-layout-ui";
-import { requestEnhancement } from "./render-lifecycle";
+import { requestEnhancement, shouldEnhanceForAppEvent } from "./render-lifecycle";
 
 let initialized = false;
 
@@ -68,13 +68,5 @@ export function initializeFrontendRuntime(): void {
 }
 
 function requestEnhancementForAppEvent(event: Event): void {
-    const target = event.target;
-    const element = target instanceof Element
-        ? target
-        : target instanceof Node
-            ? target.parentElement
-            : null;
-
-    if (element?.closest(".bi-condition-picker, .bi-condition-menu")) return;
-    requestEnhancement();
+    if (shouldEnhanceForAppEvent(event)) requestEnhancement();
 }

@@ -86,3 +86,20 @@ const lifecycle = createRenderLifecycle();
 export const registerAfterRender = lifecycle.registerAfterRender;
 export const requestEnhancement = lifecycle.requestEnhancement;
 export const afterNextEnhancement = lifecycle.afterNextEnhancement;
+
+
+/**
+ * Popovers own their transient input state. Scheduling a complete enhancement
+ * on their clicks and keystrokes can detach their focused inputs mid-edit.
+ * Other app inputs still schedule enhancement and persistence independently.
+ */
+export function shouldEnhanceForAppEvent(event: Event): boolean {
+    const target = event.target;
+    const element = target instanceof Element
+        ? target
+        : target instanceof Node
+            ? target.parentElement
+            : null;
+    return !element?.closest(
+        ".bi-condition-picker, .bi-condition-menu, .bi-hp-editor, .bi-kaiju-pool-editor");
+}
