@@ -101,6 +101,8 @@ export class EncounterRestoreSession {
         // Condition identity now lives in the model and survives rerenders.
     }
 
+    // Recreate roster controls through normal UI actions so subsequent preview
+    // and runner state are produced by the application, not synthesized from storage.
     public async start(): Promise<void> {
         try {
             setInitiativeMode(
@@ -220,6 +222,9 @@ export class EncounterRestoreSession {
         start.click();
     }
 
+    // Restore the active turn by advancing the actual encounter runner until
+    // its authoritative turn identity matches the snapshot. Bound replay so
+    // incompatible saved state fails instead of looping indefinitely.
     private replaySavedTurn(): void {
         if (!this.saved.state
             || !this.lastState
@@ -953,6 +958,8 @@ function replayRulesCoreLinks(
     }
 }
 
+// Setting a select value is not the same as restoring campaign context.
+// Wait for the application to publish the matching campaign-change event.
 async function restoreCampaignSelection(
     root: HTMLElement,
     campaignId: string | null

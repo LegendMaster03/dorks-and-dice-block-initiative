@@ -110,6 +110,8 @@ export function initializeCombatantQuickStatsUi(): void {
     registerAfterRender("combatant-quick-stats", 120, () => enhance(root));
 }
 
+// Rebuild the visible block stack only when its structural signature changes.
+// An unchanged signature needs active-state styling, not fresh DOM controls.
 function ensureAllBlocksRunner(root: HTMLElement): void {
     const state = lastState?.response;
     const preview = lastPreview?.response;
@@ -755,6 +757,8 @@ function collectTemplateIds(root: HTMLElement): Map<string, string> {
     return result;
 }
 
+// Avoid duplicate requests and repeated failures for the same Rules Core
+// template. Explicit template-link events take precedence over fallback loads.
 function queueMissingTemplateStats(root: HTMLElement): void {
     const now = Date.now();
 
