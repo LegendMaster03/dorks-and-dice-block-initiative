@@ -22,6 +22,8 @@ export class EncounterChangeTracker {
     }
 }
 
+// Only update the persisted baseline after storage reports success. A failed
+// write must remain retryable even if the in-memory snapshot has not changed.
 export function persistAutomaticEncounterIfChanged(
     snapshot: SavedEncounter,
     tracker: EncounterChangeTracker,
@@ -39,6 +41,8 @@ export function persistAutomaticEncounterIfChanged(
     return "saved";
 }
 
+// Saving updates savedAt; excluding it prevents a timestamp-only write loop.
+// All other serialized fields remain part of change detection.
 function encounterFingerprint(snapshot: SavedEncounter): string {
     return JSON.stringify({
         ...snapshot,

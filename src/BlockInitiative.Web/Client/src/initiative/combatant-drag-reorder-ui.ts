@@ -441,6 +441,9 @@ function updateReorderControls(runner: HTMLElement): void {
     }
 }
 
+// Reordering must rederive the server preview and running state, not merely
+// move DOM nodes. Preserve the active combatant across block-boundary changes
+// and refuse a stale roster rather than silently dropping or adding members.
 async function applyOrder(
     order: string[],
     focusId: string | null,
@@ -470,6 +473,8 @@ async function applyOrder(
         return;
     }
 
+    // Reconstruct from original encounter inputs, not transient reordered
+    // blocks, so the server applies the manual order to the same combatants.
     const requestBase =
         combatantReorderBaselineRequest()
         ?? previewRequestFrom(lastPreview.request);
