@@ -4,10 +4,11 @@ Block Initiative is a separately deployable Dorks & Dice Tool for building and r
 
 The production integration type is **Embedded Module**. The Dorks & Dice site owns the outer page shell, identity, campaign authority, Tool registration, and routing. Block Initiative owns the encounter workspace rendered inside the host's `#tool-root`.
 
-## Current development slice
+## Encounter workflow
 
-The current implementation establishes the initiative engine and a manual encounter workflow. A DM can:
+The tool supports **Block Initiative** (adjacent allied combatants share a turn block) and **Standard Initiative** (individual combatant turns). Both use the deterministic initiative and encounter-state engine; Standard Initiative does not apply block merging. A DM can:
 
+- choose Block or Standard Initiative for the encounter;
 - add players and enemies using only a name and initiative result;
 - add Kaiju as a distinct turn block type;
 - add additional encounter sides when needed;
@@ -22,7 +23,7 @@ The current implementation establishes the initiative engine and a manual encoun
 
 The UI deliberately separates ordinary encounter setup from advanced mechanics. Character sheets are not required for manual use. Encounter setup, the current running position, HP, conditions, Kaiju state, and the active view are automatically restored from browser-local storage after a reload. A DM can also create named browser-local encounter saves and later load or delete them without disturbing other named saves. These are local to the current browser; server-side and cross-device encounter storage are not implemented.
 
-Kaiju-specific combat tracking is implemented as a dedicated module rather than folded into ordinary enemy HP. It tracks Chaos Threshold, Vulnerable Areas, Behaviour / phase, Rampage, Death Throes, Finishing Blow state, defeat state, and DM overrides. Those values are included in automatic and named encounter saves.
+Kaiju-specific combat tracking is implemented as a dedicated module rather than folded into ordinary enemy HP. It tracks Chaos Threshold, Vulnerable Areas, Behaviour / phase, Rampage, Death Throes, Finishing Blow state, defeat state, and DM overrides. Those values are included in automatic and named encounter saves. Running encounters also support manual combatant reordering with undo/reset and deterministic re-derivation of blocks, without modifying the original initiative rolls.
 
 ## Stack
 
@@ -32,7 +33,7 @@ Kaiju-specific combat tracking is implemented as a dedicated module rather than 
 - Docker
 - xUnit
 
-No server-side persistence technology has been selected yet. The current encounter uses browser `localStorage` for automatic reload recovery.
+No server-side encounter persistence is implemented. The current encounter and named saves use browser `localStorage`; see [encounter persistence](docs/encounter-persistence.md) for stored fields, restore behavior, and schema migration safeguards.
 
 ## Projects
 
@@ -52,6 +53,6 @@ No server-side persistence technology has been selected yet. The current encount
 
 ## Design sources
 
-The block initiative rules are based on `docs/block-initiative-system.md` in the `docs/hybrid-rules-design-notes` branch of the Rules Core repository. The tabletop rule remains the source of truth; implementation guidance in that document is subject to discussion as development continues.
+The original tabletop initiative design was documented in an earlier Rules Core development branch; the referenced `docs/hybrid-rules-design-notes` branch and `docs/block-initiative-system.md` are no longer present. For the current deterministic implementation, consult `src/BlockInitiative.Core/Initiative/` and its tests in `tests/BlockInitiative.Core.Tests/`. The Rules Core consumer boundary and native monster/condition lookup rules are described in [Rules Core API integration](docs/rules-core-native-api-migration.md).
 
 Kaiju integration uses Loot Tavern's public **Kaiju Fighting Lite v1.05** distribution associated with *Ryoko's Guide to the Yokai Realms* as the external rules reference. See `docs/kaiju-integration.md` for the implementation boundary and source link.
