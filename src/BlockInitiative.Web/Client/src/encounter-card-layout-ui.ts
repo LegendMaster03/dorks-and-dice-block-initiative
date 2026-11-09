@@ -1,3 +1,8 @@
+/**
+ * Installs the runner-card layout styles without owning card content.
+ * Named slots and state mounting are handled by encounter-card-renderer.
+ */
+
 let initialized = false;
 
 export function initializeEncounterCardLayoutUi(): void {

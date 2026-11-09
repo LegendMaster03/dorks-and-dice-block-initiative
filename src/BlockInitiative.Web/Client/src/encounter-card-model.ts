@@ -1,3 +1,9 @@
+/**
+ * Pure projections for combat statistics shown on encounter cards.
+ * Template values and local overrides are combined for presentation without
+ * rewriting either source.
+ */
+
 import type { MonsterCombatStats } from "./roster/monster-combat-stats";
 
 export interface QuickStatsDefenseRow {

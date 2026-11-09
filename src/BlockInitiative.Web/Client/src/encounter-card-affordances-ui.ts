@@ -1,3 +1,9 @@
+/**
+ * Adds contextual actions, condition presentation, and initiative labels to
+ * reusable runner cards. Enhancements are derived from active encounter
+ * events; stateful combat data is owned by the corresponding feature modules.
+ */
+
 import { mountEncounterCardSlot } from "./encounter-card-renderer";
 import { ensureRunnerConditionEditor } from "./conditions/condition-tracking-ui";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";

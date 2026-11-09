@@ -1,3 +1,8 @@
+/**
+ * Applies roster and tracker layout enhancements after render.
+ * Structural styling is independent of the combatant and initiative models.
+ */
+
 import { registerAfterRender } from "./render-lifecycle";
 
 let initialized = false;

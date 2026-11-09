@@ -1,3 +1,8 @@
+/**
+ * Installs player-specific visual overrides without changing combatant data,
+ * API inputs, or initiative ordering.
+ */
+
 export function initializePlayerDisplayOverrides(): void {
     const root = document.getElementById("tool-root");
     if (!(root instanceof HTMLElement)) return;

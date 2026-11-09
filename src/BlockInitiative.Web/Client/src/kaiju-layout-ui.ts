@@ -1,3 +1,9 @@
+/**
+ * Enhances Kaiju setup fields and vulnerable-area controls with consistent
+ * pool editing. Layout controls change raw tracker inputs; derived Kaiju
+ * status remains the responsibility of the combat-state evaluation flow.
+ */
+
 import {
     applyNumberLimits,
     NON_NEGATIVE_TRACKER_LIMITS,

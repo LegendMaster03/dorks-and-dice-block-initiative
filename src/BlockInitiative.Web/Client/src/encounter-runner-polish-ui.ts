@@ -1,3 +1,9 @@
+/**
+ * Applies runner navigation emphasis and compact combat metrics after
+ * rendering. Keeps presentation adjustments separate from the encounter
+ * runner's turn-state lifecycle.
+ */
+
 import { renderEncounterCardMetrics } from "./encounter-card-renderer";
 import { registerAfterRender } from "./render-lifecycle";
 

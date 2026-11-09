@@ -1,3 +1,9 @@
+/**
+ * Enhances encounter setup fields and the transition from preview to play.
+ * A preview requiring tie adjudication must not be treated as a completed
+ * initiative decision merely because setup is otherwise ready.
+ */
+
 import { applyNumberLimits, TRACKER_LIMITS } from "./numeric-input-limits";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";
 
