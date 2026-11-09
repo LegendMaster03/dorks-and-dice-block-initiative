@@ -1,3 +1,9 @@
+/**
+ * Coordinates Standard and Kaiju combat-state widgets with the active
+ * encounter. Combat-state ownership stays in the respective feature modules;
+ * this file responds to roster and turn-state lifecycle events.
+ */
+
 import {
     clearKaijuCombatState,
     ensureKaijuCombatSetup,

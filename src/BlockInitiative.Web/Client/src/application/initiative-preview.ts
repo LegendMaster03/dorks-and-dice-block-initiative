@@ -1,3 +1,9 @@
+/**
+ * Presents the server's proposed initiative layout for review, tie
+ * adjudication, and encounter start/resume. It does not recalculate turn
+ * order or silently resolve unresolved server-reported ties.
+ */
+
 import type {
     InitiativePreviewRequest,
     InitiativePreviewResponse

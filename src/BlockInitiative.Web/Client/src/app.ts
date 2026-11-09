@@ -1,3 +1,9 @@
+/**
+ * Composes the Block Initiative application from roster, preview, encounter
+ * runner, and Tool Host adapters. Rules and feature-specific UI state belong
+ * to their modules; this entry point coordinates readiness and lifecycle.
+ */
+
 import {
     publishInitiativePreview,
     requestInitiativePreview

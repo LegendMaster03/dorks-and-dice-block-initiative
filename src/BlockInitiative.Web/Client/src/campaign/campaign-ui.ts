@@ -1,3 +1,9 @@
+/**
+ * Connects campaign-owned characters from Tool Host to the local encounter
+ * roster. UI imports are explicit; loading campaign context does not by
+ * itself replace an encounter or change initiative state.
+ */
+
 import { charactersMissingFromEncounter } from "./campaign-roster";
 import {
     loadToolHostCampaignContext,

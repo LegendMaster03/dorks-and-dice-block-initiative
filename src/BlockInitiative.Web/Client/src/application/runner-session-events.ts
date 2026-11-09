@@ -1,3 +1,9 @@
+/**
+ * Browser event boundary for replacing a runner session and coordinating
+ * temporary mutation locks across independent feature modules.
+ * Producers do not need a reference to the runner controller.
+ */
+
 import type {
     InitiativePreviewRequest,
     InitiativePreviewResponse,
@@ -60,6 +66,9 @@ export function isEncounterRunnerMutationLocked(): boolean {
     return activeMutationLocks.size > 0;
 }
 
+/** A lock is identified by its source so independent callers can release
+ * their own lock without reopening the runner for another pending operation.
+ */
 export function setEncounterRunnerMutationLock(
     source: string,
     locked: boolean

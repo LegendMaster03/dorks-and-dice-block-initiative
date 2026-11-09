@@ -1,3 +1,9 @@
+/**
+ * Defines the embedding site's Tool Host context and resolves service URLs.
+ * Keep base-URL negotiation here so feature modules do not hardcode the host
+ * site's deployment paths or authentication context.
+ */
+
 export interface ToolHostUserContext {
     id: string;
     displayName: string;

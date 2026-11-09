@@ -1,3 +1,8 @@
+/**
+ * Shared, presentation-only label and badge helpers. These transformations
+ * must not change alliance identities or derive game rules.
+ */
+
 import type { TurnBlockType } from "../api";
 
 export function friendlyAlliance(value: string): string {

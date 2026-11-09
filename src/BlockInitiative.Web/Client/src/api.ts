@@ -1,3 +1,9 @@
+/**
+ * Typed transport contract for the initiative API and its browser events.
+ * Request/response types mirror the server endpoints; the core rules engine
+ * remains authoritative for initiative ordering and turn progression.
+ */
+
 import { initializeFrontendRuntime } from "./frontend-runtime";
 import { getInitiativeMode, initializeInitiativeModeUi } from "./initiative/initiative-mode";
 import type { InitiativeMode } from "./initiative/initiative-mode";
