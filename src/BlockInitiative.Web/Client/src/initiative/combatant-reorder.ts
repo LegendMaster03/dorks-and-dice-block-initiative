@@ -1,3 +1,9 @@
+/**
+ * Pure combatant-order operations shared by pointer and keyboard controls.
+ * Membership checks ensure drag operations can change position but not the
+ * underlying set of combatants.
+ */
+
 export type DropPlacement = "before" | "after";
 
 export function moveCombatant(

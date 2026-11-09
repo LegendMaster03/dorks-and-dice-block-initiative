@@ -1,3 +1,9 @@
+/**
+ * Shared client-side number bounds and text-entry validation for initiative
+ * and combat trackers. Browser parsing and keyboard filtering complement
+ * server validation; they are not a trust boundary by themselves.
+ */
+
 export type NumericLimits = Readonly<{
     min: number;
     max: number;

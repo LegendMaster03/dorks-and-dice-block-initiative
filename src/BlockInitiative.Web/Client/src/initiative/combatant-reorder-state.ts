@@ -1,3 +1,9 @@
+/**
+ * Stores the baseline order and undo history for manual combatant movement.
+ * These values are serializable alongside a running encounter so restoring
+ * a save does not silently discard reorder history.
+ */
+
 import type {
     InitiativePreviewRequest
 } from "../api";

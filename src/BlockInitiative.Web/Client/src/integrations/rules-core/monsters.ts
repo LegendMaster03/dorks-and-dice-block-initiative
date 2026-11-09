@@ -1,3 +1,9 @@
+/**
+ * Retrieves native Rules Core monster entries and projects combat stats for
+ * roster templates. Rule content is sourced from Rules Core; the tracker
+ * retains references and user-edited encounter values separately.
+ */
+
 import { projectMonsterCombatStats } from "../../roster/monster-combat-stats.js";
 import type { MonsterCombatStats } from "../../roster/monster-combat-stats.js";
 import { getRulesCoreJson, nativeRulesetId, searchRulesCoreEntity } from "./client.js";

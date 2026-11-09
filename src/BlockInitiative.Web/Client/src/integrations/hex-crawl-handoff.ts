@@ -1,3 +1,9 @@
+/**
+ * Parses a one-time Hex Crawl encounter handoff at the application boundary.
+ * Validate transferred combatants and provenance before exposing values to
+ * roster import; handoff data is not itself an active encounter.
+ */
+
 export type HexCrawlHandoffCombatant = {
     name: string;
     side: "players" | "enemies";

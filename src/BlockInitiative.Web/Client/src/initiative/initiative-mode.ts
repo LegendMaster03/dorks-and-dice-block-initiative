@@ -1,3 +1,9 @@
+/**
+ * Coordinates the selected initiative mode across setup, preview, and runner
+ * presentation. Mode-specific turn grouping and ties are calculated by the
+ * server strategy, not this UI module.
+ */
+
 import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
 
 export type InitiativeMode = "block" | "standard";

@@ -1,3 +1,9 @@
+/**
+ * Decorates preview and runner combatant names with available Rules Core
+ * navigation. Links are presentation metadata and never a prerequisite for
+ * combatant identity or initiative calculation.
+ */
+
 import { toHostedToolHref } from "./integrations/rules-core/client";
 import type { RuleBrowserLink } from "./integrations/rules-core/client";
 import { registerAfterRender, requestEnhancement } from "./render-lifecycle";

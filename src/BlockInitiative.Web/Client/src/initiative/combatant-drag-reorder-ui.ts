@@ -1,3 +1,9 @@
+/**
+ * Applies DM combatant reordering from pointer and keyboard controls.
+ * Preview and turn state are refreshed through the initiative API; moving
+ * cards must not locally fabricate server-derived blocks or turn order.
+ */
+
 import {
     getRuntimeManualOrder,
     publishInitiativePreview,
@@ -295,6 +301,8 @@ function nearestBlock(root: HTMLElement, clientY: number): HTMLElement | null {
     return best;
 }
 
+// Read the proposed order from the drop indicator, then reject any drag
+// result that lost, duplicated, or introduced a combatant identity.
 function orderFromIndicator(root: HTMLElement, session: DragSession): string[] | null {
     const order: string[] = [];
     let inserted = false;

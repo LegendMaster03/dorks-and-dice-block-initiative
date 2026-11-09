@@ -1,3 +1,8 @@
+/**
+ * Small Rules Core adapter for searchable conditions and leveled conditions.
+ * Search result identity stays in the shared native consumer contract.
+ */
+
 import { searchRulesCoreEntity } from "./client.js";
 import type { RulesCoreSearchMatch } from "./client.js";
 

@@ -1,3 +1,9 @@
+/**
+ * Adds initiative rolling controls for individual combatants and groups.
+ * Die selection is delegated to roll-selection; resulting initiative totals
+ * remain explicit inputs to the server preview.
+ */
+
 import {
     INITIATIVE_LIMITS,
     parseBoundedNumber
@@ -348,6 +354,8 @@ function requiresManualEmphasisSelection(selection: D20RollSelection): boolean {
     return selection.tied && selection.rolls[0] !== selection.rolls[1];
 }
 
+// Different dice can tie under Emphasis's distance-from-ten rule.
+ // Do not choose silently; require the DM to resolve the selection.
 function markManualEmphasisSelection(
     card: HTMLElement,
     selection: D20RollSelection

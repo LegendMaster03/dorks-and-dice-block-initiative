@@ -1,3 +1,9 @@
+/**
+ * Native Rules Core consumer gateway. Resolves the active first-party ruleset,
+ * searches canonical rule content, and reports unavailable or unauthorized
+ * responses without falling back to local rules adjudication.
+ */
+
 /** The first playable native ruleset. Other rulesets require an explicit selection contract. */
 export const nativeRulesetId = "first-party-001";
 
