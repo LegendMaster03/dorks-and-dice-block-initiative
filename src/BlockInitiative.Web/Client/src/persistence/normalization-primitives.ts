@@ -1,3 +1,9 @@
+/**
+ * Narrow, reusable guards for reading untrusted persisted values.
+ * Feature-specific migration rules should be built on these primitives,
+ * rather than weakening the accepted input types.
+ */
+
 export function record(
     value: unknown
 ): Record<string, unknown> | null {

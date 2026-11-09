@@ -1,3 +1,8 @@
+/**
+ * Removes stale default-only values from older browser encounter data.
+ * This compatibility cleanup is separate from the current v4 serializer.
+ */
+
 const encounterStorageKey = "dorks-and-dice:block-initiative:encounter:v1";
 
 type StoredControl = {

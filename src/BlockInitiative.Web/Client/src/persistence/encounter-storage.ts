@@ -1,3 +1,8 @@
+/**
+ * Browser storage adapter for automatic and named encounter snapshots.
+ * Versioned keys and normalization belong here, not in UI event handlers.
+ */
+
 import {
     normalizeSavedEncounter
 } from "./encounter-migration.js";

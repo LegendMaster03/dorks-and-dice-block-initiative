@@ -141,6 +141,9 @@ export class EncounterRestoreSession {
 
             restoreControllerOptions(this.root, this.saved);
 
+            // Several fields are introduced by post-render enhancements.
+            // Let those controls mount before restoring their runtime values.
+
             requestEnhancement();
             await nextTask();
             requestEnhancement();
@@ -220,6 +223,11 @@ export class EncounterRestoreSession {
         start.click();
     }
 
+    /**
+     * Reaches the saved active turn through the same runner transition path
+     * used during normal play. The replay limit bounds corrupt or impossible
+     * snapshots rather than looping indefinitely.
+     */
     private replaySavedTurn(): void {
         if (!this.saved.state
             || !this.lastState

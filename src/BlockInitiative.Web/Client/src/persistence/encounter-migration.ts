@@ -1,3 +1,9 @@
+/**
+ * Validates and migrates browser-stored encounter snapshots into the current
+ * schema before restoration. Runtime code should consume normalized values
+ * rather than trusting JSON loaded from local storage.
+ */
+
 import {
     normalizePreviewDetail,
     normalizeReorderRuntime,

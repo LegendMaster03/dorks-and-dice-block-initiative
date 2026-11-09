@@ -1,3 +1,9 @@
+/**
+ * Coordinates browser autosave, named encounter copies, and restoration.
+ * Autosave is suspended while a saved session is replayed, reset, or
+ * navigated away; capture and storage policy live in dedicated modules.
+ */
+
 import {
     captureEncounter
 } from "./persistence/encounter-capture";
@@ -56,6 +62,8 @@ export function initializeEncounterPersistence(): void {
         restoreSession = createRestoreSession(root, savedEncounter);
     }
 
+    // Establish the loaded or initially rendered snapshot as the baseline.
+    // Initialization alone must not claim that an encounter was saved.
     changeTracker = new EncounterChangeTracker(
         savedEncounter ?? captureCurrentEncounter(root));
 

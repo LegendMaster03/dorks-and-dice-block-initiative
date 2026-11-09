@@ -1,3 +1,8 @@
+/**
+ * Tracks the last successfully persisted encounter, independently of DOM
+ * events. Autosave only reports a write when meaningful state has changed.
+ */
+
 import type { SavedEncounter } from "./encounter-schema";
 
 export type AutomaticEncounterSaveResult =
@@ -39,6 +44,7 @@ export function persistAutomaticEncounterIfChanged(
     return "saved";
 }
 
+// A change in the save timestamp alone does not constitute encounter data.
 function encounterFingerprint(snapshot: SavedEncounter): string {
     return JSON.stringify({
         ...snapshot,

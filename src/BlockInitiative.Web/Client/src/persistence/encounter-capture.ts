@@ -1,3 +1,9 @@
+/**
+ * Captures a complete encounter snapshot from the current setup, runner,
+ * and feature-owned runtime state. Saving must include optional Kaiju,
+ * conditions, turn markers, and template references, not only the roster.
+ */
+
 import {
     conditionsFor
 } from "../conditions/condition-model";

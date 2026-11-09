@@ -1,3 +1,9 @@
+/**
+ * Versioned persistence contract covering setup, initiative decisions,
+ * running-turn state, and all feature-specific combat metadata.
+ * A named save and the automatic save use the same complete encounter shape.
+ */
+
 import type {
     InitiativePreviewRequest,
     InitiativePreviewResponse,

@@ -1,3 +1,9 @@
+/**
+ * Selector and control-key helpers shared by capture and restoration.
+ * Direct-child queries prevent nested card controls from being mistaken for
+ * the containing combatant's own fields.
+ */
+
 export function directCards(container: HTMLElement): HTMLElement[] {
     return Array.from(
         container.querySelectorAll<HTMLElement>(

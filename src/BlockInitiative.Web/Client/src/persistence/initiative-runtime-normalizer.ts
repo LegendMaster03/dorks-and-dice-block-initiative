@@ -1,3 +1,9 @@
+/**
+ * Reconstructs typed initiative requests, previews, and turn responses from
+ * unknown stored JSON. These guards protect restoration from stale or
+ * malformed data; they do not independently adjudicate initiative rules.
+ */
+
 import type {
     CyclicMergePreview,
     InitiativeBlockPreview,

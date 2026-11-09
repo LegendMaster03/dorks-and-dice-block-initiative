@@ -1,3 +1,9 @@
+/**
+ * Normalizes persisted combatant, group, condition, and combat-runtime data.
+ * Each field is checked at the storage boundary before it reaches live UI
+ * state, including optional values from older encounter versions.
+ */
+
 import type {
     SavedCombatant,
     SavedCondition,
