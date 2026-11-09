@@ -1,3 +1,9 @@
+/**
+ * Duplicates manual and Rules Core-backed enemies while preserving the
+ * template link and editable combat values. Some controls mount after
+ * rendering, so delayed copies must target the corresponding new card.
+ */
+
 import { afterNextEnhancement, registerAfterRender, requestEnhancement } from "../render-lifecycle";
 
 let initialized = false;

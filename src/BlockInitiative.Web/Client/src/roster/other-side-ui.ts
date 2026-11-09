@@ -1,3 +1,9 @@
+/**
+ * Enables additional encounter alliances beyond the player/enemy defaults.
+ * Each side can contain Standard and Kaiju blocks while retaining its own
+ * identity for the initiative engine.
+ */
+
 import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
 
 let initialized = false;

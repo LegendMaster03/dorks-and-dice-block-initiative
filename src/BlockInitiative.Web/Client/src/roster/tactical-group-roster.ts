@@ -1,3 +1,9 @@
+/**
+ * Manages tactical-group cards and their initiative input mode.
+ * Group membership remains explicit setup data; effective initiative is
+ * calculated by the server using the selected group mode.
+ */
+
 import type {
     TacticalGroupInitiativeMode
 } from "../api";

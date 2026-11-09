@@ -1,3 +1,9 @@
+/**
+ * Coordinates setup combatants, tactical groups, controllers, and roster
+ * readiness. The controller translates editable cards into API inputs;
+ * it does not determine initiative turn grouping or adjudicate ties.
+ */
+
 import {
     createBadge,
     formatNumber,

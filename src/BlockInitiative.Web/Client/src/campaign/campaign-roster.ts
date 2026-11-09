@@ -1,3 +1,9 @@
+/**
+ * Identifies campaign characters that are not already represented in the
+ * encounter. Stable campaign character IDs take precedence over names when
+ * deciding whether an import would be a duplicate.
+ */
+
 export interface ExistingCampaignCombatant {
     campaignCharacterId: string | null;
     name: string;

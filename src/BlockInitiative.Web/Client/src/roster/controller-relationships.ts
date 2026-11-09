@@ -1,3 +1,9 @@
+/**
+ * Pure validation for optional controller-to-combatant relationships.
+ * This client-side feedback catches broken references and cycles before
+ * submission; the initiative engine validates the authoritative input.
+ */
+
 export type ControllerAssignment = {
     id: string;
     name: string;

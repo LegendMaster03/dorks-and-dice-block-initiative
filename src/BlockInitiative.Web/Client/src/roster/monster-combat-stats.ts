@@ -1,3 +1,9 @@
+/**
+ * Projects heterogeneous Rules Core monster documents into the tracker's
+ * displayable combat statistics. Native and legacy field representations
+ * are handled here, without changing the source monster document.
+ */
+
 export const abilityKeys = ["STR", "DEX", "CON", "INT", "WIS", "CHA"] as const;
 export type AbilityKey = typeof abilityKeys[number];
 

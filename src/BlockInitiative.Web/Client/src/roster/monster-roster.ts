@@ -1,3 +1,9 @@
+/**
+ * Owns monster search, template selection, and roster-card population.
+ * The service requests canonical monster data from Rules Core and delegates
+ * encounter group membership to the roster controller.
+ */
+
 import {
     loadMonsterTemplate,
     searchRulesCoreMonsters
