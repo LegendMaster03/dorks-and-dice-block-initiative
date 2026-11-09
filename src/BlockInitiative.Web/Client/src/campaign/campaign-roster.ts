@@ -1,7 +1,7 @@
 /**
  * Identifies campaign characters that are not already represented in the
- * encounter. Stable campaign character IDs take precedence over names when
- * deciding whether an import would be a duplicate.
+ * encounter. Duplicate detection uses stable campaign character IDs rather than
+ * names, which are not reliable unique identifiers.
  */
 
 export interface ExistingCampaignCombatant {

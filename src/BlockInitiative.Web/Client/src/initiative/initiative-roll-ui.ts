@@ -355,7 +355,7 @@ function requiresManualEmphasisSelection(selection: D20RollSelection): boolean {
 }
 
 // Different dice can tie under Emphasis's distance-from-ten rule.
- // Do not choose silently; require the DM to resolve the selection.
+// Do not choose silently; require the DM to resolve the selection.
 function markManualEmphasisSelection(
     card: HTMLElement,
     selection: D20RollSelection
