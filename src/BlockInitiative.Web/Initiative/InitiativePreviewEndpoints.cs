@@ -4,6 +4,10 @@ using BlockInitiative.Web.Validation;
 
 namespace BlockInitiative.Web.Initiative;
 
+/// <summary>
+/// HTTP translation layer for initiative previews and turn-state traversal.
+/// Validates client payloads and delegates rule decisions to the core engine.
+/// </summary>
 public static class InitiativePreviewEndpoints
 {
     public static IEndpointRouteBuilder MapInitiativePreviewEndpoints(this IEndpointRouteBuilder endpoints)
@@ -39,6 +43,8 @@ public static class InitiativePreviewEndpoints
         }
     }
 
+    // The state endpoint reconstructs a deterministic snapshot from the
+    // supplied layout and optional resume anchor; it holds no server session.
     private static IResult State(InitiativeTurnStateRequest request)
     {
         if (request.Combatants is null)

@@ -23,6 +23,8 @@ app.MapGet("/api", () => Results.Ok(new
     status = "initiative-and-combat-tracking"
 }));
 
+// The host only exposes transport and static assets. Combat rules are
+// implemented in the core library and invoked through endpoint adapters.
 app.MapInitiativePreviewEndpoints();
 app.MapKaijuTrackingEndpoints();
 

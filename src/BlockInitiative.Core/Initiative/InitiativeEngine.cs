@@ -1,7 +1,16 @@
 namespace BlockInitiative.Core.Initiative;
 
+/// <summary>
+/// Builds a rules-mode-specific turn layout from immutable combatant facts.
+/// Grouping, controller inheritance, ordering, and tie adjudication are
+/// resolved here; turn progression is owned by EncounterTurnState.
+/// </summary>
 public static class InitiativeEngine
 {
+    /// <summary>
+    /// Resolves effective initiative and produces the initial turn sequence.
+    /// A manual order is a complete DM override, not a partial sorting hint.
+    /// </summary>
     public static InitiativeLayout Build(
         IEnumerable<CombatantInitiative> combatants,
         IReadOnlyList<string>? manualOrderOverride = null,
@@ -30,6 +39,8 @@ public static class InitiativeEngine
         var issues = new List<InitiativeIssue>();
         InitiativePlacement[] ordered;
 
+        // When the DM supplies an order, preserve it exactly and do not
+        // report ties that have already been adjudicated.
         if (manualOrderOverride is not null)
         {
             ValidateManualOrder(manualOrderOverride, source);
@@ -82,6 +93,8 @@ public static class InitiativeEngine
 
         return resolved;
 
+        // Controller links inherit the controller's effective initiative, even
+        // through multiple levels. The path set rejects cyclic relationships.
         decimal Resolve(
             CombatantInitiative combatant,
             HashSet<string> path)

@@ -3,6 +3,11 @@ using System.Text.Json;
 
 namespace BlockInitiative.Web.Validation;
 
+/// <summary>
+/// Shared server-side bounds for untrusted numeric tracker inputs. Numeric
+/// validation occurs before conversion to core domain types so malformed or
+/// out-of-range JSON returns a client error instead of overflowing.
+/// </summary>
 public static class NumericInputLimits
 {
     public const decimal InitiativeMinimum = -1_000_000m;

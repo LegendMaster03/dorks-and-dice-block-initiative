@@ -4,6 +4,10 @@ using BlockInitiative.Web.Validation;
 
 namespace BlockInitiative.Web.Combat;
 
+/// <summary>
+/// Accepts bounded Kaiju tracker inputs and returns a derived evaluation.
+/// The endpoint does not own mutable combat state or override decisions.
+/// </summary>
 public static class KaijuTrackingEndpoints
 {
     public static IEndpointRouteBuilder MapKaijuTrackingEndpoints(this IEndpointRouteBuilder endpoints)
