@@ -1,3 +1,9 @@
+/**
+ * Selects a d20 result from caller-provided rolls. Emphasis chooses the die
+ * farthest from 10; ties retain the first die. The pure selection function is
+ * separate from the random-number generator for testability.
+ */
+
 export type D20RollMode = "normal" | "advantage" | "disadvantage" | "emphasis";
 
 export type D20RollSelection = {

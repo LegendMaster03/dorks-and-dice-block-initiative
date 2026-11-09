@@ -1,3 +1,9 @@
+/**
+ * Enhances setup and encounter cards with editable combat statistics, active
+ * turn presentation, and manual/Rules Core template stat projection.
+ * Rendering must preserve in-progress edits and feature-owned state.
+ */
+
 import {
     clearActedRounds,
     isCombatantActed,

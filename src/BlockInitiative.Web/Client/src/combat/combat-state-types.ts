@@ -1,3 +1,8 @@
+/**
+ * Minimal event projections consumed by combat-state adapters. These shapes
+ * identify active combatants without duplicating the full initiative API model.
+ */
+
 export type PreviewCombatant = {
     id: string;
     name: string;

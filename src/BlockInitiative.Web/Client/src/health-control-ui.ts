@@ -1,3 +1,9 @@
+/**
+ * Enhances existing hit-point fields with a keyboard-editable current/max
+ * control and adjustment actions. Input bounds and active edits must remain
+ * consistent with the underlying tracker fields.
+ */
+
 import {
     applyNumberLimits,
     NON_NEGATIVE_TRACKER_LIMITS,

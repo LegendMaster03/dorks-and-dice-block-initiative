@@ -1,3 +1,9 @@
+/**
+ * Browser-owned Kaiju tracker state and UI. Raw values, table overrides, and
+ * per-turn damage are persisted locally; derived outcomes are requested from
+ * the Kaiju evaluation endpoint instead of recalculated in the client.
+ */
+
 import {
     mountEncounterCardState,
     removeEncounterCardState
@@ -709,6 +715,11 @@ function renderKaiju(
     return panel;
 }
 
+/**
+ * Increment the per-combatant revision for every requested evaluation.
+ * One request may be in flight; completion starts a fresh evaluation if the
+ * state changed while that request was pending.
+ */
 async function evaluateKaiju(
     id: string,
     state: KaijuState,
@@ -872,6 +883,8 @@ function notifyCombatStateChanged(): void {
             "block-initiative:combat-state-change"));
 }
 
+// Delay replacing a panel while one of its text inputs has focus. Otherwise
+// an asynchronous evaluation could discard an active keyboard edit.
 function requestKaijuCardRefresh(
     root: HTMLElement,
     combatantId: string

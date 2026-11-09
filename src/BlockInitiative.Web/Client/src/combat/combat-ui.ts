@@ -1,3 +1,8 @@
+/**
+ * Shared combat-state control constructors and override-value conversion.
+ * Feature modules own the meaning and persistence of their input values.
+ */
+
 import {
     applyNumberLimits,
     NON_NEGATIVE_TRACKER_LIMITS,

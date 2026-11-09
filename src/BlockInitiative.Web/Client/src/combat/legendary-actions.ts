@@ -1,3 +1,9 @@
+/**
+ * Tracks the optional legendary-action reference and use counters for enemy
+ * combatants. Runtime metadata is kept separate from the encounter card DOM
+ * so it can be restored and reused across rerenders.
+ */
+
 import {
     mountEncounterCardState,
     removeEncounterCardState

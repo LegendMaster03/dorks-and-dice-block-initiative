@@ -1,3 +1,9 @@
+/**
+ * In-memory encounter condition records keyed by combatant identity.
+ * Conditions are explicitly added, edited, and pruned, and keep their
+ * Rules Core references or manual origin without resolving rules locally.
+ */
+
 import type { RuleBrowserLink } from "../integrations/rules-core/client";
 
 export type ConditionOrigin = "rules-core" | "source" | "manual";

@@ -1,3 +1,9 @@
+/**
+ * Renders condition editing and Rules Core condition lookup. Selected
+ * conditions retain rule provenance and notes in the condition model;
+ * the editor does not implement or reinterpret condition mechanics.
+ */
+
 import { searchRulesCoreConditions } from "../integrations/rules-core/conditions";
 import {
     applyNumberLimits,

@@ -1,3 +1,9 @@
+/**
+ * Installs condition editors in setup, preview, and running encounters.
+ * Presentation is recreated after rendering from the condition model so
+ * condition state is not tied to a particular card element.
+ */
+
 import { registerAfterRender, requestEnhancement } from "../render-lifecycle";
 import {
     createConditionEditor,

@@ -1,3 +1,9 @@
+/**
+ * Tracks which encounter rounds each combatant has already acted in.
+ * The per-round history is independent of the current turn layout and must
+ * survive save/restore as well as ordinary card rerenders.
+ */
+
 const actedRoundsByCombatant =
     new Map<string, Set<number>>();
 

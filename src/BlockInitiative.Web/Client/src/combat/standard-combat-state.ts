@@ -1,3 +1,8 @@
+/**
+ * Maintains ordinary combatant hit-point tracker state and related controls.
+ * Lifecycle helpers remove stale state when combatants leave the encounter.
+ */
+
 import {
     NON_NEGATIVE_TRACKER_LIMITS,
     TRACKER_LIMITS
